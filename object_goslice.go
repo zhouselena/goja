@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 )
@@ -213,6 +214,7 @@ func (o *objectGoSlice) toPrimitiveString() Value {
 }
 
 func (o *objectGoSlice) toPrimitive() Value {
+	fmt.Printf("base object go slice is %+v\n", o)
 	return o.toPrimitiveString()
 }
 

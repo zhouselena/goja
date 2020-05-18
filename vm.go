@@ -1,7 +1,9 @@
 package goja
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"math"
 	"runtime"
 	"strconv"
@@ -24,7 +26,8 @@ type stash struct {
 	outer *stash
 }
 
-type context struct {
+type vmContext struct {
+	ctx      context.Context
 	prg      *Program
 	funcName string
 	stash    *stash
@@ -97,6 +100,7 @@ func (r *unresolvedRef) refname() string {
 }
 
 type vm struct {
+	ctx          context.Context
 	r            *Runtime
 	prg          *Program
 	funcName     string
@@ -105,7 +109,7 @@ type vm struct {
 	sp, sb, args int
 
 	stash     *stash
-	callStack []context
+	callStack []vmContext
 	iterStack []iterStackItem
 	refStack  []ref
 
@@ -328,9 +332,10 @@ func (vm *vm) captureStack(stack []stackFrame, ctxOffset int) []stackFrame {
 	return stack
 }
 
-func (vm *vm) try(f func()) (ex *Exception) {
-	var ctx context
+func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
+	var ctx vmContext
 	vm.saveCtx(&ctx)
+	ctx.ctx = ctx1
 
 	ctxOffset := len(vm.callStack)
 	sp := vm.sp
@@ -339,6 +344,7 @@ func (vm *vm) try(f func()) (ex *Exception) {
 
 	defer func() {
 		if x := recover(); x != nil {
+			log.Printf("context: %+v\n", ctx1)
 			defer func() {
 				vm.callStack = vm.callStack[:ctxOffset]
 				vm.restoreCtx(&ctx)
@@ -384,8 +390,8 @@ func (vm *vm) try(f func()) (ex *Exception) {
 	return
 }
 
-func (vm *vm) runTry() (ex *Exception) {
-	return vm.try(vm.run)
+func (vm *vm) runTry(ctx context.Context) (ex *Exception) {
+	return vm.try(ctx, vm.run)
 }
 
 func (vm *vm) push(v Value) {
@@ -403,7 +409,7 @@ func (vm *vm) peek() Value {
 	return vm.stack[vm.sp-1]
 }
 
-func (vm *vm) saveCtx(ctx *context) {
+func (vm *vm) saveCtx(ctx *vmContext) {
 	ctx.prg = vm.prg
 	ctx.funcName = vm.funcName
 	ctx.stash = vm.stash
@@ -421,17 +427,18 @@ func (vm *vm) pushCtx() {
 			sb: vm.sb,
 			args: vm.args,
 		})*/
-	vm.callStack = append(vm.callStack, context{})
+	vm.callStack = append(vm.callStack, vmContext{})
 	vm.saveCtx(&vm.callStack[len(vm.callStack)-1])
 }
 
-func (vm *vm) restoreCtx(ctx *context) {
+func (vm *vm) restoreCtx(ctx *vmContext) {
 	vm.prg = ctx.prg
 	vm.funcName = ctx.funcName
 	vm.pc = ctx.pc
 	vm.stash = ctx.stash
 	vm.sb = ctx.sb
 	vm.args = ctx.args
+	vm.ctx = ctx.ctx
 }
 
 func (vm *vm) popCtx() {
@@ -1755,6 +1762,7 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) {
 		vm.prg = nil
 		vm.funcName = f.nameProp.get(nil).String()
 		ret := f.f(FunctionCall{
+			ctx:       vm.ctx,
 			Arguments: vm.stack[vm.sp-n : vm.sp],
 			This:      vm.stack[vm.sp-n-2],
 		})
@@ -2173,7 +2181,7 @@ type try struct {
 func (t try) exec(vm *vm) {
 	o := vm.pc
 	vm.pc++
-	ex := vm.runTry()
+	ex := vm.runTry(vm.ctx)
 	if ex != nil && t.catchOffset > 0 {
 		// run the catch block (in try)
 		vm.pc = o + int(t.catchOffset)
@@ -2184,7 +2192,7 @@ func (t try) exec(vm *vm) {
 		} else {
 			vm.push(ex.val)
 		}
-		ex = vm.runTry()
+		ex = vm.runTry(vm.ctx)
 		if t.dynamic {
 			vm.stash = vm.stash.outer
 		}

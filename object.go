@@ -1,6 +1,10 @@
 package goja
 
-import "reflect"
+import (
+	"context"
+	"fmt"
+	"reflect"
+)
 
 const (
 	classObject   = "Object"
@@ -17,6 +21,8 @@ const (
 type Object struct {
 	runtime *Runtime
 	self    objectImpl
+
+	__wrapped interface{}
 }
 
 type iterNextFunc func() (propIterItem, iterNextFunc)
@@ -86,13 +92,23 @@ func (o *primitiveValueObject) exportType() reflect.Type {
 }
 
 type FunctionCall struct {
+	ctx       context.Context
 	This      Value
 	Arguments []Value
 }
 
 type ConstructorCall struct {
+	ctx       context.Context
 	This      *Object
 	Arguments []Value
+}
+
+func (f FunctionCall) Context() context.Context {
+	return f.ctx
+}
+
+func (f ConstructorCall) Context() context.Context {
+	return f.ctx
 }
 
 func (f FunctionCall) Argument(idx int) Value {
@@ -448,8 +464,8 @@ func (o *baseObject) toPrimitiveNumber() Value {
 	if v := o.tryPrimitive("toString"); v != nil {
 		return v
 	}
-
-	o.val.runtime.typeErrorResult(true, "Could not convert %v to primitive", o)
+	fmt.Printf("base object is %+v\n", o)
+	o.val.runtime.typeErrorResult(true, "Could not convert %+v to primitive", o)
 	return nil
 }
 
@@ -461,8 +477,8 @@ func (o *baseObject) toPrimitiveString() Value {
 	if v := o.tryPrimitive("valueOf"); v != nil {
 		return v
 	}
-
-	o.val.runtime.typeErrorResult(true, "Could not convert %v to primitive", o)
+	fmt.Printf("base object is %+v\n", o)
+	o.val.runtime.typeErrorResult(true, "Could not convert %+v to primitive", o)
 	return nil
 }
 
