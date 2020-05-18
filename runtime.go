@@ -2,6 +2,7 @@ package goja
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"golang.org/x/text/collate"
+	"golang.org/x/time/rate"
 
 	js_ast "github.com/dop251/goja/ast"
 	"github.com/dop251/goja/parser"
@@ -100,6 +102,7 @@ type RandSource func() float64
 type Now func() time.Time
 
 type Runtime struct {
+	ctx             context.Context
 	global          global
 	globalObject    *Object
 	stringSingleton *stringObject
@@ -111,6 +114,13 @@ type Runtime struct {
 	fieldNameMapper FieldNameMapper
 
 	vm *vm
+
+	Limiter *rate.Limiter
+	ticks   uint64
+}
+
+func (self *Runtime) Ticks() uint64 {
+	return self.ticks
 }
 
 type stackFrame struct {
@@ -358,7 +368,24 @@ func (r *Runtime) CreateObject(proto *Object) *Object {
 	return r.newBaseObject(proto, classObject).val
 }
 
+//TODO(goja) properly get memUsage
+func (r *Runtime) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if r.vm.stash == nil {
+		return 0, nil
+	}
+	return r.vm.stash.MemUsage(ctx)
+}
+
 func (r *Runtime) NewTypeError(args ...interface{}) *Object {
+	msg := ""
+	if len(args) > 0 {
+		f, _ := args[0].(string)
+		msg = fmt.Sprintf(f, args[1:]...)
+	}
+	return r.builtin_new(r.global.TypeError, []Value{newStringValue(msg)})
+}
+
+func (r *Runtime) MakeTypeError(args ...interface{}) *Object {
 	msg := ""
 	if len(args) > 0 {
 		f, _ := args[0].(string)
@@ -371,6 +398,12 @@ func (r *Runtime) NewGoError(err error) *Object {
 	e := r.newError(r.global.GoError, err.Error()).(*Object)
 	e.Set("value", err)
 	return e
+}
+
+func (r *Runtime) MakeCustomError(name, msg string) *Object {
+	typeErr := r.NewTypeError(msg)
+	typeErr.self.putStr("name", asciiString(name), false)
+	return typeErr
 }
 
 func (r *Runtime) newFunc(name string, len int, strict bool) (f *funcObject) {
@@ -390,8 +423,24 @@ func (r *Runtime) newFunc(name string, len int, strict bool) (f *funcObject) {
 	return
 }
 
+func (r *Runtime) NewNativeFunction(name string, length int, call func(FunctionCall) Value) (*Object, error) {
+	x := r.newNativeFuncObj(r.NewObject(), call, nil, name, nil, length)
+	return x.val, nil
+	// self := r.newNativeFunc("Function")
+	// self.value = _nativeFunctionObject{
+	// 	name:      name,
+	// 	file:      file,
+	// 	line:      line,
+	// 	call:      native,
+	// 	construct: defaultConstruct,
+	// }
+	// self.defineProperty("name", toValue_string(name), 0000, false)
+	// self.defineProperty("length", toValue_int(length), 0000, false)
+}
+
 func (r *Runtime) newNativeFuncObj(v *Object, call func(FunctionCall) Value, construct func(args []Value) *Object, name string, proto *Object, length int) *nativeFuncObject {
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -415,6 +464,7 @@ func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name 
 	v := &Object{runtime: r}
 
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -469,6 +519,7 @@ func (r *Runtime) newNativeFunc(call func(FunctionCall) Value, construct func(ar
 
 func (r *Runtime) newNativeFuncConstructObj(v *Object, construct func(args []Value, proto *Object) *Object, name string, proto *Object, length int) *nativeFuncObject {
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -763,10 +814,30 @@ func (r *Runtime) toBoolean(b bool) Value {
 	}
 }
 
+// CreateNativeFunction creates a native function that will call the given call function.
+// This provides for a way to detail how the function appears to a user within JS
+// compared to passing the call in via toValue.
+func (r *Runtime) CreateNativeFunction(name, file string, call func(FunctionCall) Value) (Value, error) {
+	if call == nil {
+		return UndefinedValue(), errors.New("call cannot be nil")
+	}
+
+	// r.toObject()
+	// r.newNativeFunc()
+	return r.newNativeFunc(call, nil, name, nil, 1), nil
+	// return toValue_object(r.runtime.newNativeFunction(name, file, line, call)), nil
+}
+
 // New creates an instance of a Javascript runtime that can be used to run code. Multiple instances may be created and
 // used simultaneously, however it is not possible to pass JS values across runtimes.
 func New() *Runtime {
-	r := &Runtime{}
+	return NewWithContext(context.Background())
+}
+
+// New creates an instance of a Javascript runtime that can be used to run code. Multiple instances may be created and
+// used simultaneously, however it is not possible to pass JS values across runtimes.
+func NewWithContext(ctx context.Context) *Runtime {
+	r := &Runtime{ctx: ctx}
 	r.init()
 	return r
 }
@@ -897,7 +968,7 @@ func (r *Runtime) RunProgram(p *Program) (result Value, err error) {
 	}
 	r.vm.prg = p
 	r.vm.pc = 0
-	ex := r.vm.runTry()
+	ex := r.vm.runTry(r.ctx)
 	if ex == nil {
 		result = r.vm.pop()
 	} else {
@@ -930,6 +1001,352 @@ func (r *Runtime) Interrupt(v interface{}) {
 func (r *Runtime) ClearInterrupt() {
 	r.vm.ClearInterrupt()
 }
+
+func (r *Runtime) TryToValue(i interface{}) (Value, error) {
+	var result Value
+	err := r.vm.try(r.ctx, func() {
+		result = r.ToValue(i)
+	})
+	if err.Error() == "" || err.Error() == "<nil>" {
+		return result, nil
+	}
+	return result, err
+}
+
+type Property struct {
+	Name  string
+	Value Value
+}
+
+type NativeClass struct {
+	*Object
+	classProto *Object
+	className  string
+	// runtime *Runtime
+
+	// name string
+	// // safe to panic inside these
+	// methods     map[string]Value
+	// funcProps   map[string]Value
+	// newInstance func(call ConstructorCall) interface{}
+}
+
+func (r *Runtime) CreateNativeErrorClass(
+	className string,
+	ctor func(call FunctionCall) interface{},
+	classProps []Property,
+	funcProps []Property,
+) NativeClass {
+
+	proto := r.builtin_new(r.global.Error, []Value{})
+	o := proto.self
+	o._putProp("name", asciiString(className), true, false, true)
+
+	e := r.newNativeFuncConstructProto(r.builtin_Error, className, proto, r.global.Error, 1)
+
+	return NativeClass{e, proto, className}
+}
+
+func (r *Runtime) CreateNativeError(name string) (Value, func(err error) Value) {
+	proto := r.builtin_new(r.global.Error, []Value{})
+	o := proto.self
+	o._putProp("name", asciiString(name), true, false, true)
+
+	e := r.newNativeFuncConstructProto(r.builtin_Error, name, proto, r.global.Error, 1)
+
+	return e, func(err error) Value {
+		self := r.newError(e, err.Error()).(*Object)
+		self.Set("value", err)
+		// self.prototype = e.self.getStr("prototype")
+		return self
+	}
+}
+
+func (r *Runtime) CreateNativeClass(
+	className string,
+	ctor func(call FunctionCall) interface{},
+	classProps []Property,
+	funcProps []Property,
+) NativeClass {
+	// classProto := &Object{runtime: r}
+
+	// class      string
+	// val        *Object
+	// prototype  *Object
+	// extensible bool
+
+	// values    map[string]Value
+	// propNames []string
+	fmt.Println("creating native class:", className)
+	classProto := r.builtin_new(r.global.Object, []Value{})
+	o := classProto.self
+
+	// o._putProp("message", stringEmpty, true, false, true)
+	o._putProp("name", asciiString(className), true, false, true)
+	// o._putProp("toString", r.newNativeFunc(r.error_toString, nil, "toString", nil, 0), true, false, true)
+
+	// classProtoBase := &baseObject{
+	// 	class:      className,
+	// 	prototype:  r.global.ObjectPrototype,
+	// 	extensible: true,
+	// 	val:        nil,
+	// 	values:     map[string]Value{},
+	// 	propNames:  []string{},
+	// }
+
+	for _, prop := range classProps {
+		// o.propNames = append(o., prop.Name)
+		o._putProp(prop.Name, prop.Value, true, false, true)
+		// classProtoBase.values[prop.Name] = prop.Value
+	}
+	// classProto.self = classProtoBase
+
+	// v := &Object{runtime: r}
+
+	// r.global.ErrorPrototype = r.NewObject()
+	// o := r.global.ErrorPrototype.self
+	// o._putProp("message", stringEmpty, true, false, true)
+	// o._putProp("name", stringError, true, false, true)
+	// o._putProp("toString", r.newNativeFunc(r.error_toString, nil, "toString", nil, 0), true, false, true)
+
+	// obj := r.newBaseObject(proto, classError)
+	// if len(args) > 0 && args[0] != _undefined {
+	// 	obj._putProp("message", args[0], true, false, true)
+	// }
+	// return obj.val
+	v := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+		obj := r.newBaseObject(proto, className)
+		call := FunctionCall{
+			ctx:       r.ctx,
+			This:      obj.val,
+			Arguments: args,
+		}
+
+		fmt.Println("creating new obj with args", args, className)
+		g := &_goNativeValue{baseObject: obj, value: ctor(call)}
+		obj.val.self = g
+		obj.val.__wrapped = g.value
+		for _, prop := range funcProps {
+			obj.propNames = append(obj.propNames, prop.Name)
+			obj._putProp(prop.Name, prop.Value, true, false, true)
+		}
+
+		// if len(args) > 0 && args[0] != _undefined {
+		// 	obj._putProp("message", args[0], true, false, true)
+		// }
+		return obj.val
+	}, className, classProto, 1)
+	// o = r.global.Error.self
+	// f := &nativeFuncObject{
+	// 	baseFuncObject: baseFuncObject{
+	// 		baseObject: baseObject{
+	// 			class:      classFunction,
+	// 			val:        v,
+	// 			extensible: true,
+	// 			prototype:  r.global.FunctionPrototype,
+	// 		},
+	// 	},
+	// 	f: func(call FunctionCall) Value {
+	// 		v := &Object{runtime: r}
+	// 		v.self = &_goNativeValue{value: ctor(call)}
+
+	// 		obj := &baseObject{}
+	// 		obj.class = className
+	// 		obj.val = v
+	// 		obj.prototype = classProto
+	// 		return &Object{runtime: r, self: obj}
+	// 	},
+	// 	construct: func(args []Value) *Object {
+	// 		v := &Object{runtime: r}
+
+	// 		obj := &baseObject{}
+	// 		obj.class = className
+	// 		obj.val = v
+	// 		obj.prototype = classProto
+
+	// 		call := FunctionCall{
+	// 			ctx:       r.ctx,
+	// 			This:      v,
+	// 			Arguments: args,
+	// 		}
+
+	// 		v.self = &_goNativeValue{baseObject: obj, value: ctor(call)}
+	// 		return &Object{runtime: r, self: obj}
+	// 	},
+	// }
+	// v.self = f
+	// f.init(className, len(funcProps))
+	// for _, prop := range funcProps {
+	// 	f.propNames = append(f.propNames, prop.Name)
+	// 	f._putProp(prop.Name, prop.Value, true, false, true)
+	// }
+
+	// f.init(name, length)
+	// if proto != nil {
+	// 	f._putProp("prototype", proto, false, false, false)
+	// 	proto.self._putProp("constructor", v, true, false, true)
+	// }
+
+	return NativeClass{Object: v, classProto: classProto, className: className}
+	// }
+
+	// n := NativeClass{
+	// 	runtime:     r,
+	// 	name:        className,
+	// 	newInstance: ctor,
+	// 	methods:     map[string]Value{},
+	// 	funcProps:   map[string]Value{},
+	// }
+
+	// for _, v := range classProps {
+	// 	n.methods[v.Name] = v.Value
+	// }
+	// //TODO(goja) should be diff for func props
+	// for _, v := range funcProps {
+	// 	n.methods[v.Name] = v.Value
+	// }
+	// return n
+}
+
+type _goNativeValue struct {
+	*baseObject
+	value interface{}
+}
+
+func (n NativeClass) InstanceOf(val interface{}) Value {
+	r := n.runtime
+	className := n.className
+	classProto := n.classProto
+	// obj := r.newBaseObject(n.classProto, n.classProto.ClassName())
+	obj, err := r.New(r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+		obj := r.newBaseObject(proto, className)
+		// call := FunctionCall{
+		// 	ctx:       r.ctx,
+		// 	This:      obj.val,
+		// 	Arguments: args,
+		// }
+
+		fmt.Println("creating new obj with args", args, className, val)
+		fmt.Println("creating new obj with val", val)
+		g := &_goNativeValue{baseObject: obj, value: val}
+		obj.val.self = g
+		obj.val.__wrapped = g.value
+		// for _, prop := range funcProps {
+		// 	obj.propNames = append(obj.propNames, prop.Name)
+		// 	obj._putProp(prop.Name, prop.Value, true, false, true)
+		// }
+
+		// if len(args) > 0 && args[0] != _undefined {
+		// 	obj._putProp("message", args[0], true, false, true)
+		// }
+		return obj.val
+	}, className, classProto, 1))
+	if err != nil {
+		panic(err)
+	}
+	// g := &_goNativeValue{baseObject: obj, value: val}
+	// obj.val.self = g
+	// obj.val.__wrapped = g.value
+	// for _, prop := range funcProps {
+	// 	obj.propNames = append(obj.propNames, prop.Name)
+	// 	obj._putProp(prop.Name, prop.Value, true, false, true)
+	// }
+
+	// if len(args) > 0 && args[0] != _undefined {
+	// 	obj._putProp("message", args[0], true, false, true)
+	// }
+	fmt.Printf("instance of %+v\n", obj)
+	return obj
+
+	// v := &Object{runtime: n.runtime}
+	// v.self = &_goNativeValue{value: val}
+
+	// obj := &baseObject{}
+	// obj.class = n.self.className()
+	// obj.val = v
+
+	// obj.prototype = n.self.proto()
+	// return &Object{runtime: n.runtime, self: obj}
+	// obj := n.runtime.NewObject()
+	// v := &Object{runtime: n.runtime}
+	// v.self = &_goNativeValue{value: val}
+
+	// obj := &baseObject{}
+	// obj.class = n.self.className()
+	// obj.val = &_goNativeValue{value: val}
+	// obj.prototype = n.self.proto()
+	// return &Object{runtime: n.runtime, self: obj}
+	// v, err := n.runtime.Get(n.name)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// proto, err := v.ToObject(n.runtime).Get("prototype")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// newObj := n.runtime.CreateObject(proto.ToObject(n.runtime))
+	// err = newObj.Set("__wrapped", val)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// return newObj
+}
+
+func (n NativeClass) Constructor() *Object {
+	return n.runtime.CreateObject(n.classProto)
+	// for name, method := range n.methods {
+	// 	err := call.This.Set(name, method)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
+
+	// // this is our native class
+	// obj := n.newInstance(call)
+	// err := call.This.Set("__wrapped", obj)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// return nil
+}
+
+// func (n NativeClass) InstanceOf(val interface{}) Value {
+// 	v, err := n.runtime.Get(n.name)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	proto, err := v.ToObject(n.runtime).Get("prototype")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	newObj := n.runtime.CreateObject(proto.ToObject(n.runtime))
+// 	err = newObj.Set("__wrapped", val)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	return newObj
+// }
+
+// func (n NativeClass) Constructor(call ConstructorCall) *Object {
+// 	for name, method := range n.methods {
+// 		err := call.This.Set(name, method)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	}
+
+// 	// this is our native class
+// 	obj := n.newInstance(call)
+// 	err := call.This.Set("__wrapped", obj)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	return nil
+// }
 
 /*
 ToValue converts a Go value into JavaScript value.
@@ -1006,6 +1423,8 @@ func (r *Runtime) ToValue(i interface{}) Value {
 		return floatToValue(float64(i))
 	case float64:
 		return floatToValue(i)
+	case *_goNativeValue:
+		return i.val
 	case map[string]interface{}:
 		if i == nil {
 			return _null
@@ -1267,6 +1686,7 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 		return reflect.Zero(typ), nil
 	}
 	if et.AssignableTo(typ) {
+		fmt.Println("assignable!")
 		return reflect.ValueOf(v.Export()), nil
 	} else if et.ConvertibleTo(typ) {
 		return reflect.ValueOf(v.Export()).Convert(typ), nil
@@ -1333,20 +1753,25 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 			return m, nil
 		}
 	case reflect.Struct:
+		fmt.Println("struct!")
 		if o, ok := v.(*Object); ok {
 			s := reflect.New(typ).Elem()
 			for i := 0; i < typ.NumField(); i++ {
 				field := typ.Field(i)
+				fmt.Println("field!", field)
 				if ast.IsExported(field.Name) {
 					name := field.Name
+					fmt.Println("name!", name)
 					if r.fieldNameMapper != nil {
 						name = r.fieldNameMapper.FieldName(typ, field)
 					}
 					var v Value
 					if field.Anonymous {
+						fmt.Println("anonymous!", o)
 						v = o
 					} else {
 						v = o.self.getStr(name)
+						fmt.Println("non!", v)
 					}
 
 					if v != nil {
@@ -1356,16 +1781,31 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 
 						}
 						s.Field(i).Set(vv)
+						fmt.Println("field", i, vv)
 					}
 				}
+				// else {
+				// 	var v Value
+				// 	if field.Anonymous {
+				// 		fmt.Println("anonymous!", o)
+				// 		v = o
+				// 	} else {
+				// 		v = o.self.getStr(field.Name)
+				// 		fmt.Println("non!", v)
+				// 	}
+
+				// 	reflect.NewAt(field.Type, unsafe.Pointer(s.Field(i).UnsafeAddr())).Elem().Set(reflect.ValueOf(v))
+				// }
 			}
 			return s, nil
 		}
 	case reflect.Func:
+		fmt.Println("func!")
 		if fn, ok := AssertFunction(v); ok {
 			return reflect.MakeFunc(typ, r.wrapJSFunc(fn, typ)), nil
 		}
 	case reflect.Ptr:
+		fmt.Println("ptr!")
 		elemTyp := typ.Elem()
 		v, err := r.toReflectValue(v, elemTyp)
 		if err != nil {
@@ -1436,13 +1876,14 @@ func (r *Runtime) GlobalObject() *Object {
 
 // Set the specified value as a property of the global object.
 // The value is first converted using ToValue()
-func (r *Runtime) Set(name string, value interface{}) {
+func (r *Runtime) Set(name string, value interface{}) error {
 	r.globalObject.self.putStr(name, r.ToValue(value), false)
+	return nil
 }
 
 // Get the specified property of the global object.
-func (r *Runtime) Get(name string) Value {
-	return r.globalObject.self.getStr(name)
+func (r *Runtime) Get(name string) (Value, error) {
+	return r.globalObject.self.getStr(name), nil
 }
 
 // SetRandSource sets random source for this Runtime. If not called, the default math/rand is used.
@@ -1475,6 +1916,38 @@ func (r *Runtime) New(construct Value, args ...Value) (o *Object, err error) {
 
 // Callable represents a JavaScript function that can be called from Go.
 type Callable func(this Value, args ...Value) (Value, error)
+type CallableWithContext func(ctx context.Context, this Value, args ...Value) (Value, error)
+
+func ToFunctionWithContext(v Value) (CallableWithContext, bool) {
+	if obj, ok := v.(*Object); ok {
+		if f, ok := obj.self.assertCallable(); ok {
+			return func(ctx context.Context, this Value, args ...Value) (ret Value, err error) {
+				defer func() {
+					if x := recover(); x != nil {
+						if ex, ok := x.(*InterruptedError); ok {
+							err = ex
+						} else {
+							panic(x)
+						}
+					}
+				}()
+				ex := obj.runtime.vm.try(ctx, func() {
+					ret = f(FunctionCall{
+						ctx:       ctx,
+						This:      this,
+						Arguments: args,
+					})
+				})
+				if ex != nil {
+					err = ex
+				}
+				obj.runtime.vm.clearStack()
+				return
+			}, true
+		}
+	}
+	return nil, false
+}
 
 // AssertFunction checks if the Value is a function and returns a Callable.
 func AssertFunction(v Value) (Callable, bool) {
@@ -1490,8 +1963,9 @@ func AssertFunction(v Value) (Callable, bool) {
 						}
 					}
 				}()
-				ex := obj.runtime.vm.try(func() {
+				ex := obj.runtime.vm.try(obj.runtime.ctx, func() {
 					ret = f(FunctionCall{
+						ctx:       obj.runtime.ctx,
 						This:      this,
 						Arguments: args,
 					})

@@ -1,11 +1,13 @@
 package goja
 
 import (
+	"context"
 	"fmt"
+	"regexp"
+
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
-	"regexp"
 )
 
 var (
@@ -1024,7 +1026,7 @@ func (c *compiler) evalConst(expr compiledExpr) (Value, *Exception) {
 	expr.emitGetter(true)
 	c.emit(halt)
 	c.evalVM.pc = savedPc
-	ex := c.evalVM.runTry()
+	ex := c.evalVM.runTry(context.Background())
 	if createdPrg {
 		c.evalVM.prg = nil
 		c.evalVM.pc = 0

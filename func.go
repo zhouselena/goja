@@ -1,6 +1,10 @@
 package goja
 
-import "reflect"
+import (
+	"context"
+	"fmt"
+	"reflect"
+)
 
 type baseFuncObject struct {
 	baseObject
@@ -17,6 +21,7 @@ type funcObject struct {
 }
 
 type nativeFuncObject struct {
+	ctx context.Context
 	baseFuncObject
 
 	f         func(FunctionCall) Value
@@ -151,6 +156,9 @@ func (f *funcObject) Call(call FunctionCall) Value {
 	vm.prg = f.prg
 	vm.stash = f.stash
 	vm.pc = 0
+
+	vm.ctx = call.ctx
+	fmt.Printf("ctx %+v +++ %+v +++ %+v\n", call.ctx, nil, call.Arguments)
 	vm.run()
 	vm.pc = pc
 	vm.halt = false

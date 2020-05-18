@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"context"
 	"math"
 	"reflect"
 	"regexp"
@@ -32,6 +33,13 @@ var (
 
 var intCache [256]Value
 
+func FalseValue() Value {
+	return valueFalse
+}
+func TrueValue() Value {
+	return valueTrue
+}
+
 type Value interface {
 	ToInteger() int64
 	ToString() valueString
@@ -59,6 +67,10 @@ type valueBool bool
 type valueNull struct{}
 type valueUndefined struct {
 	valueNull
+}
+
+func UndefinedValue() Value {
+	return valueUndefined{}
 }
 
 type valueUnresolved struct {
@@ -697,6 +709,9 @@ func (o *Object) baseObject(r *Runtime) *Object {
 }
 
 func (o *Object) Export() interface{} {
+	if o.__wrapped != nil {
+		return o.__wrapped
+	}
 	return o.self.export()
 }
 
@@ -704,8 +719,8 @@ func (o *Object) ExportType() reflect.Type {
 	return o.self.exportType()
 }
 
-func (o *Object) Get(name string) Value {
-	return o.self.getStr(name)
+func (o *Object) Get(name string) (Value, error) {
+	return o.self.getStr(name), nil
 }
 
 func (o *Object) Keys() (keys []string) {
@@ -754,7 +769,7 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 	ctx := _builtinJSON_stringifyContext{
 		r: o.runtime,
 	}
-	ex := o.runtime.vm.try(func() {
+	ex := o.runtime.vm.try(context.Background(), func() {
 		if !ctx.do(o) {
 			ctx.buf.WriteString("null")
 		}
@@ -860,3 +875,102 @@ func init() {
 	}
 	_positiveZero = intToValue(0)
 }
+
+// func toValue(value interface{}) Value {
+// 	switch value := value.(type) {
+// 	case Value:
+// 		return value
+// 	case bool:
+// 		return valueBool(value)
+// 	case int:
+// 		return valueInt(value)
+// 	case int8:
+// 		return valueInt(value)
+// 	case int16:
+// 		return valueInt(value)
+// 	case int32:
+// 		return valueInt(value)
+// 	case int64:
+// 		return valueInt(value)
+// 	case uint:
+// 		return valueInt(value)
+// 	case uint8:
+// 		return valueInt(value)
+// 	case uint16:
+// 		return valueInt(value)
+// 	case uint32:
+// 		return valueInt(value)
+// 	case uint64:
+// 		return valueInt(value)
+// 	case float32:
+// 		return valueFloat(value)
+// 	case float64:
+// 		return valueFloat(value)
+// 	case []uint16:
+// 		return valueString(value)
+// 	case string:
+// 		return valueString(value)
+// 	// A rune is actually an int32, which is handled above
+// 	case *_object:
+// 		return valueObject(value)
+// 	case *Object:
+// 		return Value{valueObject, value.object}
+// 	case Object:
+// 		return Value{valueObject, value.object}
+// 	case _reference: // reference is an interface (already a pointer)
+// 		return Value{valueReference, value}
+// 	case _result:
+// 		return Value{valueResult, value}
+// 	case nil:
+// 		// TODO Ugh.
+// 		return Value{}
+// 	case reflect.Value:
+// 		for value.Kind() == reflect.Ptr {
+// 			// We were given a pointer, so we'll drill down until we get a non-pointer
+// 			//
+// 			// These semantics might change if we want to start supporting pointers to values transparently
+// 			// (It would be best not to depend on this behavior)
+// 			// FIXME: UNDEFINED
+// 			if value.IsNil() {
+// 				return Value{}
+// 			}
+// 			value = value.Elem()
+// 		}
+// 		switch value.Kind() {
+// 		case reflect.Bool:
+// 			return Value{valueBool, bool(value.Bool())}
+// 		case reflect.Int:
+// 			return Value{valueInt, int(value.Int())}
+// 		case reflect.Int8:
+// 			return Value{valueInt, int8(value.Int())}
+// 		case reflect.Int16:
+// 			return Value{valueNumber, int16(value.Int())}
+// 		case reflect.Int32:
+// 			return Value{valueNumber, int32(value.Int())}
+// 		case reflect.Int64:
+// 			return Value{valueNumber, int64(value.Int())}
+// 		case reflect.Uint:
+// 			return Value{valueNumber, uint(value.Uint())}
+// 		case reflect.Uint8:
+// 			return Value{valueNumber, uint8(value.Uint())}
+// 		case reflect.Uint16:
+// 			return Value{valueNumber, uint16(value.Uint())}
+// 		case reflect.Uint32:
+// 			return Value{valueNumber, uint32(value.Uint())}
+// 		case reflect.Uint64:
+// 			return Value{valueNumber, uint64(value.Uint())}
+// 		case reflect.Float32:
+// 			return Value{valueNumber, float32(value.Float())}
+// 		case reflect.Float64:
+// 			return Value{valueNumber, float64(value.Float())}
+// 		case reflect.String:
+// 			return Value{valueString, string(value.String())}
+// 		default:
+// 			toValue_reflectValuePanic(value.Interface(), value.Kind())
+// 		}
+// 	default:
+// 		return toValue(reflect.ValueOf(value))
+// 	}
+// 	// FIXME?
+// 	panic(newError(nil, "TypeError", 0, nil, "invalid value: %v (%T)", value, value))
+// }

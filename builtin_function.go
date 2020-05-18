@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -31,6 +32,8 @@ repeat:
 		return newStringValue(fmt.Sprintf("function %s() { [native code] }", f.nameProp.get(call.This).ToString()))
 	case *boundFuncObject:
 		return newStringValue(fmt.Sprintf("function %s() { [native code] }", f.nameProp.get(call.This).ToString()))
+	case *_goNativeValue:
+		fmt.Println("UH OH")
 	case *lazyObject:
 		obj.self = f.create(obj)
 		goto repeat
@@ -56,7 +59,9 @@ func (r *Runtime) functionproto_apply(call FunctionCall) Value {
 	if len(call.Arguments) >= 2 {
 		args = r.toValueArray(call.Arguments[1])
 	}
+
 	return f(FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(0),
 		Arguments: args,
 	})
@@ -69,12 +74,13 @@ func (r *Runtime) functionproto_call(call FunctionCall) Value {
 		args = call.Arguments[1:]
 	}
 	return f(FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(0),
 		Arguments: args,
 	})
 }
 
-func (r *Runtime) boundCallable(target func(FunctionCall) Value, boundArgs []Value) func(FunctionCall) Value {
+func (r *Runtime) boundCallable(ctx context.Context, target func(FunctionCall) Value, boundArgs []Value) func(FunctionCall) Value {
 	var this Value
 	var args []Value
 	if len(boundArgs) > 0 {
@@ -87,6 +93,7 @@ func (r *Runtime) boundCallable(target func(FunctionCall) Value, boundArgs []Val
 	return func(call FunctionCall) Value {
 		a := append(args, call.Arguments...)
 		return target(FunctionCall{
+			ctx:       ctx,
 			This:      this,
 			Arguments: a,
 		})
@@ -140,7 +147,7 @@ repeat:
 
 	v := &Object{runtime: r}
 
-	ff := r.newNativeFuncObj(v, r.boundCallable(fcall, call.Arguments), r.boundConstruct(construct, call.Arguments), "", nil, l)
+	ff := r.newNativeFuncObj(v, r.boundCallable(call.ctx, fcall, call.Arguments), r.boundConstruct(construct, call.Arguments), "", nil, l)
 	v.self = &boundFuncObject{
 		nativeFuncObject: *ff,
 	}

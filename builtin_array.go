@@ -128,6 +128,7 @@ func (r *Runtime) arrayproto_toString(call FunctionCall) Value {
 	if fObj, ok := f.(*Object); ok {
 		if fcall, ok := fObj.self.assertCallable(); ok {
 			return fcall(FunctionCall{
+				ctx:  call.ctx,
 				This: array,
 			})
 		}
@@ -459,6 +460,7 @@ func (r *Runtime) arrayproto_every(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, o},
 		}
@@ -484,6 +486,7 @@ func (r *Runtime) arrayproto_some(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, o},
 		}
@@ -509,6 +512,7 @@ func (r *Runtime) arrayproto_forEach(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, o},
 		}
@@ -532,6 +536,7 @@ func (r *Runtime) arrayproto_map(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, o},
 		}
@@ -561,6 +566,7 @@ func (r *Runtime) arrayproto_filter(call FunctionCall) Value {
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		a := r.newArrayObject()
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, o},
 		}
@@ -633,6 +639,7 @@ func (r *Runtime) arrayproto_reduceRight(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, o},
 		}
