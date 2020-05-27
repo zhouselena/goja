@@ -27,7 +27,8 @@ func (r *Runtime) builtin_isNaN(call FunctionCall) Value {
 
 func (r *Runtime) builtin_parseInt(call FunctionCall) Value {
 	str := call.Argument(0).ToString().toTrimmedUTF8()
-	radix := int(toInt32(call.Argument(1)))
+	i, _ := toInt32(call.Argument(1))
+	radix := int(i)
 	v, _ := parseInt(str, radix)
 	return v
 }

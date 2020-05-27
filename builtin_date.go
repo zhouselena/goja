@@ -26,7 +26,7 @@ func (r *Runtime) makeDate(args []Value, loc *time.Location) (t time.Time, valid
 			return default_, true
 		}
 		value := args[index]
-		if valueInt, ok := value.assertInt(); ok {
+		if valueInt, ok := value.assertInt64(); ok {
 			return valueInt, true
 		}
 		valueFloat := value.ToFloat()
@@ -76,7 +76,7 @@ func (r *Runtime) makeDate(args []Value, loc *time.Location) (t time.Time, valid
 		}
 
 		var n int64
-		if i, ok := pv.assertInt(); ok {
+		if i, ok := pv.assertInt64(); ok {
 			n = i
 		} else if f, ok := pv.assertFloat(); ok {
 			if math.IsNaN(f) || math.IsInf(f, 0) {
@@ -87,7 +87,7 @@ func (r *Runtime) makeDate(args []Value, loc *time.Location) (t time.Time, valid
 			}
 			n = int64(f)
 		} else {
-			n = pv.ToInteger()
+			n = pv.ToInt64()
 		}
 		t = timeFromMsec(n)
 		valid = true
@@ -298,7 +298,7 @@ func (r *Runtime) dateproto_getFullYear(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Year()))
+			return intToValue(d.time.Year())
 		} else {
 			return _NaN
 		}
@@ -311,7 +311,7 @@ func (r *Runtime) dateproto_getUTCFullYear(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Year()))
+			return intToValue(d.time.In(time.UTC).Year())
 		} else {
 			return _NaN
 		}
@@ -324,7 +324,7 @@ func (r *Runtime) dateproto_getMonth(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Month()) - 1)
+			return intToValue(d.time.Month() - 1)
 		} else {
 			return _NaN
 		}
@@ -337,7 +337,7 @@ func (r *Runtime) dateproto_getUTCMonth(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Month()) - 1)
+			return intToValue(d.time.In(time.UTC).Month() - 1)
 		} else {
 			return _NaN
 		}
@@ -350,7 +350,7 @@ func (r *Runtime) dateproto_getHours(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Hour()))
+			return intToValue(d.time.Hour())
 		} else {
 			return _NaN
 		}
@@ -363,7 +363,7 @@ func (r *Runtime) dateproto_getUTCHours(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Hour()))
+			return intToValue(d.time.In(time.UTC).Hour())
 		} else {
 			return _NaN
 		}
@@ -376,7 +376,7 @@ func (r *Runtime) dateproto_getDate(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Day()))
+			return intToValue(d.time.Day())
 		} else {
 			return _NaN
 		}
@@ -389,7 +389,7 @@ func (r *Runtime) dateproto_getUTCDate(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Day()))
+			return intToValue(d.time.In(time.UTC).Day())
 		} else {
 			return _NaN
 		}
@@ -402,7 +402,7 @@ func (r *Runtime) dateproto_getDay(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Weekday()))
+			return intToValue(d.time.Weekday())
 		} else {
 			return _NaN
 		}
@@ -415,7 +415,7 @@ func (r *Runtime) dateproto_getUTCDay(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Weekday()))
+			return intToValue(d.time.In(time.UTC).Weekday())
 		} else {
 			return _NaN
 		}
@@ -428,7 +428,7 @@ func (r *Runtime) dateproto_getMinutes(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Minute()))
+			return intToValue(d.time.Minute())
 		} else {
 			return _NaN
 		}
@@ -441,7 +441,7 @@ func (r *Runtime) dateproto_getUTCMinutes(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Minute()))
+			return intToValue(d.time.In(time.UTC).Minute())
 		} else {
 			return _NaN
 		}
@@ -454,7 +454,7 @@ func (r *Runtime) dateproto_getSeconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Second()))
+			return intToValue(d.time.Second())
 		} else {
 			return _NaN
 		}
@@ -467,7 +467,7 @@ func (r *Runtime) dateproto_getUTCSeconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Second()))
+			return intToValue(d.time.In(time.UTC).Second())
 		} else {
 			return _NaN
 		}
@@ -480,7 +480,7 @@ func (r *Runtime) dateproto_getMilliseconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.Nanosecond() / 1e6))
+			return intToValue(d.time.Nanosecond() / 1e6)
 		} else {
 			return _NaN
 		}
@@ -493,7 +493,7 @@ func (r *Runtime) dateproto_getUTCMilliseconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			return intToValue(int64(d.time.In(time.UTC).Nanosecond() / 1e6))
+			return intToValue(d.time.In(time.UTC).Nanosecond() / 1e6)
 		} else {
 			return _NaN
 		}
@@ -519,7 +519,7 @@ func (r *Runtime) dateproto_getTimezoneOffset(call FunctionCall) Value {
 func (r *Runtime) dateproto_setTime(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
-		msec := call.Argument(0).ToInteger()
+		msec := call.Argument(0).ToInt64()
 		d.time = timeFromMsec(msec)
 		return intToValue(msec)
 	}
@@ -531,7 +531,7 @@ func (r *Runtime) dateproto_setMilliseconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			msec := call.Argument(0).ToInteger()
+			msec := call.Argument(0).ToInt64()
 			m := timeToMsec(d.time) - int64(d.time.Nanosecond())/1e6 + msec
 			d.time = timeFromMsec(m)
 			return intToValue(m)
@@ -547,7 +547,7 @@ func (r *Runtime) dateproto_setUTCMilliseconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			msec := call.Argument(0).ToInteger()
+			msec := call.Argument(0).ToInt64()
 			m := timeToMsec(d.time) - int64(d.time.Nanosecond())/1e6 + msec
 			d.time = timeFromMsec(m)
 			return intToValue(m)
@@ -563,10 +563,10 @@ func (r *Runtime) dateproto_setSeconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			sec := int(call.Argument(0).ToInteger())
+			sec := int(call.Argument(0).ToInt64())
 			var nsec int
 			if len(call.Arguments) > 1 {
-				nsec = int(call.Arguments[1].ToInteger() * 1e6)
+				nsec = int(call.Arguments[1].ToInt64() * 1e6)
 			} else {
 				nsec = d.time.Nanosecond()
 			}
@@ -584,11 +584,11 @@ func (r *Runtime) dateproto_setUTCSeconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			sec := int(call.Argument(0).ToInteger())
+			sec := int(call.Argument(0).ToInt64())
 			var nsec int
 			t := d.time.In(time.UTC)
 			if len(call.Arguments) > 1 {
-				nsec = int(call.Arguments[1].ToInteger() * 1e6)
+				nsec = int(call.Arguments[1].ToInt64() * 1e6)
 			} else {
 				nsec = t.Nanosecond()
 			}
@@ -606,15 +606,15 @@ func (r *Runtime) dateproto_setMinutes(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			min := int(call.Argument(0).ToInteger())
+			min := int(call.Argument(0).ToInt64())
 			var sec, nsec int
 			if len(call.Arguments) > 1 {
-				sec = int(call.Arguments[1].ToInteger())
+				sec = int(call.Arguments[1].ToInt64())
 			} else {
 				sec = d.time.Second()
 			}
 			if len(call.Arguments) > 2 {
-				nsec = int(call.Arguments[2].ToInteger() * 1e6)
+				nsec = int(call.Arguments[2].ToInt64() * 1e6)
 			} else {
 				nsec = d.time.Nanosecond()
 			}
@@ -632,16 +632,16 @@ func (r *Runtime) dateproto_setUTCMinutes(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			min := int(call.Argument(0).ToInteger())
+			min := int(call.Argument(0).ToInt64())
 			var sec, nsec int
 			t := d.time.In(time.UTC)
 			if len(call.Arguments) > 1 {
-				sec = int(call.Arguments[1].ToInteger())
+				sec = int(call.Arguments[1].ToInt64())
 			} else {
 				sec = t.Second()
 			}
 			if len(call.Arguments) > 2 {
-				nsec = int(call.Arguments[2].ToInteger() * 1e6)
+				nsec = int(call.Arguments[2].ToInt64() * 1e6)
 			} else {
 				nsec = t.Nanosecond()
 			}
@@ -659,20 +659,20 @@ func (r *Runtime) dateproto_setHours(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			hour := int(call.Argument(0).ToInteger())
+			hour := int(call.Argument(0).ToInt64())
 			var min, sec, nsec int
 			if len(call.Arguments) > 1 {
-				min = int(call.Arguments[1].ToInteger())
+				min = int(call.Arguments[1].ToInt64())
 			} else {
 				min = d.time.Minute()
 			}
 			if len(call.Arguments) > 2 {
-				sec = int(call.Arguments[2].ToInteger())
+				sec = int(call.Arguments[2].ToInt64())
 			} else {
 				sec = d.time.Second()
 			}
 			if len(call.Arguments) > 3 {
-				nsec = int(call.Arguments[3].ToInteger() * 1e6)
+				nsec = int(call.Arguments[3].ToInt64() * 1e6)
 			} else {
 				nsec = d.time.Nanosecond()
 			}
@@ -690,21 +690,21 @@ func (r *Runtime) dateproto_setUTCHours(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			hour := int(call.Argument(0).ToInteger())
+			hour := int(call.Argument(0).ToInt64())
 			var min, sec, nsec int
 			t := d.time.In(time.UTC)
 			if len(call.Arguments) > 1 {
-				min = int(call.Arguments[1].ToInteger())
+				min = int(call.Arguments[1].ToInt64())
 			} else {
 				min = t.Minute()
 			}
 			if len(call.Arguments) > 2 {
-				sec = int(call.Arguments[2].ToInteger())
+				sec = int(call.Arguments[2].ToInt64())
 			} else {
 				sec = t.Second()
 			}
 			if len(call.Arguments) > 3 {
-				nsec = int(call.Arguments[3].ToInteger() * 1e6)
+				nsec = int(call.Arguments[3].ToInt64() * 1e6)
 			} else {
 				nsec = t.Nanosecond()
 			}
@@ -722,7 +722,7 @@ func (r *Runtime) dateproto_setDate(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			d.time = time.Date(d.time.Year(), d.time.Month(), int(call.Argument(0).ToInteger()), d.time.Hour(), d.time.Minute(), d.time.Second(), d.time.Nanosecond(), time.Local)
+			d.time = time.Date(d.time.Year(), d.time.Month(), int(call.Argument(0).ToInt64()), d.time.Hour(), d.time.Minute(), d.time.Second(), d.time.Nanosecond(), time.Local)
 			return intToValue(timeToMsec(d.time))
 		} else {
 			return _NaN
@@ -737,7 +737,7 @@ func (r *Runtime) dateproto_setUTCDate(call FunctionCall) Value {
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
 			t := d.time.In(time.UTC)
-			d.time = time.Date(t.Year(), t.Month(), int(call.Argument(0).ToInteger()), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC).In(time.Local)
+			d.time = time.Date(t.Year(), t.Month(), int(call.Argument(0).ToInt64()), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC).In(time.Local)
 			return intToValue(timeToMsec(d.time))
 		} else {
 			return _NaN
@@ -751,10 +751,10 @@ func (r *Runtime) dateproto_setMonth(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			month := time.Month(int(call.Argument(0).ToInteger()) + 1)
+			month := time.Month(int(call.Argument(0).ToInt64()) + 1)
 			var day int
 			if len(call.Arguments) > 1 {
-				day = int(call.Arguments[1].ToInteger())
+				day = int(call.Arguments[1].ToInt64())
 			} else {
 				day = d.time.Day()
 			}
@@ -772,11 +772,11 @@ func (r *Runtime) dateproto_setUTCMonth(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
 		if d.isSet {
-			month := time.Month(int(call.Argument(0).ToInteger()) + 1)
+			month := time.Month(int(call.Argument(0).ToInt64()) + 1)
 			var day int
 			t := d.time.In(time.UTC)
 			if len(call.Arguments) > 1 {
-				day = int(call.Arguments[1].ToInteger())
+				day = int(call.Arguments[1].ToInt64())
 			} else {
 				day = t.Day()
 			}
@@ -796,16 +796,16 @@ func (r *Runtime) dateproto_setFullYear(call FunctionCall) Value {
 		if !d.isSet {
 			d.time = time.Unix(0, 0)
 		}
-		year := int(call.Argument(0).ToInteger())
+		year := int(call.Argument(0).ToInt64())
 		var month time.Month
 		var day int
 		if len(call.Arguments) > 1 {
-			month = time.Month(call.Arguments[1].ToInteger() + 1)
+			month = time.Month(call.Arguments[1].ToInt64() + 1)
 		} else {
 			month = d.time.Month()
 		}
 		if len(call.Arguments) > 2 {
-			day = int(call.Arguments[2].ToInteger())
+			day = int(call.Arguments[2].ToInt64())
 		} else {
 			day = d.time.Day()
 		}
@@ -822,17 +822,17 @@ func (r *Runtime) dateproto_setUTCFullYear(call FunctionCall) Value {
 		if !d.isSet {
 			d.time = time.Unix(0, 0)
 		}
-		year := int(call.Argument(0).ToInteger())
+		year := int(call.Argument(0).ToInt64())
 		var month time.Month
 		var day int
 		t := d.time.In(time.UTC)
 		if len(call.Arguments) > 1 {
-			month = time.Month(call.Arguments[1].ToInteger() + 1)
+			month = time.Month(call.Arguments[1].ToInt64() + 1)
 		} else {
 			month = t.Month()
 		}
 		if len(call.Arguments) > 2 {
-			day = int(call.Arguments[2].ToInteger())
+			day = int(call.Arguments[2].ToInt64())
 		} else {
 			day = t.Day()
 		}

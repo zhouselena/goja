@@ -23,7 +23,7 @@ func (a *argumentsObject) getProp(n Value) Value {
 
 func (a *argumentsObject) init() {
 	a.baseObject.init()
-	a._putProp("length", intToValue(int64(a.length)), true, false, true)
+	a._putProp("length", intToValue(a.length), true, false, true)
 }
 
 func (a *argumentsObject) put(n Value, val Value, throw bool) {
@@ -141,7 +141,7 @@ func (a *argumentsObject) getOwnProp(name string) Value {
 func (a *argumentsObject) export() interface{} {
 	arr := make([]interface{}, a.length)
 	for i, _ := range arr {
-		v := a.get(intToValue(int64(i)))
+		v := a.get(intToValue(i))
 		if v != nil {
 			arr[i] = v.Export()
 		}

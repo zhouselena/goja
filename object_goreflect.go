@@ -276,11 +276,12 @@ func (o *objectGoReflect) hasOwnPropertyStr(name string) bool {
 }
 
 func (o *objectGoReflect) _toNumber() Value {
+	//todo come here
 	switch o.value.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return intToValue(o.value.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return intToValue(int64(o.value.Uint()))
+		return intToValue(o.value.Uint())
 	case reflect.Bool:
 		if o.value.Bool() {
 			return intToValue(1)

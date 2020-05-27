@@ -37,7 +37,7 @@ func (r *Runtime) builtin_ArrayBuffer(args []Value, proto *Object) *Object {
 func (r *Runtime) arrayBufferProto_getByteLength(call FunctionCall) Value {
 	o := r.toObject(call.This)
 	if b, ok := o.self.(*objectArrayBuffer); ok {
-		return intToValue(int64(len(b.data)))
+		return intToValue(len(b.data))
 	}
 	r.typeErrorResult(true, "Object is not ArrayBuffer: %s", o)
 	panic("unreachable")

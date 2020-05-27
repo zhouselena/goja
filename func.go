@@ -2,7 +2,6 @@ package goja
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 )
 
@@ -158,7 +157,6 @@ func (f *funcObject) Call(call FunctionCall) Value {
 	vm.pc = 0
 
 	vm.ctx = call.ctx
-	fmt.Printf("ctx %+v +++ %+v +++ %+v\n", call.ctx, nil, call.Arguments)
 	vm.run()
 	vm.pc = pc
 	vm.halt = false

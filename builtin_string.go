@@ -2,13 +2,14 @@ package goja
 
 import (
 	"bytes"
+	"math"
+	"strings"
+	"unicode/utf8"
+
 	"github.com/dop251/goja/parser"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
-	"math"
-	"strings"
-	"unicode/utf8"
 )
 
 func (r *Runtime) collator() *collate.Collator {
@@ -118,7 +119,7 @@ func (r *Runtime) string_fromcharcode(call FunctionCall) Value {
 func (r *Runtime) stringproto_charAt(call FunctionCall) Value {
 	r.checkObjectCoercible(call.This)
 	s := call.This.ToString()
-	pos := call.Argument(0).ToInteger()
+	pos := call.Argument(0).ToInt64()
 	if pos < 0 || pos >= s.length() {
 		return stringEmpty
 	}
@@ -128,11 +129,11 @@ func (r *Runtime) stringproto_charAt(call FunctionCall) Value {
 func (r *Runtime) stringproto_charCodeAt(call FunctionCall) Value {
 	r.checkObjectCoercible(call.This)
 	s := call.This.ToString()
-	pos := call.Argument(0).ToInteger()
+	pos := call.Argument(0).ToInt64()
 	if pos < 0 || pos >= s.length() {
 		return _NaN
 	}
-	return intToValue(int64(s.charAt(pos) & 0xFFFF))
+	return intToValue(s.charAt(pos) & 0xFFFF)
 }
 
 func (r *Runtime) stringproto_concat(call FunctionCall) Value {
@@ -179,7 +180,7 @@ func (r *Runtime) stringproto_indexOf(call FunctionCall) Value {
 	r.checkObjectCoercible(call.This)
 	value := call.This.ToString()
 	target := call.Argument(0).ToString()
-	pos := call.Argument(1).ToInteger()
+	pos := call.Argument(1).ToInt64()
 
 	if pos < 0 {
 		pos = 0
@@ -203,7 +204,7 @@ func (r *Runtime) stringproto_lastIndexOf(call FunctionCall) Value {
 	if f, ok := numPos.assertFloat(); ok && math.IsNaN(f) {
 		pos = value.length()
 	} else {
-		pos = numPos.ToInteger()
+		pos = numPos.ToInt64()
 		if pos < 0 {
 			pos = 0
 		} else {
@@ -221,7 +222,7 @@ func (r *Runtime) stringproto_localeCompare(call FunctionCall) Value {
 	r.checkObjectCoercible(call.This)
 	this := norm.NFD.String(call.This.String())
 	that := norm.NFD.String(call.Argument(0).String())
-	return intToValue(int64(r.collator().CompareString(this, that)))
+	return intToValue(r.collator().CompareString(this, that))
 }
 
 func (r *Runtime) stringproto_match(call FunctionCall) Value {
@@ -246,7 +247,7 @@ func (r *Runtime) stringproto_match(call FunctionCall) Value {
 			if !match {
 				break
 			}
-			thisIndex := rx.getStr("lastIndex").ToInteger()
+			thisIndex := rx.getStr("lastIndex").ToInt64()
 			if thisIndex == previousLastIndex {
 				previousLastIndex++
 				rx.putStr("lastIndex", intToValue(previousLastIndex), false)
@@ -423,7 +424,7 @@ func (r *Runtime) stringproto_search(call FunctionCall) Value {
 	if !match {
 		return intToValue(-1)
 	}
-	return intToValue(int64(result[0]))
+	return intToValue(result[0])
 }
 
 func (r *Runtime) stringproto_slice(call FunctionCall) Value {
@@ -431,10 +432,10 @@ func (r *Runtime) stringproto_slice(call FunctionCall) Value {
 	s := call.This.ToString()
 
 	l := s.length()
-	start := call.Argument(0).ToInteger()
+	start := call.Argument(0).ToInt64()
 	var end int64
 	if arg1 := call.Argument(1); arg1 != _undefined {
-		end = arg1.ToInteger()
+		end = arg1.ToInt64()
 	} else {
 		end = l
 	}
@@ -584,10 +585,10 @@ func (r *Runtime) stringproto_substring(call FunctionCall) Value {
 	s := call.This.ToString()
 
 	l := s.length()
-	intStart := call.Argument(0).ToInteger()
+	intStart := call.Argument(0).ToInt64()
 	var intEnd int64
 	if end := call.Argument(1); end != _undefined {
-		intEnd = end.ToInteger()
+		intEnd = end.ToInt64()
 	} else {
 		intEnd = l
 	}
@@ -633,11 +634,11 @@ func (r *Runtime) stringproto_trim(call FunctionCall) Value {
 
 func (r *Runtime) stringproto_substr(call FunctionCall) Value {
 	s := call.This.ToString()
-	start := call.Argument(0).ToInteger()
+	start := call.Argument(0).ToInt64()
 	var length int64
 	sl := int64(s.length())
 	if arg := call.Argument(1); arg != _undefined {
-		length = arg.ToInteger()
+		length = arg.ToInt64()
 	} else {
 		length = sl
 	}

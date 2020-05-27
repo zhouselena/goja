@@ -155,8 +155,8 @@ func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holde
 
 	if object := value.(*Object); object != nil {
 		if isArray(object) {
-			length := object.self.getStr("length").ToInteger()
-			for index := int64(0); index < length; index++ {
+			length := object.self.getStr("length").ToInt()
+			for index := 0; index < length; index++ {
 				name := intToValue(index)
 				value := r.builtinJSON_reviveWalk(reviver, object, name)
 				if value == _undefined {
@@ -199,13 +199,13 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value {
 	replacer, _ := call.Argument(1).(*Object)
 	if replacer != nil {
 		if isArray(replacer) {
-			length := replacer.self.getStr("length").ToInteger()
+			length := replacer.self.getStr("length").ToInt()
 			seen := map[string]bool{}
 			propertyList := make([]Value, length)
 			length = 0
 			for index := range propertyList {
 				var name string
-				value := replacer.self.get(intToValue(int64(index)))
+				value := replacer.self.get(intToValue(index))
 				if s, ok := value.assertString(); ok {
 					name = s.String()
 				} else if _, ok := value.assertInt(); ok {
@@ -240,11 +240,11 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value {
 			}
 		}
 		isNum := false
-		var num int64
+		var num int
 		num, isNum = spaceValue.assertInt()
 		if !isNum {
 			if f, ok := spaceValue.assertFloat(); ok {
-				num = int64(f)
+				num = int(f)
 				isNum = true
 			}
 		}
@@ -326,7 +326,7 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 				case classString:
 					value = o1.toPrimitiveString()
 				case classBoolean:
-					if o.ToInteger() != 0 {
+					if o.ToInt() != 0 {
 						value = valueTrue
 					} else {
 						value = valueFalse
@@ -384,7 +384,7 @@ func (ctx *_builtinJSON_stringifyContext) ja(array *Object) {
 		stepback = ctx.indent
 		ctx.indent += ctx.gap
 	}
-	length := array.self.getStr("length").ToInteger()
+	length := array.self.getStr("length").ToInt()
 	if length == 0 {
 		ctx.buf.WriteString("[]")
 		return
@@ -400,7 +400,7 @@ func (ctx *_builtinJSON_stringifyContext) ja(array *Object) {
 		separator = ","
 	}
 
-	for i := int64(0); i < length; i++ {
+	for i := 0; i < length; i++ {
 		if !ctx.str(intToValue(i), array) {
 			ctx.buf.WriteString("null")
 		}

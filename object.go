@@ -2,7 +2,6 @@ package goja
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 )
 
@@ -464,7 +463,6 @@ func (o *baseObject) toPrimitiveNumber() Value {
 	if v := o.tryPrimitive("toString"); v != nil {
 		return v
 	}
-	fmt.Printf("base object is %+v\n", o)
 	o.val.runtime.typeErrorResult(true, "Could not convert %+v to primitive", o)
 	return nil
 }
@@ -477,7 +475,6 @@ func (o *baseObject) toPrimitiveString() Value {
 	if v := o.tryPrimitive("valueOf"); v != nil {
 		return v
 	}
-	fmt.Printf("base object is %+v\n", o)
 	o.val.runtime.typeErrorResult(true, "Could not convert %+v to primitive", o)
 	return nil
 }
@@ -561,6 +558,7 @@ type objectPropIter struct {
 	propNames []string
 	recursive bool
 	idx       int
+	depth     int
 }
 
 type propFilterIter struct {
@@ -597,6 +595,10 @@ func (i *propFilterIter) next() (propIterItem, iterNextFunc) {
 }
 
 func (i *objectPropIter) next() (propIterItem, iterNextFunc) {
+	// if i.depth > 15 {
+	// 	panic(fmt.Sprintf("depth reached for %+v\n", i))
+	// }
+	// i.depth++
 	for i.idx < len(i.propNames) {
 		name := i.propNames[i.idx]
 		i.idx++

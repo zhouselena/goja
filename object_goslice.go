@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 )
@@ -23,7 +22,7 @@ func (o *objectGoSlice) init() {
 }
 
 func (o *objectGoSlice) _setLen() {
-	o.lengthProp.value = intToValue(int64(len(*o.data)))
+	o.lengthProp.value = intToValue(len(*o.data))
 }
 
 func (o *objectGoSlice) getIdx(idx int64) Value {
@@ -214,7 +213,6 @@ func (o *objectGoSlice) toPrimitiveString() Value {
 }
 
 func (o *objectGoSlice) toPrimitive() Value {
-	fmt.Printf("base object go slice is %+v\n", o)
 	return o.toPrimitiveString()
 }
 

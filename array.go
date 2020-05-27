@@ -126,7 +126,7 @@ func (a *arrayObject) swap(i, j int64) {
 
 func toIdx(v Value) (idx int64) {
 	idx = -1
-	if idxVal, ok1 := v.(valueInt); ok1 {
+	if idxVal, ok1 := v.(valueInt64); ok1 {
 		idx = int64(idxVal)
 	} else {
 		if i, err := strconv.ParseInt(v.String(), 10, 64); err == nil {

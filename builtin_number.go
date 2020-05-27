@@ -10,8 +10,23 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 	if !isNumber(this) {
 		r.typeErrorResult(true, "Value is not a number")
 	}
-	if _, ok := this.assertInt(); ok {
-		return this
+	if x, ok := this.assertInt64(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeInt64,
+		}
+	}
+	if x, ok := this.assertInt32(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeInt32,
+		}
+	}
+	if x, ok := this.assertInt(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeInt,
+		}
 	}
 
 	if _, ok := this.assertFloat(); ok {
@@ -30,7 +45,7 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 
 func isNumber(v Value) bool {
 	switch t := v.(type) {
-	case valueFloat, valueInt:
+	case valueFloat, valueInt, valueInt32, valueInt64:
 		return true
 	case *Object:
 		switch t := t.self.(type) {
@@ -47,7 +62,7 @@ func (r *Runtime) numberproto_toString(call FunctionCall) Value {
 	}
 	var radix int
 	if arg := call.Argument(0); arg != _undefined {
-		radix = int(arg.ToInteger())
+		radix = arg.ToInt()
 	} else {
 		radix = 10
 	}
@@ -84,7 +99,7 @@ func (r *Runtime) numberproto_toString(call FunctionCall) Value {
 }
 
 func (r *Runtime) numberproto_toFixed(call FunctionCall) Value {
-	prec := call.Argument(0).ToInteger()
+	prec := call.Argument(0).ToInt()
 	if prec < 0 || prec > 20 {
 		panic(r.newError(r.global.RangeError, "toFixed() precision must be between 0 and 20"))
 	}
@@ -100,7 +115,7 @@ func (r *Runtime) numberproto_toFixed(call FunctionCall) Value {
 }
 
 func (r *Runtime) numberproto_toExponential(call FunctionCall) Value {
-	prec := call.Argument(0).ToInteger()
+	prec := call.Argument(0).ToInt()
 	if prec < 0 || prec > 20 {
 		panic(r.newError(r.global.RangeError, "toExponential() precision must be between 0 and 20"))
 	}
@@ -116,7 +131,7 @@ func (r *Runtime) numberproto_toExponential(call FunctionCall) Value {
 }
 
 func (r *Runtime) numberproto_toPrecision(call FunctionCall) Value {
-	prec := call.Argument(0).ToInteger()
+	prec := call.Argument(0).ToInt()
 	if prec < 0 || prec > 20 {
 		panic(r.newError(r.global.RangeError, "toPrecision() precision must be between 0 and 20"))
 	}
@@ -132,7 +147,7 @@ func (r *Runtime) numberproto_toPrecision(call FunctionCall) Value {
 }
 
 func (r *Runtime) initNumber() {
-	r.global.NumberPrototype = r.newPrimitiveObject(valueInt(0), r.global.ObjectPrototype, classNumber)
+	r.global.NumberPrototype = r.newPrimitiveObject(valueNumber{val: 0}, r.global.ObjectPrototype, classNumber)
 	o := r.global.NumberPrototype.self
 	o._putProp("valueOf", r.newNativeFunc(r.numberproto_valueOf, nil, "valueOf", nil, 0), true, false, true)
 	o._putProp("toString", r.newNativeFunc(r.numberproto_toString, nil, "toString", nil, 0), true, false, true)
