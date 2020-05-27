@@ -3,6 +3,7 @@ module github.com/tsedgwick/goja
 go 1.14
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dlclark/regexp2 v1.2.0
 	github.com/dop251/goja v0.0.0-20200414142002-77e84ffb8c65
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible

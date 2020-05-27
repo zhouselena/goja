@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
@@ -125,12 +126,18 @@ type instruction interface {
 	exec(*vm)
 }
 
-func intToValue(i int64) Value {
+func intToValue(itov interface{}) Value {
+	number := valueNumber{
+		val: itov,
+	}
+	i := number.ToNumberInt()
 	if i >= -maxInt && i <= maxInt {
-		if i >= -128 && i <= 127 {
-			return intCache[i+128]
-		}
-		return valueInt(i)
+		// TODO cache ts
+		// if i >= -128 && i <= 127 {
+		// 	return intCache[i+128]
+		// }
+		number._type = reflect.TypeOf(itov)
+		return number
 	}
 	return valueFloat(float64(i))
 }
@@ -143,9 +150,9 @@ func floatToInt(f float64) (result int64, ok bool) {
 }
 
 func floatToValue(f float64) (result Value) {
-	if i, ok := floatToInt(f); ok {
-		return intToValue(i)
-	}
+	// if i, ok := floatToInt(f); ok {
+	// 	return intToValue(i)
+	// }
 	switch {
 	case f == 0:
 		return _negativeZero
@@ -156,12 +163,39 @@ func floatToValue(f float64) (result Value) {
 	case math.IsInf(f, -1):
 		return _negativeInf
 	}
+
 	return valueFloat(f)
 }
 
-func toInt(v Value) (int64, bool) {
+func toInt(v Value) (int, bool) {
 	num := v.ToNumber()
 	if i, ok := num.assertInt(); ok {
+		return i, true
+	}
+	if f, ok := num.assertFloat(); ok {
+		if i, ok := floatToInt(f); ok {
+			return int(i), true
+		}
+	}
+	return 0, false
+}
+func toInt32(v Value) (int32, bool) {
+	num := v.ToNumber()
+	if i, ok := num.assertInt32(); ok {
+		return i, true
+	}
+	if f, ok := num.assertFloat(); ok {
+		// if !math.IsNaN(f) && !math.IsInf(f, 0) {
+		if i, ok := floatToInt(f); ok {
+			return int32(i), true
+		}
+		// }
+	}
+	return 0, false
+}
+func toInt64(v Value) (int64, bool) {
+	num := v.ToNumber()
+	if i, ok := num.assertInt64(); ok {
 		return i, true
 	}
 	if f, ok := num.assertFloat(); ok {
@@ -175,7 +209,7 @@ func toInt(v Value) (int64, bool) {
 func toIntIgnoreNegZero(v Value) (int64, bool) {
 	num := v.ToNumber()
 	if i, ok := num.assertInt(); ok {
-		return i, true
+		return int64(i), true
 	}
 	if f, ok := num.assertFloat(); ok {
 		if v == _negativeZero {
@@ -344,7 +378,6 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 
 	defer func() {
 		if x := recover(); x != nil {
-			log.Printf("context: %+v\n", ctx1)
 			defer func() {
 				vm.callStack = vm.callStack[:ctxOffset]
 				vm.restoreCtx(&ctx)
@@ -367,11 +400,27 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 				ex = &Exception{
 					val: x1,
 				}
+				if x1.ExportType().Kind() == reflect.String {
+					ex.ignoreStack = true
+				}
+				v := x1.baseObject(vm.r)
+				if v != nil {
+					name, err := v.Get("name")
+					if err == nil && name != nil && !name.SameAs(Undefined()) && name.String() == "Error" {
+						ex.ignoreStack = true
+					}
+					ce, err := v.Get("customerror")
+					if err == nil && ce != nil && ce.SameAs(TrueValue()) {
+						ex.ignoreStack = true
+					}
+				}
 			case *InterruptedError:
 				x1.stack = vm.captureStack(x1.stack, ctxOffset)
+				log.Printf("considered an interrupt: %+v %+v\n", ctx1, ex)
 				panic(x1)
 			case *Exception:
 				ex = x1
+				log.Printf("considered an exception: %+v %+v\n", ctx1, ex)
 			default:
 				/*
 					if vm.prg != nil {
@@ -416,6 +465,7 @@ func (vm *vm) saveCtx(ctx *vmContext) {
 	ctx.pc = vm.pc
 	ctx.sb = vm.sb
 	ctx.args = vm.args
+	ctx.ctx = vm.ctx
 }
 
 func (vm *vm) pushCtx() {
@@ -451,6 +501,7 @@ func (vm *vm) popCtx() {
 	vm.callStack[l].stash = nil
 	vm.sb = vm.callStack[l].sb
 	vm.args = vm.callStack[l].args
+	vm.ctx = vm.callStack[l].ctx
 
 	vm.callStack = vm.callStack[:l]
 }
@@ -463,7 +514,7 @@ func (r *Runtime) toObject(v Value, args ...interface{}) *Object {
 	if len(args) > 0 {
 		panic(r.NewTypeError(args...))
 	} else {
-		panic(r.NewTypeError("Value is not an object: %s", v.String()))
+		panic(r.NewTypeError("Value is not an object: %T", v))
 	}
 }
 
@@ -626,7 +677,7 @@ func (_add) exec(vm *vm) {
 	} else {
 		if leftInt, ok := left.assertInt(); ok {
 			if rightInt, ok := right.assertInt(); ok {
-				ret = intToValue(int64(leftInt) + int64(rightInt))
+				ret = intToValue(leftInt + rightInt)
 			} else {
 				ret = floatToValue(float64(leftInt) + right.ToFloat())
 			}
@@ -650,8 +701,8 @@ func (_sub) exec(vm *vm) {
 
 	var result Value
 
-	if left, ok := left.assertInt(); ok {
-		if right, ok := right.assertInt(); ok {
+	if left, ok := left.assertInt64(); ok {
+		if right, ok := right.assertInt64(); ok {
 			result = intToValue(left - right)
 			goto end
 		}
@@ -869,9 +920,9 @@ type _and struct{}
 var and _and
 
 func (_and) exec(vm *vm) {
-	left := toInt32(vm.stack[vm.sp-2])
-	right := toInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-2] = intToValue(int64(left & right))
+	left, _ := toInt32(vm.stack[vm.sp-2])
+	right, _ := toInt32(vm.stack[vm.sp-1])
+	vm.stack[vm.sp-2] = intToValue(left & right)
 	vm.sp--
 	vm.pc++
 }
@@ -881,9 +932,9 @@ type _or struct{}
 var or _or
 
 func (_or) exec(vm *vm) {
-	left := toInt32(vm.stack[vm.sp-2])
-	right := toInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-2] = intToValue(int64(left | right))
+	left, _ := toInt32(vm.stack[vm.sp-2])
+	right, _ := toInt32(vm.stack[vm.sp-1])
+	vm.stack[vm.sp-2] = intToValue(left | right)
 	vm.sp--
 	vm.pc++
 }
@@ -893,9 +944,9 @@ type _xor struct{}
 var xor _xor
 
 func (_xor) exec(vm *vm) {
-	left := toInt32(vm.stack[vm.sp-2])
-	right := toInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-2] = intToValue(int64(left ^ right))
+	left, _ := toInt32(vm.stack[vm.sp-2])
+	right, _ := toInt32(vm.stack[vm.sp-1])
+	vm.stack[vm.sp-2] = intToValue(left ^ right)
 	vm.sp--
 	vm.pc++
 }
@@ -905,8 +956,8 @@ type _bnot struct{}
 var bnot _bnot
 
 func (_bnot) exec(vm *vm) {
-	op := toInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-1] = intToValue(int64(^op))
+	op, _ := toInt32(vm.stack[vm.sp-1])
+	vm.stack[vm.sp-1] = intToValue(^op)
 	vm.pc++
 }
 
@@ -915,9 +966,9 @@ type _sal struct{}
 var sal _sal
 
 func (_sal) exec(vm *vm) {
-	left := toInt32(vm.stack[vm.sp-2])
+	left, _ := toInt32(vm.stack[vm.sp-2])
 	right := toUInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-2] = intToValue(int64(left << (right & 0x1F)))
+	vm.stack[vm.sp-2] = intToValue(left << (right & 0x1F))
 	vm.sp--
 	vm.pc++
 }
@@ -927,9 +978,9 @@ type _sar struct{}
 var sar _sar
 
 func (_sar) exec(vm *vm) {
-	left := toInt32(vm.stack[vm.sp-2])
+	left, _ := toInt32(vm.stack[vm.sp-2])
 	right := toUInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-2] = intToValue(int64(left >> (right & 0x1F)))
+	vm.stack[vm.sp-2] = intToValue(left >> (right & 0x1F))
 	vm.sp--
 	vm.pc++
 }
@@ -941,7 +992,7 @@ var shr _shr
 func (_shr) exec(vm *vm) {
 	left := toUInt32(vm.stack[vm.sp-2])
 	right := toUInt32(vm.stack[vm.sp-1])
-	vm.stack[vm.sp-2] = intToValue(int64(left >> (right & 0x1F)))
+	vm.stack[vm.sp-2] = intToValue(left >> (right & 0x1F))
 	vm.sp--
 	vm.pc++
 }
@@ -2181,11 +2232,14 @@ var op_instanceof _op_instanceof
 func (_op_instanceof) exec(vm *vm) {
 	left := vm.stack[vm.sp-2]
 	right := vm.r.toObject(vm.stack[vm.sp-1])
-
-	if right.self.hasInstance(left) {
-		vm.stack[vm.sp-2] = valueTrue
-	} else {
+	if right == nil || left == nil {
 		vm.stack[vm.sp-2] = valueFalse
+	} else {
+		if right.self.hasInstance(left) {
+			vm.stack[vm.sp-2] = valueTrue
+		} else {
+			vm.stack[vm.sp-2] = valueFalse
+		}
 	}
 
 	vm.sp--
@@ -2293,14 +2347,16 @@ repeat:
 		vm.sp -= int(n)
 		vm.stack[vm.sp-1] = f.construct(args)
 	case *nativeFuncObject:
+		fmt.Println("stacl is ", vm.stack[vm.sp-1-int(n)])
 		vm._nativeNew(f, int(n))
 	case *boundFuncObject:
 		vm._nativeNew(&f.nativeFuncObject, int(n))
 	case *lazyObject:
+		fmt.Println("creating lazy now2")
 		obj.self = f.create(obj)
 		goto repeat
 	default:
-		vm.r.typeErrorResult(true, "Not a constructor")
+		vm.r.typeErrorResult(true, "Not a constructor11")
 	}
 
 	vm.pc++
@@ -2312,29 +2368,51 @@ func (vm *vm) _nativeNew(f *nativeFuncObject, n int) {
 		copy(args, vm.stack[vm.sp-n:])
 		vm.sp -= n
 		vm.stack[vm.sp-1] = f.construct(args)
+		// } else if f.f != nil {
+		// 	args := make([]Value, n)
+		// 	copy(args, vm.stack[vm.sp-n:])
+		// 	vm.sp -= n
+		// 	vm.stack[vm.sp-1] = f.val
 	} else {
-		vm.r.typeErrorResult(true, "Not a constructor")
+		fmt.Printf("what is it then3332 %+v\n", f.val.ClassName())
+		fmt.Printf("what is it then3332 %+v\n", f.values)
+		vm.r.typeErrorResult(true, "Not a constructor2")
 	}
 }
 
 type _typeof struct{}
 
 var typeof _typeof
+var count int
 
 func (_typeof) exec(vm *vm) {
+	x := vm.stack[vm.sp-1]
 	var r Value
-	switch v := vm.stack[vm.sp-1].(type) {
+	switch v := x.(type) {
 	case valueUndefined, valueUnresolved:
 		r = stringUndefined
 	case valueNull:
 		r = stringObjectC
 	case *Object:
 	repeat:
+		if v == nil {
+			fmt.Println("sp number ", vm.sp-1)
+			// panic("HERE TF")
+			// spew.Dump("exec problem ", vm.stack[vm.sp-1])
+			// spew.Dump("exec problem ", vm.stack)
+			// r = stringObjectC
+			r = stringFunction
+			vm.stack[vm.sp-1] = r
+			vm.pc++
+			break
+		}
 		switch s := v.self.(type) {
 		case *funcObject, *nativeFuncObject, *boundFuncObject:
 			r = stringFunction
 		case *lazyObject:
+			fmt.Printf("lazy obj is v?%+v\n%+v\n", v, s)
 			v.self = s.create(v)
+
 			goto repeat
 		default:
 			r = stringObjectC
@@ -2409,7 +2487,7 @@ func (formalArgs createArgsStrict) exec(vm *vm) {
 		i++
 	}
 
-	args._putProp("length", intToValue(int64(vm.args)), true, false, true)
+	args._putProp("length", intToValue(vm.args), true, false, true)
 	args._put("callee", vm.r.global.throwerProperty)
 	args._put("caller", vm.r.global.throwerProperty)
 	vm.push(args.val)

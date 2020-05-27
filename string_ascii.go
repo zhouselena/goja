@@ -84,7 +84,49 @@ func (s asciiString) _toFloat() (float64, error) {
 	return f, err
 }
 
-func (s asciiString) ToInteger() int64 {
+// func (s asciiString) ToTrueInteger() interface{} {
+// 	return s.ToInteger()
+// }
+
+func (s asciiString) ToInt() int {
+	if s == "" {
+		return 0
+	}
+	if s == "Infinity" || s == "+Infinity" {
+		return math.MaxInt64
+	}
+	if s == "-Infinity" {
+		return math.MinInt64
+	}
+	i, err := s._toInt()
+	if err != nil {
+		f, err := s._toFloat()
+		if err == nil {
+			return int(f)
+		}
+	}
+	return int(i)
+}
+func (s asciiString) ToInt32() int32 {
+	if s == "" {
+		return 0
+	}
+	if s == "Infinity" || s == "+Infinity" {
+		return math.MaxInt32
+	}
+	if s == "-Infinity" {
+		return math.MinInt32
+	}
+	i, err := s._toInt()
+	if err != nil {
+		f, err := s._toFloat()
+		if err == nil {
+			return int32(f)
+		}
+	}
+	return int32(i)
+}
+func (s asciiString) ToInt64() int64 {
 	if s == "" {
 		return 0
 	}
@@ -110,6 +152,10 @@ func (s asciiString) ToString() valueString {
 
 func (s asciiString) String() string {
 	return string(s)
+}
+
+func (s asciiString) IsObject() bool {
+	return false
 }
 
 func (s asciiString) ToFloat() float64 {
@@ -177,7 +223,7 @@ func (s asciiString) Equals(other Value) bool {
 
 	if o, ok := other.assertInt(); ok {
 		if o1, e := s._toInt(); e == nil {
-			return o1 == o
+			return int(o1) == o
 		}
 		return false
 	}
@@ -206,7 +252,13 @@ func (s asciiString) StrictEquals(other Value) bool {
 	return false
 }
 
-func (s asciiString) assertInt() (int64, bool) {
+func (s asciiString) assertInt() (int, bool) {
+	return 0, false
+}
+func (s asciiString) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (s asciiString) assertInt64() (int64, bool) {
 	return 0, false
 }
 

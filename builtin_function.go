@@ -25,7 +25,11 @@ func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object {
 func (r *Runtime) functionproto_toString(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 repeat:
-	switch f := obj.self.(type) {
+	if obj == nil || obj.self == nil {
+		return newStringValue("function () { [native code] }")
+	}
+	x := obj.self
+	switch f := x.(type) {
 	case *funcObject:
 		return newStringValue(f.src)
 	case *nativeFuncObject:
@@ -54,6 +58,7 @@ func (r *Runtime) toValueArray(a Value) []Value {
 }
 
 func (r *Runtime) functionproto_apply(call FunctionCall) Value {
+
 	f := r.toCallable(call.This)
 	var args []Value
 	if len(call.Arguments) >= 2 {
@@ -133,6 +138,7 @@ repeat:
 		f = &ff.nativeFuncObject
 		goto repeat
 	case *lazyObject:
+		fmt.Println("creating lazy now func")
 		f = ff.create(obj)
 		goto repeat
 	default:

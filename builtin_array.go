@@ -10,7 +10,7 @@ import (
 func (r *Runtime) builtin_newArray(args []Value, proto *Object) *Object {
 	l := len(args)
 	if l == 1 {
-		if al, ok := args[0].assertInt(); ok {
+		if al, ok := args[0].assertInt64(); ok {
 			return r.newArrayLength(al)
 		} else if f, ok := args[0].assertFloat(); ok {
 			al := int64(f)
@@ -113,7 +113,7 @@ func (r *Runtime) arrayproto_join(call FunctionCall) Value {
 
 	for i := 1; i < l; i++ {
 		buf.WriteString(sep)
-		element := o.self.get(intToValue(int64(i)))
+		element := o.self.get(intToValue(i))
 		if element != nil && element != _undefined && element != _null {
 			buf.WriteString(element.String())
 		}
@@ -248,7 +248,7 @@ func min(a, b int64) int64 {
 func (r *Runtime) arrayproto_slice(call FunctionCall) Value {
 	o := call.This.ToObject(r)
 	length := toLength(o.self.getStr("length"))
-	start := call.Argument(0).ToInteger()
+	start := call.Argument(0).ToInt64()
 	if start < 0 {
 		start = max(length+start, 0)
 	} else {
@@ -256,7 +256,7 @@ func (r *Runtime) arrayproto_slice(call FunctionCall) Value {
 	}
 	var end int64
 	if endArg := call.Argument(1); endArg != _undefined {
-		end = endArg.ToInteger()
+		end = endArg.ToInt64()
 	} else {
 		end = length
 	}
@@ -312,7 +312,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value {
 	o := call.This.ToObject(r)
 	a := r.newArrayValues(nil)
 	length := toLength(o.self.getStr("length"))
-	relativeStart := call.Argument(0).ToInteger()
+	relativeStart := call.Argument(0).ToInt64()
 	var actualStart int64
 	if relativeStart < 0 {
 		actualStart = max(length+relativeStart, 0)
@@ -320,7 +320,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value {
 		actualStart = min(relativeStart, length)
 	}
 
-	actualDeleteCount := min(max(call.Argument(1).ToInteger(), 0), length-actualStart)
+	actualDeleteCount := min(max(call.Argument(1).ToInt64(), 0), length-actualStart)
 
 	for k := int64(0); k < actualDeleteCount; k++ {
 		from := intToValue(k + actualStart)
@@ -382,7 +382,7 @@ func (r *Runtime) arrayproto_unshift(call FunctionCall) Value {
 	}
 
 	for k, arg := range call.Arguments {
-		o.self.put(intToValue(int64(k)), arg, true)
+		o.self.put(intToValue(k), arg, true)
 	}
 
 	newLen := intToValue(length + argCount)
@@ -397,7 +397,7 @@ func (r *Runtime) arrayproto_indexOf(call FunctionCall) Value {
 		return intToValue(-1)
 	}
 
-	n := call.Argument(1).ToInteger()
+	n := call.Argument(1).ToInt64()
 	if n >= length {
 		return intToValue(-1)
 	}
@@ -432,7 +432,7 @@ func (r *Runtime) arrayproto_lastIndexOf(call FunctionCall) Value {
 	if len(call.Arguments) < 2 {
 		fromIndex = length - 1
 	} else {
-		fromIndex = call.Argument(1).ToInteger()
+		fromIndex = call.Argument(1).ToInt64()
 		if fromIndex >= 0 {
 			fromIndex = min(fromIndex, length-1)
 		} else {

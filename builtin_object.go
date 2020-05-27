@@ -368,6 +368,9 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 	case valueUndefined:
 		return stringObjectUndefined
 	case *Object:
+		if o == nil {
+			return newStringValue("[object Object]")
+		}
 		return newStringValue(fmt.Sprintf("[object %s]", o.self.className()))
 	default:
 		obj := call.This.ToObject(r)

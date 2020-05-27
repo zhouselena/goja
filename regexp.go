@@ -2,10 +2,11 @@ package goja
 
 import (
 	"fmt"
-	"github.com/dlclark/regexp2"
 	"regexp"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"github.com/dlclark/regexp2"
 )
 
 type regexpPattern interface {
@@ -295,14 +296,14 @@ func (r *regexpObject) execResultToArray(target valueString, result []int) Value
 	}
 	match := r.val.runtime.newArrayValues(valueArray)
 	match.self.putStr("input", target, false)
-	match.self.putStr("index", intToValue(int64(matchIndex)), false)
+	match.self.putStr("index", intToValue(matchIndex), false)
 	return match
 }
 
 func (r *regexpObject) execRegexp(target valueString) (match bool, result []int) {
 	lastIndex := int64(0)
 	if p := r.getStr("lastIndex"); p != nil {
-		lastIndex = p.ToInteger()
+		lastIndex = int64(p.ToInt())
 		if lastIndex < 0 {
 			lastIndex = 0
 		}
@@ -327,7 +328,7 @@ func (r *regexpObject) execRegexp(target valueString) (match bool, result []int)
 		result[index] += int(startIndex)
 	}
 	if r.global {
-		r.putStr("lastIndex", intToValue(int64(endIndex)), true)
+		r.putStr("lastIndex", intToValue(endIndex), true)
 	}
 	return
 }

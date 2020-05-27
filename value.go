@@ -2,6 +2,7 @@ package goja
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"regexp"
@@ -22,7 +23,10 @@ var (
 )
 
 var (
-	reflectTypeInt    = reflect.TypeOf(int64(0))
+	reflectTypeInt64 = reflect.TypeOf(int64(0))
+	reflectTypeInt32 = reflect.TypeOf(int32(0))
+	reflectTypeInt   = reflect.TypeOf(0)
+
 	reflectTypeBool   = reflect.TypeOf(false)
 	reflectTypeNil    = reflect.TypeOf(nil)
 	reflectTypeFloat  = reflect.TypeOf(float64(0))
@@ -41,7 +45,9 @@ func TrueValue() Value {
 }
 
 type Value interface {
-	ToInteger() int64
+	ToInt() int
+	ToInt32() int32
+	ToInt64() int64
 	ToString() valueString
 	String() string
 	ToFloat() float64
@@ -54,14 +60,29 @@ type Value interface {
 	Export() interface{}
 	ExportType() reflect.Type
 
-	assertInt() (int64, bool)
+	IsObject() bool
+
+	assertInt() (int, bool)
+	assertInt32() (int32, bool)
+	assertInt64() (int64, bool)
 	assertString() (valueString, bool)
 	assertFloat() (float64, bool)
 
 	baseObject(r *Runtime) *Object
 }
 
-type valueInt int64
+// type valueNumber struct {
+
+// 	trueVal interface{}
+// }
+type valueNumber struct {
+	_type reflect.Type
+	val   interface{}
+}
+
+type valueInt int
+type valueInt32 int32
+type valueInt64 int64
 type valueFloat float64
 type valueBool bool
 type valueNull struct{}
@@ -118,12 +139,367 @@ func propSetter(o Value, v Value, r *Runtime) *Object {
 	return nil
 }
 
-func (i valueInt) ToInteger() int64 {
+func (i valueNumber) toTrueValue() (interface{}, reflect.Type) {
+	return i.val, i._type
+}
+
+func (i valueNumber) ToNumberInt() int {
+	v, ok := i.val.(int)
+	if ok {
+		return v
+	}
+	v32, ok := i.val.(int32)
+	if ok {
+		return int(v32)
+	}
+	v64, ok := i.val.(int64)
+	if ok {
+		return int(v64)
+	}
+	return 0
+}
+
+func (i valueNumber) ToInt() int {
+	v, ok := i.val.(int)
+	if !ok {
+		return 0
+	}
+	return v
+}
+
+func (i valueNumber) ToInt32() int32 {
+	v, ok := i.val.(int32)
+	if !ok {
+		return 0
+	}
+	return v
+}
+
+func (i valueNumber) ToInt64() int64 {
+	v, ok := i.val.(int64)
+	if !ok {
+		return 0
+	}
+	return v
+}
+
+func (i valueNumber) ToString() valueString {
+	return asciiString(i.String())
+}
+func (i valueNumber) IsObject() bool {
+	return false
+}
+
+func (i valueNumber) String() string {
+	return strconv.FormatInt(int64(i.ToNumberInt()), 10)
+}
+
+func (i valueNumber) ToFloat() float64 {
+	return float64(int64(i.ToNumberInt()))
+}
+
+func (i valueNumber) ToBoolean() bool {
+	return i.val != 0
+}
+
+func (i valueNumber) ToObject(r *Runtime) *Object {
+	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+}
+
+func (i valueNumber) ToNumber() Value {
+	return i
+}
+
+func (i valueNumber) SameAs(other Value) bool {
+	if otherInt, ok := other.assertInt(); ok {
+		return i.ToNumberInt() == otherInt
+	}
+	return false
+}
+
+func (i valueNumber) Equals(other Value) bool {
+	if o, ok := other.assertInt(); ok {
+		return i.ToNumberInt() == o
+	}
+	if o, ok := other.assertFloat(); ok {
+		return float64(i.ToNumberInt()) == o
+	}
+	if o, ok := other.assertString(); ok {
+		return o.ToNumber().Equals(i)
+	}
+	if o, ok := other.(valueBool); ok {
+		return int(i.ToNumberInt()) == o.ToInt()
+	}
+	if o, ok := other.(*Object); ok {
+		return i.Equals(o.self.toPrimitiveNumber())
+	}
+	return false
+}
+
+func (i valueNumber) StrictEquals(other Value) bool {
+	if otherInt, ok := other.assertInt(); ok {
+		return int(i.ToNumberInt()) == otherInt
+	} else if otherFloat, ok := other.assertFloat(); ok {
+		return float64(i.ToNumberInt()) == otherFloat
+	}
+	return false
+}
+
+func (i valueNumber) assertInt() (int, bool) {
+	return i.ToNumberInt(), true
+}
+func (i valueNumber) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (i valueNumber) assertInt64() (int64, bool) {
+	return 0, false
+}
+
+func (i valueNumber) assertFloat() (float64, bool) {
+	return 0, false
+}
+
+func (i valueNumber) assertString() (valueString, bool) {
+	return nil, false
+}
+
+func (i valueNumber) baseObject(r *Runtime) *Object {
+	return r.global.NumberPrototype
+}
+
+func (i valueNumber) Export() interface{} {
+	fmt.Printf("what is this %+v %+v %T\n", i.val, i._type, i.val)
+	return i.val
+}
+
+func (i valueNumber) ExportType() reflect.Type {
+	return reflectTypeInt
+}
+
+func (i valueInt32) ToInt() int {
+	return int(i)
+}
+
+func (i valueInt32) ToInt32() int32 {
+	return int32(i)
+}
+
+func (i valueInt32) ToInt64() int64 {
+	return int64(i)
+}
+
+func (i valueInt32) ToString() valueString {
+	return asciiString(i.String())
+}
+func (i valueInt32) IsObject() bool {
+	return false
+}
+
+func (i valueInt32) String() string {
+	return strconv.FormatInt(int64(i), 10)
+}
+
+func (i valueInt32) ToFloat() float64 {
+	return float64(int64(i))
+}
+
+func (i valueInt32) ToBoolean() bool {
+	return i != 0
+}
+
+func (i valueInt32) ToObject(r *Runtime) *Object {
+	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+}
+
+func (i valueInt32) ToNumber() Value {
+	return i
+}
+
+func (i valueInt32) SameAs(other Value) bool {
+	if otherInt, ok := other.assertInt32(); ok {
+		return int32(i) == otherInt
+	}
+	return false
+}
+
+func (i valueInt32) Equals(other Value) bool {
+	if o, ok := other.assertInt32(); ok {
+		return int32(i) == o
+	}
+	if o, ok := other.assertFloat(); ok {
+		return float64(i) == o
+	}
+	if o, ok := other.assertString(); ok {
+		return o.ToNumber().Equals(i)
+	}
+	if o, ok := other.(valueBool); ok {
+		return int(i) == o.ToInt()
+	}
+	if o, ok := other.(*Object); ok {
+		return i.Equals(o.self.toPrimitiveNumber())
+	}
+	return false
+}
+
+func (i valueInt32) StrictEquals(other Value) bool {
+	if otherInt, ok := other.assertInt32(); ok {
+		return int32(i) == otherInt
+	} else if otherFloat, ok := other.assertFloat(); ok {
+		return float64(i) == otherFloat
+	}
+	return false
+}
+
+func (i valueInt32) assertInt() (int, bool) {
+	return 0, false
+}
+func (i valueInt32) assertInt32() (int32, bool) {
+	return int32(i), true
+}
+func (i valueInt32) assertInt64() (int64, bool) {
+	return 0, false
+}
+
+func (i valueInt32) assertFloat() (float64, bool) {
+	return 0, false
+}
+
+func (i valueInt32) assertString() (valueString, bool) {
+	return nil, false
+}
+
+func (i valueInt32) baseObject(r *Runtime) *Object {
+	return r.global.NumberPrototype
+}
+
+func (i valueInt32) Export() interface{} {
+	return int64(i)
+}
+
+func (i valueInt32) ExportType() reflect.Type {
+	return reflectTypeInt32
+}
+
+func (i valueInt64) ToInt() int {
+	return int(i)
+}
+
+func (i valueInt64) ToInt32() int32 {
+	return int32(i)
+}
+
+func (i valueInt64) ToInt64() int64 {
+	return int64(i)
+}
+
+func (i valueInt64) ToString() valueString {
+	return asciiString(i.String())
+}
+func (i valueInt64) IsObject() bool {
+	return false
+}
+func (i valueInt64) String() string {
+	return strconv.FormatInt(int64(i), 10)
+}
+
+func (i valueInt64) ToFloat() float64 {
+	return float64(int64(i))
+}
+
+func (i valueInt64) ToBoolean() bool {
+	return i != 0
+}
+
+func (i valueInt64) ToObject(r *Runtime) *Object {
+	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+}
+
+func (i valueInt64) ToNumber() Value {
+	return i
+}
+
+func (i valueInt64) SameAs(other Value) bool {
+	if otherInt, ok := other.assertInt64(); ok {
+		return int64(i) == otherInt
+	}
+	return false
+}
+
+func (i valueInt64) Equals(other Value) bool {
+	if o, ok := other.assertInt64(); ok {
+		return int64(i) == o
+	}
+	if o, ok := other.assertFloat(); ok {
+		return float64(i) == o
+	}
+	if o, ok := other.assertString(); ok {
+		return o.ToNumber().Equals(i)
+	}
+	if o, ok := other.(valueBool); ok {
+		return int(i) == o.ToInt()
+	}
+	if o, ok := other.(*Object); ok {
+		return i.Equals(o.self.toPrimitiveNumber())
+	}
+	return false
+}
+
+func (i valueInt64) StrictEquals(other Value) bool {
+	if otherInt, ok := other.assertInt64(); ok {
+		return int64(i) == otherInt
+	} else if otherFloat, ok := other.assertFloat(); ok {
+		return float64(i) == otherFloat
+	}
+	return false
+}
+
+func (i valueInt64) assertInt() (int, bool) {
+	return 0, false
+}
+func (i valueInt64) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (i valueInt64) assertInt64() (int64, bool) {
+	return int64(i), true
+}
+
+func (i valueInt64) assertFloat() (float64, bool) {
+	return 0, false
+}
+
+func (i valueInt64) assertString() (valueString, bool) {
+	return nil, false
+}
+
+func (i valueInt64) baseObject(r *Runtime) *Object {
+	return r.global.NumberPrototype
+}
+
+func (i valueInt64) Export() interface{} {
+	return int64(i)
+}
+
+func (i valueInt64) ExportType() reflect.Type {
+	return reflectTypeInt64
+}
+
+func (i valueInt) ToInt() int {
+	return int(i)
+}
+
+func (i valueInt) ToInt32() int32 {
+	return int32(i)
+}
+
+func (i valueInt) ToInt64() int64 {
 	return int64(i)
 }
 
 func (i valueInt) ToString() valueString {
 	return asciiString(i.String())
+}
+func (i valueInt) IsObject() bool {
+	return false
 }
 
 func (i valueInt) String() string {
@@ -148,14 +524,14 @@ func (i valueInt) ToNumber() Value {
 
 func (i valueInt) SameAs(other Value) bool {
 	if otherInt, ok := other.assertInt(); ok {
-		return int64(i) == otherInt
+		return int(i) == otherInt
 	}
 	return false
 }
 
 func (i valueInt) Equals(other Value) bool {
 	if o, ok := other.assertInt(); ok {
-		return int64(i) == o
+		return int(i) == o
 	}
 	if o, ok := other.assertFloat(); ok {
 		return float64(i) == o
@@ -164,7 +540,7 @@ func (i valueInt) Equals(other Value) bool {
 		return o.ToNumber().Equals(i)
 	}
 	if o, ok := other.(valueBool); ok {
-		return int64(i) == o.ToInteger()
+		return int(i) == o.ToInt()
 	}
 	if o, ok := other.(*Object); ok {
 		return i.Equals(o.self.toPrimitiveNumber())
@@ -174,15 +550,21 @@ func (i valueInt) Equals(other Value) bool {
 
 func (i valueInt) StrictEquals(other Value) bool {
 	if otherInt, ok := other.assertInt(); ok {
-		return int64(i) == otherInt
+		return int(i) == otherInt
 	} else if otherFloat, ok := other.assertFloat(); ok {
 		return float64(i) == otherFloat
 	}
 	return false
 }
 
-func (i valueInt) assertInt() (int64, bool) {
-	return int64(i), true
+func (i valueInt) assertInt() (int, bool) {
+	return int(i), true
+}
+func (i valueInt) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (i valueInt) assertInt64() (int64, bool) {
+	return 0, false
 }
 
 func (i valueInt) assertFloat() (float64, bool) {
@@ -205,7 +587,19 @@ func (i valueInt) ExportType() reflect.Type {
 	return reflectTypeInt
 }
 
-func (o valueBool) ToInteger() int64 {
+func (o valueBool) ToInt64() int64 {
+	if o {
+		return 1
+	}
+	return 0
+}
+func (o valueBool) ToInt32() int32 {
+	if o {
+		return 1
+	}
+	return 0
+}
+func (o valueBool) ToInt() int {
 	if o {
 		return 1
 	}
@@ -224,6 +618,9 @@ func (o valueBool) String() string {
 		return "true"
 	}
 	return "false"
+}
+func (o valueBool) IsObject() bool {
+	return false
 }
 
 func (o valueBool) ToFloat() float64 {
@@ -275,7 +672,15 @@ func (o valueBool) StrictEquals(other Value) bool {
 	return false
 }
 
-func (o valueBool) assertInt() (int64, bool) {
+func (o valueBool) assertInt() (int, bool) {
+	return 0, false
+}
+
+func (o valueBool) assertInt32() (int32, bool) {
+	return 0, false
+}
+
+func (o valueBool) assertInt64() (int64, bool) {
 	return 0, false
 }
 
@@ -299,7 +704,13 @@ func (o valueBool) ExportType() reflect.Type {
 	return reflectTypeBool
 }
 
-func (n valueNull) ToInteger() int64 {
+func (n valueNull) ToInt() int {
+	return 0
+}
+func (n valueNull) ToInt32() int32 {
+	return 0
+}
+func (n valueNull) ToInt64() int64 {
 	return 0
 }
 
@@ -317,6 +728,9 @@ func (u valueUndefined) ToString() valueString {
 
 func (u valueUndefined) String() string {
 	return "undefined"
+}
+func (u valueUndefined) IsObject() bool {
+	return false
 }
 
 func (u valueUndefined) ToNumber() Value {
@@ -373,7 +787,13 @@ func (n valueNull) StrictEquals(other Value) bool {
 	return same
 }
 
-func (n valueNull) assertInt() (int64, bool) {
+func (n valueNull) assertInt() (int, bool) {
+	return 0, false
+}
+func (n valueNull) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (n valueNull) assertInt64() (int64, bool) {
 	return 0, false
 }
 
@@ -392,12 +812,23 @@ func (n valueNull) baseObject(r *Runtime) *Object {
 func (n valueNull) Export() interface{} {
 	return nil
 }
+func (n valueNull) IsObject() bool {
+	return false
+}
 
 func (n valueNull) ExportType() reflect.Type {
 	return reflectTypeNil
 }
 
-func (p *valueProperty) ToInteger() int64 {
+func (p *valueProperty) ToInt() int {
+	return 0
+}
+
+func (p *valueProperty) ToInt32() int32 {
+	return 0
+}
+
+func (p *valueProperty) ToInt64() int64 {
 	return 0
 }
 
@@ -407,6 +838,9 @@ func (p *valueProperty) ToString() valueString {
 
 func (p *valueProperty) String() string {
 	return ""
+}
+func (p *valueProperty) IsObject() bool {
+	return false
 }
 
 func (p *valueProperty) ToFloat() float64 {
@@ -425,7 +859,13 @@ func (p *valueProperty) ToNumber() Value {
 	return nil
 }
 
-func (p *valueProperty) assertInt() (int64, bool) {
+func (p *valueProperty) assertInt() (int, bool) {
+	return 0, false
+}
+func (p *valueProperty) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (p *valueProperty) assertInt64() (int64, bool) {
 	return 0, false
 }
 
@@ -494,7 +934,29 @@ func (n *valueProperty) ExportType() reflect.Type {
 	panic("Cannot export valueProperty")
 }
 
-func (f valueFloat) ToInteger() int64 {
+func (f valueFloat) ToInt() int {
+	switch {
+	case math.IsNaN(float64(f)):
+		return 0
+	case math.IsInf(float64(f), 1):
+		return math.MaxInt64
+	case math.IsInf(float64(f), -1):
+		return math.MinInt64
+	}
+	return int(f)
+}
+func (f valueFloat) ToInt32() int32 {
+	switch {
+	case math.IsNaN(float64(f)):
+		return 0
+	case math.IsInf(float64(f), 1):
+		return int32(math.MaxInt32)
+	case math.IsInf(float64(f), -1):
+		return int32(math.MinInt32)
+	}
+	return int32(f)
+}
+func (f valueFloat) ToInt64() int64 {
 	switch {
 	case math.IsNaN(float64(f)):
 		return 0
@@ -508,6 +970,9 @@ func (f valueFloat) ToInteger() int64 {
 
 func (f valueFloat) ToString() valueString {
 	return asciiString(f.String())
+}
+func (f valueFloat) IsObject() bool {
+	return false
 }
 
 var matchLeading0Exponent = regexp.MustCompile(`([eE][\+\-])0+([1-9])`) // 1e-07 => 1e-7
@@ -603,7 +1068,13 @@ func (f valueFloat) StrictEquals(other Value) bool {
 	return false
 }
 
-func (f valueFloat) assertInt() (int64, bool) {
+func (f valueFloat) assertInt() (int, bool) {
+	return 0, false
+}
+func (f valueFloat) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (f valueFloat) assertInt64() (int64, bool) {
 	return 0, false
 }
 
@@ -627,8 +1098,14 @@ func (f valueFloat) ExportType() reflect.Type {
 	return reflectTypeFloat
 }
 
-func (o *Object) ToInteger() int64 {
-	return o.self.toPrimitiveNumber().ToNumber().ToInteger()
+func (o *Object) ToInt() int {
+	return o.self.toPrimitiveNumber().ToNumber().ToInt()
+}
+func (o *Object) ToInt32() int32 {
+	return o.self.toPrimitiveNumber().ToNumber().ToInt32()
+}
+func (o *Object) ToInt64() int64 {
+	return o.self.toPrimitiveNumber().ToNumber().ToInt64()
 }
 
 func (o *Object) ToString() valueString {
@@ -649,6 +1126,9 @@ func (o *Object) ToBoolean() bool {
 
 func (o *Object) ToObject(r *Runtime) *Object {
 	return o
+}
+func (o *Object) IsObject() bool {
+	return true
 }
 
 func (o *Object) ToNumber() Value {
@@ -692,7 +1172,13 @@ func (o *Object) StrictEquals(other Value) bool {
 	return false
 }
 
-func (o *Object) assertInt() (int64, bool) {
+func (o *Object) assertInt() (int, bool) {
+	return 0, false
+}
+func (o *Object) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (o *Object) assertInt64() (int64, bool) {
 	return 0, false
 }
 
@@ -789,7 +1275,15 @@ func (o valueUnresolved) throw() {
 	o.r.throwReferenceError(o.ref)
 }
 
-func (o valueUnresolved) ToInteger() int64 {
+func (o valueUnresolved) ToInt() int {
+	o.throw()
+	return 0
+}
+func (o valueUnresolved) ToInt32() int32 {
+	o.throw()
+	return 0
+}
+func (o valueUnresolved) ToInt64() int64 {
 	o.throw()
 	return 0
 }
@@ -839,7 +1333,15 @@ func (o valueUnresolved) StrictEquals(other Value) bool {
 	return false
 }
 
-func (o valueUnresolved) assertInt() (int64, bool) {
+func (o valueUnresolved) assertInt() (int, bool) {
+	o.throw()
+	return 0, false
+}
+func (o valueUnresolved) assertInt32() (int32, bool) {
+	o.throw()
+	return 0, false
+}
+func (o valueUnresolved) assertInt64() (int64, bool) {
 	o.throw()
 	return 0, false
 }
@@ -867,6 +1369,9 @@ func (o valueUnresolved) Export() interface{} {
 func (o valueUnresolved) ExportType() reflect.Type {
 	o.throw()
 	return nil
+}
+func (o valueUnresolved) IsObject() bool {
+	return false
 }
 
 func init() {

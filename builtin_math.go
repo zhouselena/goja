@@ -88,8 +88,8 @@ func (r *Runtime) math_min(call FunctionCall) Value {
 func (r *Runtime) math_pow(call FunctionCall) Value {
 	x := call.Argument(0)
 	y := call.Argument(1)
-	if x, ok := x.assertInt(); ok {
-		if y, ok := y.assertInt(); ok && y >= 0 && y < 64 {
+	if x, ok := x.assertInt64(); ok {
+		if y, ok := y.assertInt64(); ok && y >= 0 && y < 64 {
 			if y == 0 {
 				return intToValue(1)
 			}

@@ -22,7 +22,7 @@ func (o *objectGoSliceReflect) init() {
 }
 
 func (o *objectGoSliceReflect) _setLen() {
-	o.lengthProp.value = intToValue(int64(o.value.Len()))
+	o.lengthProp.value = intToValue(o.value.Len())
 }
 
 func (o *objectGoSliceReflect) _has(n Value) bool {

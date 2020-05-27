@@ -3,15 +3,16 @@ package goja
 import (
 	"errors"
 	"fmt"
-	"github.com/dop251/goja/parser"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"io"
 	"math"
 	"reflect"
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"github.com/dop251/goja/parser"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type unicodeString []uint16
@@ -71,7 +72,19 @@ func (s unicodeString) reader(start int) io.RuneReader {
 	}
 }
 
-func (s unicodeString) ToInteger() int64 {
+// func (s unicodeString) ToTrueInteger() interface{} {
+// 	return 0
+// }
+
+func (s unicodeString) ToInt() int {
+	return 0
+}
+
+func (s unicodeString) ToInt32() int32 {
+	return 0
+}
+
+func (s unicodeString) ToInt64() int64 {
 	return 0
 }
 
@@ -100,6 +113,9 @@ func (s unicodeString) ToNumber() Value {
 
 func (s unicodeString) ToObject(r *Runtime) *Object {
 	return r._newString(s)
+}
+func (s unicodeString) IsObject() bool {
+	return false
 }
 
 func (s unicodeString) equals(other unicodeString) bool {
@@ -149,7 +165,13 @@ func (s unicodeString) StrictEquals(other Value) bool {
 	return s.SameAs(other)
 }
 
-func (s unicodeString) assertInt() (int64, bool) {
+func (s unicodeString) assertInt() (int, bool) {
+	return 0, false
+}
+func (s unicodeString) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (s unicodeString) assertInt64() (int64, bool) {
 	return 0, false
 }
 
