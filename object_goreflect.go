@@ -440,8 +440,8 @@ func (o *objectGoReflect) enumerate(all, recursive bool) iterNextFunc {
 	}).next
 }
 
-func (o *objectGoReflect) export() interface{} {
-	return o.origValue.Interface()
+func (o *objectGoReflect) export() (interface{}, error) {
+	return o.origValue.Interface(), nil
 }
 
 func (o *objectGoReflect) exportType() reflect.Type {

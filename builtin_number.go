@@ -22,6 +22,12 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 			_type: reflectTypeInt32,
 		}
 	}
+	if x, ok := this.assertUInt32(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeUInt32,
+		}
+	}
 	if x, ok := this.assertInt(); ok {
 		return valueNumber{
 			val:   x,
@@ -43,9 +49,13 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 	return nil
 }
 
+func IsNumber(v Value) bool {
+	return isNumber(v)
+}
+
 func isNumber(v Value) bool {
 	switch t := v.(type) {
-	case valueFloat, valueInt, valueInt32, valueInt64:
+	case valueFloat, valueInt, valueInt32, valueInt64, valueUInt32, valueNumber:
 		return true
 	case *Object:
 		switch t := t.self.(type) {
@@ -53,6 +63,7 @@ func isNumber(v Value) bool {
 			return isNumber(t.pValue)
 		}
 	}
+
 	return false
 }
 

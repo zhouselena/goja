@@ -5,8 +5,8 @@ type objectArrayBuffer struct {
 	data []byte
 }
 
-func (o *objectArrayBuffer) export() interface{} {
-	return o.data
+func (o *objectArrayBuffer) export() (interface{}, error) {
+	return o.data, nil
 }
 
 func (r *Runtime) _newArrayBuffer(proto *Object, o *Object) *objectArrayBuffer {

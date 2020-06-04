@@ -31,8 +31,8 @@ type boundFuncObject struct {
 	nativeFuncObject
 }
 
-func (f *nativeFuncObject) export() interface{} {
-	return f.f
+func (f *nativeFuncObject) export() (interface{}, error) {
+	return f.f, nil
 }
 
 func (f *nativeFuncObject) exportType() reflect.Type {
@@ -163,8 +163,8 @@ func (f *funcObject) Call(call FunctionCall) Value {
 	return vm.pop()
 }
 
-func (f *funcObject) export() interface{} {
-	return f.Call
+func (f *funcObject) export() (interface{}, error) {
+	return f.Call, nil
 }
 
 func (f *funcObject) exportType() reflect.Type {

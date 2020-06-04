@@ -119,7 +119,11 @@ func (o *objectGoSlice) putIdx(idx int64, v Value, throw bool) {
 		}
 		o.grow(idx + 1)
 	}
-	(*o.data)[idx] = v.Export()
+	var err error
+	(*o.data)[idx], err = v.Export()
+	if err != nil {
+		o.val.runtime.typeErrorResult(throw, "Error with Go slice")
+	}
 }
 
 func (o *objectGoSlice) put(n Value, val Value, throw bool) {
@@ -269,8 +273,8 @@ func (o *objectGoSlice) _enumerate(recursive bool) iterNextFunc {
 	}).next
 }
 
-func (o *objectGoSlice) export() interface{} {
-	return *o.data
+func (o *objectGoSlice) export() (interface{}, error) {
+	return *o.data, nil
 }
 
 func (o *objectGoSlice) exportType() reflect.Type {

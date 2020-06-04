@@ -163,7 +163,7 @@ func (o *lazyObject) _enumerate(recursive bool) iterNextFunc {
 	return obj._enumerate(recursive)
 }
 
-func (o *lazyObject) export() interface{} {
+func (o *lazyObject) export() (interface{}, error) {
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.export()
