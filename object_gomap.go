@@ -73,7 +73,11 @@ func (o *objectGoMapSimple) _has(n Value) bool {
 
 func (o *objectGoMapSimple) putStr(name string, val Value, throw bool) {
 	if o.extensible || o._hasStr(name) {
-		o.data[name] = val.Export()
+		var err error
+		o.data[name], err = val.Export()
+		if err != nil {
+			o.val.runtime.typeErrorResult(throw, "Error with host object")
+		}
 	} else {
 		o.val.runtime.typeErrorResult(throw, "Host object is not extensible")
 	}
@@ -187,8 +191,8 @@ func (o *objectGoMapSimple) _enumerate(recursive bool) iterNextFunc {
 	}).next
 }
 
-func (o *objectGoMapSimple) export() interface{} {
-	return o.data
+func (o *objectGoMapSimple) Export() (interface{}, error) {
+	return o.data, nil
 }
 
 func (o *objectGoMapSimple) exportType() reflect.Type {

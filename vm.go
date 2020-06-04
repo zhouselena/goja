@@ -88,6 +88,7 @@ type unresolvedRef struct {
 }
 
 func (r *unresolvedRef) get() Value {
+	fmt.Println("here we are grea1t")
 	r.runtime.throwReferenceError(r.name)
 	panic("Unreachable")
 }
@@ -130,7 +131,7 @@ func intToValue(itov interface{}) Value {
 	number := valueNumber{
 		val: itov,
 	}
-	i := number.ToNumberInt()
+	i := number.ToInt()
 	if i >= -maxInt && i <= maxInt {
 		// TODO cache ts
 		// if i >= -128 && i <= 127 {
@@ -409,6 +410,11 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 					if err == nil && name != nil && !name.SameAs(Undefined()) && name.String() == "Error" {
 						ex.ignoreStack = true
 					}
+					if v.__wrapped != nil {
+						if nErr, ok := v.__wrapped.(error); ok {
+							ex.nativeErr = nErr
+						}
+					}
 					ce, err := v.Get("customerror")
 					if err == nil && ce != nil && ce.SameAs(TrueValue()) {
 						ex.ignoreStack = true
@@ -419,6 +425,7 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 				log.Printf("considered an interrupt: %+v %+v\n", ctx1, ex)
 				panic(x1)
 			case *Exception:
+
 				ex = x1
 				log.Printf("considered an exception: %+v %+v\n", ctx1, ex)
 			default:
@@ -1501,6 +1508,8 @@ func (s resolveVar1Strict) exec(vm *vm) {
 		goto end
 	}
 
+	fmt.Println("doing this one3")
+	// panic("did it")
 	ref = &unresolvedRef{
 		runtime: vm.r,
 		name:    string(s),
@@ -1530,6 +1539,7 @@ func (s setGlobalStrict) exec(vm *vm) {
 	if o.hasOwnPropertyStr(name) {
 		o.putStr(name, v, true)
 	} else {
+		fmt.Println("here we are great2")
 		vm.r.throwReferenceError(name)
 	}
 	vm.pc++
@@ -1575,6 +1585,7 @@ func (g getVar) exec(vm *vm) {
 			if g.ref {
 				v = valueUnresolved{r: vm.r, ref: name}
 			} else {
+				fmt.Println("here we are great3")
 				vm.r.throwReferenceError(name)
 			}
 		}
@@ -1630,7 +1641,7 @@ func (r resolveVar) exec(vm *vm) {
 			goto end
 		}
 	} */
-
+	fmt.Println("doing this one^")
 	ref = &unresolvedRef{
 		runtime: vm.r,
 		name:    r.name,
@@ -1650,6 +1661,7 @@ func (_getValue) exec(vm *vm) {
 	if v := ref.get(); v != nil {
 		vm.push(v)
 	} else {
+		fmt.Println("here we are great4")
 		vm.r.throwReferenceError(ref.refname())
 		panic("Unreachable")
 	}
@@ -1683,6 +1695,7 @@ func (n getVar1) exec(vm *vm) {
 	if val == nil {
 		val = vm.r.globalObject.self.getStr(name)
 		if val == nil {
+			fmt.Println("here we are great5")
 			vm.r.throwReferenceError(name)
 		}
 	}
@@ -2383,7 +2396,7 @@ func (_typeof) exec(vm *vm) {
 		r = stringBoolean
 	case valueString:
 		r = stringString
-	case valueInt, valueFloat:
+	case valueInt, valueFloat, valueNumber:
 		r = stringNumber
 	default:
 		panic(fmt.Errorf("Unknown type: %T", v))

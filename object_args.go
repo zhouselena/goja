@@ -138,13 +138,17 @@ func (a *argumentsObject) getOwnProp(name string) Value {
 	return a.baseObject.getOwnProp(name)
 }
 
-func (a *argumentsObject) export() interface{} {
+func (a *argumentsObject) export() (interface{}, error) {
 	arr := make([]interface{}, a.length)
+	var err error
 	for i, _ := range arr {
 		v := a.get(intToValue(i))
 		if v != nil {
-			arr[i] = v.Export()
+			arr[i], err = v.Export()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
-	return arr
+	return arr, nil
 }

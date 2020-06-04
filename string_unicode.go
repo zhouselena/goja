@@ -72,15 +72,14 @@ func (s unicodeString) reader(start int) io.RuneReader {
 	}
 }
 
-// func (s unicodeString) ToTrueInteger() interface{} {
-// 	return 0
-// }
-
 func (s unicodeString) ToInt() int {
 	return 0
 }
 
 func (s unicodeString) ToInt32() int32 {
+	return 0
+}
+func (s unicodeString) ToUInt32() uint32 {
 	return 0
 }
 
@@ -115,6 +114,9 @@ func (s unicodeString) ToObject(r *Runtime) *Object {
 	return r._newString(s)
 }
 func (s unicodeString) IsObject() bool {
+	return false
+}
+func (s unicodeString) IsNumber() bool {
 	return false
 }
 
@@ -166,6 +168,9 @@ func (s unicodeString) StrictEquals(other Value) bool {
 }
 
 func (s unicodeString) assertInt() (int, bool) {
+	return 0, false
+}
+func (s unicodeString) assertUInt32() (uint32, bool) {
 	return 0, false
 }
 func (s unicodeString) assertInt32() (int32, bool) {
@@ -327,8 +332,8 @@ func (s unicodeString) toUpper() valueString {
 	return newStringValue(caser.String(s.String()))
 }
 
-func (s unicodeString) Export() interface{} {
-	return s.String()
+func (s unicodeString) Export() (interface{}, error) {
+	return s.String(), nil
 }
 
 func (s unicodeString) ExportType() reflect.Type {

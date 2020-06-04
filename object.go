@@ -18,9 +18,9 @@ const (
 )
 
 type Object struct {
-	runtime *Runtime
-	self    objectImpl
-
+	runtime   *Runtime
+	self      objectImpl
+	depth     int
 	__wrapped interface{}
 }
 
@@ -62,7 +62,7 @@ type objectImpl interface {
 	preventExtensions()
 	enumerate(all, recusrive bool) iterNextFunc
 	_enumerate(recursive bool) iterNextFunc
-	export() interface{}
+	export() (interface{}, error)
 	exportType() reflect.Type
 	equal(objectImpl) bool
 }
@@ -82,7 +82,7 @@ type primitiveValueObject struct {
 	pValue Value
 }
 
-func (o *primitiveValueObject) export() interface{} {
+func (o *primitiveValueObject) export() (interface{}, error) {
 	return o.pValue.Export()
 }
 
@@ -518,21 +518,24 @@ func (o *baseObject) swap(i, j int64) {
 	o.val.self.put(jj, x, false)
 }
 
-func (o *baseObject) export() interface{} {
+func (o *baseObject) export() (interface{}, error) {
 	m := make(map[string]interface{})
-
+	var err error
 	for item, f := o.enumerate(false, false)(); f != nil; item, f = f() {
 		v := item.value
 		if v == nil {
 			v = o.getStr(item.name)
 		}
 		if v != nil {
-			m[item.name] = v.Export()
+			m[item.name], err = v.Export()
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			m[item.name] = nil
 		}
 	}
-	return m
+	return m, nil
 }
 
 func (o *baseObject) exportType() reflect.Type {
@@ -595,7 +598,7 @@ func (i *propFilterIter) next() (propIterItem, iterNextFunc) {
 }
 
 func (i *objectPropIter) next() (propIterItem, iterNextFunc) {
-	// if i.depth > 15 {
+	// if i.depth > 150 {
 	// 	panic(fmt.Sprintf("depth reached for %+v\n", i))
 	// }
 	// i.depth++

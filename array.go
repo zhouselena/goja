@@ -458,15 +458,19 @@ func (a *arrayObject) deleteStr(name string, throw bool) bool {
 	return a.baseObject.deleteStr(name, throw)
 }
 
-func (a *arrayObject) export() interface{} {
+func (a *arrayObject) export() (interface{}, error) {
 	arr := make([]interface{}, a.length)
+	var err error
 	for i, v := range a.values {
 		if v != nil {
-			arr[i] = v.Export()
+			arr[i], err = v.Export()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return arr
+	return arr, nil
 }
 
 func (a *arrayObject) exportType() reflect.Type {

@@ -436,14 +436,18 @@ func (a *sparseArrayObject) swap(i, j int64) {
 	}
 }
 
-func (a *sparseArrayObject) export() interface{} {
+func (a *sparseArrayObject) export() (interface{}, error) {
 	arr := make([]interface{}, a.length)
+	var err error
 	for _, item := range a.items {
 		if item.value != nil {
-			arr[item.idx] = item.value.Export()
+			arr[item.idx], err = item.value.Export()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
-	return arr
+	return arr, nil
 }
 
 func (a *sparseArrayObject) exportType() reflect.Type {

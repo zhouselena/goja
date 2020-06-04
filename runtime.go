@@ -115,12 +115,18 @@ type Runtime struct {
 
 	vm *vm
 
+	stackDepthLimit int
+
 	Limiter *rate.Limiter
 	ticks   uint64
 }
 
 func (self *Runtime) Ticks() uint64 {
 	return self.ticks
+}
+
+func (self *Runtime) SetStackDepthLimit(limit int) {
+	self.stackDepthLimit = limit
 }
 
 type stackFrame struct {
@@ -166,8 +172,13 @@ func (f *stackFrame) write(b *bytes.Buffer) {
 
 type Exception struct {
 	val         Value
+	nativeErr   error
 	stack       []stackFrame
 	ignoreStack bool
+}
+
+func (e *Exception) NativeError() error {
+	return e.nativeErr
 }
 
 type InterruptedError struct {
@@ -587,7 +598,6 @@ func (r *Runtime) newPrimitiveObject(value Value, proto *Object, class string) *
 }
 
 func (r *Runtime) builtin_Number(call FunctionCall) Value {
-	fmt.Println("new number here non new")
 	if len(call.Arguments) > 0 {
 		return call.Arguments[0].ToNumber()
 	} else {
@@ -602,7 +612,6 @@ func (r *Runtime) builtin_newNumber(args []Value) *Object {
 	} else {
 		v = intToValue(0)
 	}
-	fmt.Println("new number here")
 	return r.newPrimitiveObject(v, r.global.NumberPrototype, classNumber)
 }
 
@@ -695,6 +704,41 @@ func (r *Runtime) throw(e Value) {
 func (r *Runtime) builtin_thrower(call FunctionCall) Value {
 	r.typeErrorResult(true, "'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them")
 	return nil
+}
+
+func (r *Runtime) Eval(name, src string, direct, strict bool) (Value, error) {
+	this := r.NewObject()
+
+	p, err := r.compile(name, src, strict, true)
+	if err != nil {
+		panic(err)
+	}
+
+	vm := r.vm
+
+	vm.pushCtx()
+	vm.prg = p
+	vm.pc = 0
+	if !direct {
+		vm.stash = nil
+	}
+	vm.sb = vm.sp
+	vm.push(this)
+	if strict {
+		vm.push(valueTrue)
+	} else {
+		vm.push(valueFalse)
+	}
+	// ex := r.vm.try(r.ctx)
+	// if ex != nil {
+	// 	return nil, ex
+	// }
+	vm.run()
+	vm.popCtx()
+	vm.halt = false
+	retval := vm.stack[vm.sp-1]
+	vm.sp -= 2
+	return retval, nil
 }
 
 func (r *Runtime) eval(src string, direct, strict bool, this Value) Value {
@@ -950,7 +994,6 @@ func (r *Runtime) RunString(str string) (Value, error) {
 // RunScript executes the given string in the global context.
 func (r *Runtime) RunScript(name, src string) (Value, error) {
 	p, err := Compile(name, src, false)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1099,7 +1142,7 @@ func (r *Runtime) CreateNativeErrorClass(
 	// o._putProp("UTC", r.newNativeFunc(r.date_UTC, nil, "UTC", nil, 7), true, false, true)
 	// o._putProp("now", r.newNativeFunc(r.date_now, nil, "now", nil, 0), true, false, true)
 
-	return NativeClass{Object: v, runtime: r, classProto: classProto, className: className}
+	return NativeClass{Object: v, runtime: r, classProto: classProto, className: className, Function: v}
 }
 
 func (r *Runtime) CreateNativeError(name string) (Value, func(err error) Value) {
@@ -1130,6 +1173,7 @@ func (r *Runtime) CreateNativeClass(
 	classProps []Property,
 	funcProps []Property,
 ) NativeClass {
+	// needed for instance of
 	classProto := r.builtin_new(r.global.Object, []Value{})
 	o := classProto.self
 	o._putProp("name", asciiString(className), true, false, true)
@@ -1196,15 +1240,18 @@ func (r *Runtime) CreateNativeClass(
 	// o._putProp("now", r.newNativeFunc(r.date_now, nil, "now", nil, 0), true, false, true)
 	// toString := asciiString(fmt.Sprintf("[ object %s ]", className))
 	ctorImpl := func(call ConstructorCall) *Object {
+		fmt.Println("creating new inside ctor", className)
 		fCall := FunctionCall{
-			ctx:       call.ctx,
+			ctx:       r.vm.ctx,
 			This:      call.This,
 			Arguments: call.Arguments,
 		}
 		val := ctor(fCall)
+		fmt.Println("what's the val here", val)
 		call.This.__wrapped = val
 		// add the toString function first so it can be overridden if user wants to do so
 		call.This.self._putProp("name", asciiString(className), true, false, true)
+
 		for _, prop := range funcProps {
 			// obj.propNames = append(obj.propNames, prop.Name)
 			// responseProto.self._putProp(prop.Name, prop.Value, true, false, true)
@@ -1221,6 +1268,7 @@ func (r *Runtime) CreateNativeClass(
 	// responseObject.Set("prototype", classProto)
 	p, _ := responseObject.Get("prototype")
 	proto := p.(*Object).self
+
 	proto._putProp("name", asciiString(className), true, false, true)
 	for _, prop := range classProps {
 		proto.putStr(prop.Name, prop.Value, false)
@@ -1251,6 +1299,7 @@ type _goNativeValue struct {
 }
 
 func (n NativeClass) InstanceOf(val interface{}) Value {
+	fmt.Println("creating new ", n.className)
 	r := n.runtime
 	className := n.className
 	classProto := n.classProto
@@ -1261,7 +1310,7 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 		// 	This:      obj.val,
 		// 	Arguments: args,
 		// }
-
+		obj.class = n.className
 		g := &_goNativeValue{baseObject: obj, value: val}
 		obj.val.self = g
 		obj.val.__wrapped = g.value
@@ -1727,18 +1776,33 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 	if et == nil {
 		return reflect.Zero(typ), nil
 	}
-	if et.AssignableTo(typ) {
-		return reflect.ValueOf(v.Export()), nil
-	} else if et.ConvertibleTo(typ) {
-		return reflect.ValueOf(v.Export()).Convert(typ), nil
+
+	if typ == typeTime {
+		if et.Kind() == reflect.String {
+			fmt.Println("are we parsing?")
+			time, ok := dateParse(v.String())
+			if !ok {
+				return reflect.Value{}, fmt.Errorf("Could not convert string %v to %v", v, typ)
+			}
+			return reflect.ValueOf(time), nil
+		}
+		if bo, ok := v.baseObject(r).self.(*objectGoReflect); ok {
+			return bo.origValue, nil
+		}
 	}
 
-	if typ == typeTime && et.Kind() == reflect.String {
-		time, ok := dateParse(v.String())
-		if !ok {
-			return reflect.Value{}, fmt.Errorf("Could not convert string %v to %v", v, typ)
+	if et.AssignableTo(typ) {
+		x, err := v.Export()
+		if err != nil {
+			return reflect.Value{}, err
 		}
-		return reflect.ValueOf(time), nil
+		return reflect.ValueOf(x), nil
+	} else if et.ConvertibleTo(typ) {
+		x, err := v.Export()
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return reflect.ValueOf(x).Convert(typ), nil
 	}
 
 	switch typ.Kind() {
@@ -1887,6 +1951,7 @@ func (r *Runtime) ExportTo(v Value, target interface{}) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("what is this ff", vv, tval)
 	tval.Elem().Set(vv)
 	return nil
 }
@@ -2053,6 +2118,7 @@ func NegativeInf() Value {
 func tryFunc(f func()) (err error) {
 	defer func() {
 		if x := recover(); x != nil {
+			fmt.Println("recovering here try func")
 			switch x := x.(type) {
 			case *Exception:
 				err = x
