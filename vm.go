@@ -133,8 +133,12 @@ func intToValue(itov interface{}) Value {
 	number := valueNumber{
 		val: itov,
 	}
-	i := number.ToInt()
-	if i >= -maxInt && i <= maxInt {
+	if itov == _negativeZero {
+		spew.Dump("NEGATIVE", neg)
+	}
+	i, ok := number.ToInteger()
+	spew.Dump("intToVal", itov, i, ok)
+	if ok && i >= -maxInt && i <= maxInt {
 		// TODO cache ts
 		// if i >= -128 && i <= 127 {
 		// 	return intCache[i+128]
@@ -142,7 +146,12 @@ func intToValue(itov interface{}) Value {
 		number._type = reflect.TypeOf(itov)
 		return number
 	}
-	return valueFloat(float64(i))
+	x, ok := itov.(float64)
+	if ok {
+		return valueFloat(x)
+	}
+	vf := valueFloat(float64(i))
+	return vf
 }
 
 func floatToInt(f float64) (result int64, ok bool) {
@@ -156,6 +165,7 @@ func floatToValue(f float64) (result Value) {
 	// if i, ok := floatToInt(f); ok {
 	// 	return intToValue(i)
 	// }
+	fmt.Println("parse floating")
 	switch {
 	case f == 0:
 		return _negativeZero
@@ -188,11 +198,11 @@ func toInt32(v Value) (int32, bool) {
 		return i, true
 	}
 	if f, ok := num.assertFloat(); ok {
-		// if !math.IsNaN(f) && !math.IsInf(f, 0) {
-		if i, ok := floatToInt(f); ok {
-			return int32(i), true
+		if !math.IsNaN(f) && !math.IsInf(f, 0) {
+			if i, ok := floatToInt(f); ok {
+				return int32(i), true
+			}
 		}
-		// }
 	}
 	return 0, false
 }
@@ -674,7 +684,6 @@ func (_add) exec(vm *vm) {
 
 	leftString, isLeftString := left.assertString()
 	rightString, isRightString := right.assertString()
-
 	if isLeftString || isRightString {
 		if !isLeftString {
 			leftString = left.ToString()
@@ -733,7 +742,7 @@ func (_mul) exec(vm *vm) {
 	right := vm.stack[vm.sp-1]
 
 	var result Value
-
+	spew.Dump("doing this!!", right, left)
 	if left, ok := toInt(left); ok {
 		if right, ok := toInt(right); ok {
 			if left == 0 && right == -1 || left == -1 && right == 0 {
@@ -800,6 +809,10 @@ func (_div) exec(vm *vm) {
 		}
 	}
 	if right == 0 {
+		if right == _negativeZero.ToFloat() {
+			result = _negativeInf
+			goto end
+		}
 		if math.Signbit(left) == math.Signbit(right) {
 			result = _positiveInf
 			goto end

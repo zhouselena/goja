@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestGoReflectGet(t *testing.T) {
@@ -143,7 +145,8 @@ func TestGoReflectPreserveCustomType(t *testing.T) {
 			t.Fatalf("Wrong value: %v", ii)
 		}
 	} else {
-		t.Fatalf("Wrong type: %v", ve)
+		spew.Dump("wrong type", ve)
+		t.Fatalf("Wrong type: %T", ve)
 	}
 }
 
@@ -538,6 +541,7 @@ func TestGoReflectCustomNaming(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		spew.Dump("x is ", x)
 		if !reflect.DeepEqual(x, []interface{}{"b"}) {
 			t.Fatalf("Expected [\"b\"], got %v", x)
 		}

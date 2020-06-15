@@ -73,7 +73,7 @@ func (r *Runtime) numberproto_toString(call FunctionCall) Value {
 	}
 	var radix int
 	if arg := call.Argument(0); arg != _undefined {
-		radix = arg.ToInt()
+		radix = int(arg.ToInt64())
 	} else {
 		radix = 10
 	}
@@ -110,7 +110,7 @@ func (r *Runtime) numberproto_toString(call FunctionCall) Value {
 }
 
 func (r *Runtime) numberproto_toFixed(call FunctionCall) Value {
-	prec := call.Argument(0).ToInt()
+	prec := call.Argument(0).ToInt64()
 	if prec < 0 || prec > 20 {
 		panic(r.newError(r.global.RangeError, "toFixed() precision must be between 0 and 20"))
 	}
@@ -126,7 +126,7 @@ func (r *Runtime) numberproto_toFixed(call FunctionCall) Value {
 }
 
 func (r *Runtime) numberproto_toExponential(call FunctionCall) Value {
-	prec := call.Argument(0).ToInt()
+	prec := call.Argument(0).ToInt64()
 	if prec < 0 || prec > 20 {
 		panic(r.newError(r.global.RangeError, "toExponential() precision must be between 0 and 20"))
 	}
@@ -142,7 +142,7 @@ func (r *Runtime) numberproto_toExponential(call FunctionCall) Value {
 }
 
 func (r *Runtime) numberproto_toPrecision(call FunctionCall) Value {
-	prec := call.Argument(0).ToInt()
+	prec := call.Argument(0).ToInt64()
 	if prec < 0 || prec > 20 {
 		panic(r.newError(r.global.RangeError, "toPrecision() precision must be between 0 and 20"))
 	}

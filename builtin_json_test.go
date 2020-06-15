@@ -20,6 +20,7 @@ func TestJSONMarshalObject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if string(b) != `{"test":42}` {
 		t.Fatalf("Unexpected value: %s", b)
 	}

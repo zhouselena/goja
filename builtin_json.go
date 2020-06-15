@@ -195,7 +195,6 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value {
 	ctx := _builtinJSON_stringifyContext{
 		r: r,
 	}
-
 	replacer, _ := call.Argument(1).(*Object)
 	if replacer != nil {
 		if isArray(replacer) {
@@ -310,6 +309,7 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 		case *stringObject:
 			value = o1.value
 		case *objectGoReflect:
+
 			if o1.toJson != nil {
 				value = ctx.r.ToValue(o1.toJson())
 			} else if v, ok := o1.origValue.Interface().(json.Marshaler); ok {
@@ -345,6 +345,8 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 		}
 	case valueString:
 		ctx.quote(value1)
+	case valueNumber:
+		ctx.buf.WriteString(value.String())
 	case valueInt:
 		ctx.buf.WriteString(value.String())
 	case valueFloat:

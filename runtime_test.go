@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestGlobalObjectProto(t *testing.T) {
@@ -273,7 +275,7 @@ func TestObjectGetSet(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if v1 := val; v11 != int64(43) {
+		if v1 := val; v11 != 43 {
 			t.Fatalf("Unexpected test value: %v (%T)", v1, v11)
 		}
 	}
@@ -696,7 +698,7 @@ func TestRuntime_ExportToFuncThrow(t *testing.T) {
 
 	if _, err := fn("40"); err != nil {
 		if ex, ok := err.(*Exception); ok {
-			if msg := ex.Error(); msg != "Error: testing at f (<eval>:3:9(4))" {
+			if msg := ex.Error(); msg != "Error: testing" {
 				t.Fatalf("Msg: %q", msg)
 			}
 		} else {
@@ -1252,6 +1254,7 @@ func TestNativeConstruct(t *testing.T) {
 		t.Fatal(err)
 	}
 	if v != resp {
+		spew.Dump("what is it", v, resp)
 		t.Fatal("no")
 	}
 }

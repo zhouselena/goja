@@ -465,6 +465,7 @@ func parseInt(s string, base int) (Value, error) {
 	if sign {
 		n = -n
 	}
+
 	return intToValue(n), nil
 
 Error:

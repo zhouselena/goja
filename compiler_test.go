@@ -1,10 +1,12 @@
 package goja
 
 import (
-	"github.com/dop251/goja/parser"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/dop251/goja/parser"
 )
 
 func testScript(script string, expectedResult Value, t *testing.T) {
@@ -61,6 +63,7 @@ func testScript1(script string, expectedResult Value, t *testing.T) {
 	t.Logf("stashAllocs: %d", vm.stashAllocs)
 
 	if v == nil && expectedResult != nil || !v.SameAs(expectedResult) {
+		spew.Dump(v, expectedResult)
 		t.Fatalf("Result: %+v, expected: %+v", v, expectedResult)
 	}
 
@@ -1828,7 +1831,7 @@ func TestDeleteNonConfigurablePropertyStrictDot(t *testing.T) {
 	try {
 		delete o.test;
 	} catch (e) {
-		thrown = e instanceof TypeError;
+		thrown = e;
 	}
 
 	thrown;
