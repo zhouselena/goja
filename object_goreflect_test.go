@@ -145,7 +145,6 @@ func TestGoReflectPreserveCustomType(t *testing.T) {
 			t.Fatalf("Wrong value: %v", ii)
 		}
 	} else {
-		spew.Dump("wrong type", ve)
 		t.Fatalf("Wrong type: %T", ve)
 	}
 }
@@ -541,7 +540,6 @@ func TestGoReflectCustomNaming(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		spew.Dump("x is ", x)
 		if !reflect.DeepEqual(x, []interface{}{"b"}) {
 			t.Fatalf("Expected [\"b\"], got %v", x)
 		}
@@ -953,6 +951,8 @@ func TestStructNonAddressableAnonStruct(t *testing.T) {
 	}
 
 	expected := `{"B":{"C":{"Z":1,"X":"X2"},"Z":1,"X":"X2","Y":"Y3"}}`
+	{"B":{"C":{"Z":1,"X":"X2"},"Z":1,"X":"X2","Y":"Y3"}}
+	{"B":{"C":{"X":"X2"},			 "X":"X2","Y":"Y3"}}
 	if expected != v.String() {
 		t.Fatalf("Expected '%s', got '%s'", expected, v.String())
 	}
