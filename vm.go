@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -133,11 +131,7 @@ func intToValue(itov interface{}) Value {
 	number := valueNumber{
 		val: itov,
 	}
-	if itov == _negativeZero {
-		spew.Dump("NEGATIVE", neg)
-	}
 	i, ok := number.ToInteger()
-	spew.Dump("intToVal", itov, i, ok)
 	if ok && i >= -maxInt && i <= maxInt {
 		// TODO cache ts
 		// if i >= -128 && i <= 127 {
@@ -165,7 +159,6 @@ func floatToValue(f float64) (result Value) {
 	// if i, ok := floatToInt(f); ok {
 	// 	return intToValue(i)
 	// }
-	fmt.Println("parse floating")
 	switch {
 	case f == 0:
 		return _negativeZero
@@ -742,7 +735,6 @@ func (_mul) exec(vm *vm) {
 	right := vm.stack[vm.sp-1]
 
 	var result Value
-	spew.Dump("doing this!!", right, left)
 	if left, ok := toInt(left); ok {
 		if right, ok := toInt(right); ok {
 			if left == 0 && right == -1 || left == -1 && right == 0 {
@@ -2384,8 +2376,7 @@ repeat:
 		obj.self = f.create(obj)
 		goto repeat
 	default:
-		spew.Dump("what are we", f, obj)
-		vm.r.typeErrorResult(true, "Not a constructor11")
+		vm.r.typeErrorResult(true, "Not a constructor")
 	}
 
 	vm.pc++
@@ -2425,11 +2416,6 @@ func (_typeof) exec(vm *vm) {
 	case *Object:
 	repeat:
 		if v == nil {
-			fmt.Println("sp number ", vm.sp-1)
-			// panic("HERE TF")
-			// spew.Dump("exec problem ", vm.stack[vm.sp-1])
-			// spew.Dump("exec problem ", vm.stack)
-			// r = stringObjectC
 			r = stringFunction
 			vm.stack[vm.sp-1] = r
 			vm.pc++
