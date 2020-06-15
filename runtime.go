@@ -1779,7 +1779,6 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 
 	if typ == typeTime {
 		if et.Kind() == reflect.String {
-			fmt.Println("are we parsing?")
 			time, ok := dateParse(v.String())
 			if !ok {
 				return reflect.Value{}, fmt.Errorf("Could not convert string %v to %v", v, typ)

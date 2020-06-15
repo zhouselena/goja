@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -57,7 +56,6 @@ func (o *objectGoMapReflect) get(n Value) Value {
 }
 
 func (o *objectGoMapReflect) getStr(name string) Value {
-	fmt.Println("it's a map")
 	if v := o._getStr(name); v != nil {
 		return v
 	}

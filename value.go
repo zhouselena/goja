@@ -148,10 +148,31 @@ func (i valueNumber) toTrueValue() (interface{}, reflect.Type) {
 	return i.val, i._type
 }
 
+func (i valueNumber) ToInteger() (int, bool) {
+	switch v := i.val.(type) {
+	case int:
+		return v, true
+	case int8:
+		return int(v), true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case uint32:
+		return int(v), true
+	case uint64:
+		return int(v), true
+	}
+
+	return 0, false
+}
+
 func (i valueNumber) ToInt() int {
 	switch v := i.val.(type) {
 	case int:
 		return v
+	case int8:
+		return int(v)
 	case int32:
 		return int(v)
 	case int64:
@@ -169,6 +190,8 @@ func (i valueNumber) ToInt32() int32 {
 	switch v := i.val.(type) {
 	case int:
 		return int32(v)
+	case int8:
+		return int32(v)
 	case int32:
 		return int32(v)
 	case int64:
@@ -184,6 +207,8 @@ func (i valueNumber) ToInt32() int32 {
 func (i valueNumber) ToUInt32() uint32 {
 	switch v := i.val.(type) {
 	case int:
+		return uint32(v)
+	case int8:
 		return uint32(v)
 	case int32:
 		return uint32(v)
@@ -201,6 +226,8 @@ func (i valueNumber) ToUInt32() uint32 {
 func (i valueNumber) ToInt64() int64 {
 	switch v := i.val.(type) {
 	case int:
+		return int64(v)
+	case int8:
 		return int64(v)
 	case int32:
 		return int64(v)
@@ -231,7 +258,7 @@ func (i valueNumber) String() string {
 }
 
 func (i valueNumber) ToFloat() float64 {
-	return float64(int64(i.ToInt()))
+	return float64(i.ToInt64())
 }
 
 func (i valueNumber) ToBoolean() bool {
@@ -249,6 +276,9 @@ func (i valueNumber) ToNumber() Value {
 func (i valueNumber) SameAs(other Value) bool {
 	if otherInt, ok := other.assertInt(); ok {
 		return i.ToInt() == otherInt
+	}
+	if otherFloat, ok := other.assertFloat(); ok {
+		return i.ToFloat() == otherFloat
 	}
 	return false
 }
@@ -295,7 +325,7 @@ func (i valueNumber) assertInt64() (int64, bool) {
 }
 
 func (i valueNumber) assertFloat() (float64, bool) {
-	return 0, false
+	return i.ToFloat(), false
 }
 
 func (i valueNumber) assertString() (valueString, bool) {
@@ -621,7 +651,7 @@ func (i valueInt64) StrictEquals(other Value) bool {
 }
 
 func (i valueInt64) assertInt() (int, bool) {
-	return 0, false
+	return 0, true
 }
 func (i valueInt64) assertUInt32() (uint32, bool) {
 	return 0, false
@@ -1436,7 +1466,12 @@ func (o *Object) Export() (interface{}, error) {
 	if o.__wrapped != nil {
 		return o.__wrapped, nil
 	}
-	return o.self, nil
+
+	if bo, ok := o.baseObject(o.runtime).self.(*objectGoReflect); ok {
+		return bo.export()
+	}
+
+	return o.self.export()
 }
 
 func (o *Object) ExportType() reflect.Type {
@@ -1630,102 +1665,3 @@ func init() {
 	}
 	_positiveZero = intToValue(0)
 }
-
-// func toValue(value interface{}) Value {
-// 	switch value := value.(type) {
-// 	case Value:
-// 		return value
-// 	case bool:
-// 		return valueBool(value)
-// 	case int:
-// 		return valueInt(value)
-// 	case int8:
-// 		return valueInt(value)
-// 	case int16:
-// 		return valueInt(value)
-// 	case int32:
-// 		return valueInt(value)
-// 	case int64:
-// 		return valueInt(value)
-// 	case uint:
-// 		return valueInt(value)
-// 	case uint8:
-// 		return valueInt(value)
-// 	case uint16:
-// 		return valueInt(value)
-// 	case uint32:
-// 		return valueInt(value)
-// 	case uint64:
-// 		return valueInt(value)
-// 	case float32:
-// 		return valueFloat(value)
-// 	case float64:
-// 		return valueFloat(value)
-// 	case []uint16:
-// 		return valueString(value)
-// 	case string:
-// 		return valueString(value)
-// 	// A rune is actually an int32, which is handled above
-// 	case *_object:
-// 		return valueObject(value)
-// 	case *Object:
-// 		return Value{valueObject, value.object}
-// 	case Object:
-// 		return Value{valueObject, value.object}
-// 	case _reference: // reference is an interface (already a pointer)
-// 		return Value{valueReference, value}
-// 	case _result:
-// 		return Value{valueResult, value}
-// 	case nil:
-// 		// TODO Ugh.
-// 		return Value{}
-// 	case reflect.Value:
-// 		for value.Kind() == reflect.Ptr {
-// 			// We were given a pointer, so we'll drill down until we get a non-pointer
-// 			//
-// 			// These semantics might change if we want to start supporting pointers to values transparently
-// 			// (It would be best not to depend on this behavior)
-// 			// FIXME: UNDEFINED
-// 			if value.IsNil() {
-// 				return Value{}
-// 			}
-// 			value = value.Elem()
-// 		}
-// 		switch value.Kind() {
-// 		case reflect.Bool:
-// 			return Value{valueBool, bool(value.Bool())}
-// 		case reflect.Int:
-// 			return Value{valueInt, int(value.Int())}
-// 		case reflect.Int8:
-// 			return Value{valueInt, int8(value.Int())}
-// 		case reflect.Int16:
-// 			return Value{valueNumber, int16(value.Int())}
-// 		case reflect.Int32:
-// 			return Value{valueNumber, int32(value.Int())}
-// 		case reflect.Int64:
-// 			return Value{valueNumber, int64(value.Int())}
-// 		case reflect.Uint:
-// 			return Value{valueNumber, uint(value.Uint())}
-// 		case reflect.Uint8:
-// 			return Value{valueNumber, uint8(value.Uint())}
-// 		case reflect.Uint16:
-// 			return Value{valueNumber, uint16(value.Uint())}
-// 		case reflect.Uint32:
-// 			return Value{valueNumber, uint32(value.Uint())}
-// 		case reflect.Uint64:
-// 			return Value{valueNumber, uint64(value.Uint())}
-// 		case reflect.Float32:
-// 			return Value{valueNumber, float32(value.Float())}
-// 		case reflect.Float64:
-// 			return Value{valueNumber, float64(value.Float())}
-// 		case reflect.String:
-// 			return Value{valueString, string(value.String())}
-// 		default:
-// 			toValue_reflectValuePanic(value.Interface(), value.Kind())
-// 		}
-// 	default:
-// 		return toValue(reflect.ValueOf(value))
-// 	}
-// 	// FIXME?
-// 	panic(newError(nil, "TypeError", 0, nil, "invalid value: %v (%T)", value, value))
-// }
