@@ -11,7 +11,11 @@ func TestJSONMarshalObject(t *testing.T) {
 	vm := New()
 	o := vm.NewObject()
 	o.Set("test", 42)
-	o.Set("testfunc", vm.Get("Error"))
+	v, err := vm.Get("Error")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Set("testfunc", v)
 	b, err := json.Marshal(o)
 	if err != nil {
 		t.Fatal(err)
@@ -78,8 +82,16 @@ func BenchmarkJSONStringify(b *testing.B) {
 	}
 
 	o := createObj(3)
-	json := vm.Get("JSON").(*Object)
-	stringify, _ := AssertFunction(json.Get("stringify"))
+	val, err := vm.Get("JSON")
+	if err != nil {
+		b.Fatal(err)
+	}
+	json := val.(*Object)
+	val2, err := json.Get("stringify")
+	if err != nil {
+		b.Fatal(err)
+	}
+	stringify, _ := AssertFunction(val2)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		stringify(nil, o)

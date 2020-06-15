@@ -85,7 +85,7 @@ func (s asciiString) _toFloat() (float64, error) {
 }
 
 // func (s asciiString) ToTrueInteger() interface{} {
-// 	return s.ToInteger()
+// 	return s.ToInt()
 // }
 
 func (s asciiString) ToInt() int {

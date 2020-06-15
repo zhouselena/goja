@@ -2,13 +2,14 @@ package goja
 
 import (
 	"errors"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"sync"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -146,9 +147,17 @@ func (ctx *tc39TestCtx) runTC39Test(name, src string, meta *tc39Meta, t testing.
 			switch err := err.(type) {
 			case *Exception:
 				if o, ok := err.Value().(*Object); ok {
-					if c := o.Get("constructor"); c != nil {
+					ctor, err := o.Get("constructor")
+					if err != nil {
+						t.Fatal(err)
+					}
+					if c := ctor; c != nil {
 						if c, ok := c.(*Object); ok {
-							errType = c.Get("name").String()
+							name, err := c.Get("name")
+							if err != nil {
+								t.Fatal(err)
+							}
+							errType = name.String()
 						} else {
 							t.Fatalf("%s: error constructor is not an object (%v)", name, o)
 						}

@@ -166,26 +166,53 @@ func (i valueNumber) ToInt() int {
 }
 
 func (i valueNumber) ToInt32() int32 {
-	v, ok := i.val.(int32)
-	if !ok {
-		return 0
+	switch v := i.val.(type) {
+	case int:
+		return int32(v)
+	case int32:
+		return int32(v)
+	case int64:
+		return int32(v)
+	case uint32:
+		return int32(v)
+	case uint64:
+		return int32(v)
 	}
-	return v
+
+	return 0
 }
 func (i valueNumber) ToUInt32() uint32 {
-	v, ok := i.val.(uint32)
-	if !ok {
-		return 0
+	switch v := i.val.(type) {
+	case int:
+		return uint32(v)
+	case int32:
+		return uint32(v)
+	case int64:
+		return uint32(v)
+	case uint32:
+		return v
+	case uint64:
+		return uint32(v)
 	}
-	return v
+
+	return 0
 }
 
 func (i valueNumber) ToInt64() int64 {
-	v, ok := i.val.(int64)
-	if !ok {
-		return 0
+	switch v := i.val.(type) {
+	case int:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int64:
+		return v
+	case uint32:
+		return int64(v)
+	case uint64:
+		return int64(v)
 	}
-	return v
+
+	return 0
 }
 
 func (i valueNumber) ToString() valueString {
@@ -258,13 +285,13 @@ func (i valueNumber) assertInt() (int, bool) {
 	return i.ToInt(), true
 }
 func (i valueNumber) assertInt32() (int32, bool) {
-	return 0, false
+	return i.ToInt32(), true
 }
 func (i valueNumber) assertUInt32() (uint32, bool) {
-	return 0, false
+	return i.ToUInt32(), true
 }
 func (i valueNumber) assertInt64() (int64, bool) {
-	return 0, false
+	return i.ToInt64(), true
 }
 
 func (i valueNumber) assertFloat() (float64, bool) {

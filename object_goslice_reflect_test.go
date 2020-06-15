@@ -16,7 +16,7 @@ func TestGoSliceReflectBasic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i := v.ToInteger(); i != 10 {
+	if i := v.ToInt(); i != 10 {
 		t.Fatalf("Expected 10, got: %d", i)
 	}
 
@@ -155,7 +155,15 @@ func TestGoSliceReflectGetStr(t *testing.T) {
 	r := New()
 	v := r.ToValue([]string{"test"})
 	if o, ok := v.(*Object); ok {
-		if e := o.Get("0").Export(); e != "test" {
+		val, err := o.Get("0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		v, err := val.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e := v; e != "test" {
 			t.Fatalf("Unexpected o.Get(\"0\"): %v", e)
 		}
 	}

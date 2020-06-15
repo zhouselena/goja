@@ -1,8 +1,9 @@
 package goja
 
 import (
-	"github.com/dop251/goja/parser"
 	"testing"
+
+	"github.com/dop251/goja/parser"
 )
 
 func TestVM1(t *testing.T) {
@@ -33,7 +34,7 @@ func TestVM1(t *testing.T) {
 	rv := vm.pop()
 
 	if obj, ok := rv.(*Object); ok {
-		if v := obj.self.getStr("test").ToInteger(); v != 5 {
+		if v := obj.self.getStr("test").ToInt(); v != 5 {
 			t.Fatalf("Unexpected property value: %v", v)
 		}
 	} else {
@@ -150,7 +151,7 @@ func BenchmarkVmNOP2(b *testing.B) {
 		}
 		//vm.sp--
 		/*r := vm.pop()
-		if r.ToInteger() != 5 {
+		if r.ToInt() != 5 {
 			b.Fatalf("Unexpected result: %+v", r)
 		}
 		if vm.sp != 0 {
@@ -229,7 +230,7 @@ func BenchmarkVmNOP1(b *testing.B) {
 
 		}
 		r := vm.pop()
-		if r.ToInteger() != 5 {
+		if r.ToInt() != 5 {
 			b.Fatalf("Unexpected result: %+v", r)
 		}
 		if vm.sp != 0 {
@@ -283,7 +284,7 @@ func BenchmarkVm1(b *testing.B) {
 		vm.pc = 0
 		vm.run()
 		r := vm.pop()
-		if r.ToInteger() != 5 {
+		if r.ToInt() != 5 {
 			b.Fatalf("Unexpected result: %+v", r)
 		}
 		if vm.sp != 0 {
@@ -379,7 +380,11 @@ func BenchmarkFuncCall(b *testing.B) {
 	prg := MustCompile("test.js", SCRIPT, false)
 
 	vm.RunProgram(prg)
-	if f, ok := AssertFunction(vm.Get("f")); ok {
+	fun, err := vm.Get("f")
+	if err != nil {
+		b.Fatal(err)
+	}
+	if f, ok := AssertFunction(fun); ok {
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
 			f(nil, nil, intToValue(1), intToValue(2), intToValue(3), intToValue(4), intToValue(5), intToValue(6))

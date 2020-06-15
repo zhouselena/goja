@@ -182,10 +182,10 @@ func (o *baseObject) get(n Value) Value {
 }
 
 func (o *baseObject) checkDeleteProp(name string, prop *valueProperty, throw bool) bool {
-	if !prop.configurable {
-		o.val.runtime.typeErrorResult(throw, "Cannot delete property '%s' of %s", name, o.val.ToString())
-		return false
-	}
+	// if !prop.configurable {
+	// 	o.val.runtime.typeErrorResult(throw, "Cannot delete property '%s' of %s", name, o.val.ToString())
+	// 	return false
+	// }
 	return true
 }
 
