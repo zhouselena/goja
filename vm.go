@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -2331,6 +2333,7 @@ repeat:
 		obj.self = f.create(obj)
 		goto repeat
 	default:
+		spew.Dump("what are we", f, obj)
 		vm.r.typeErrorResult(true, "Not a constructor11")
 	}
 

@@ -15,7 +15,7 @@ func TestGomapProp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i := v.ToInteger(); i != 42 {
+	if i := v.ToInt(); i != 42 {
 		t.Fatalf("Expected 42, got: %d", i)
 	}
 }

@@ -16,7 +16,7 @@ func TestGoSliceBasic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i := v.ToInteger(); i != 10 {
+	if i := v.ToInt(); i != 10 {
 		t.Fatalf("Expected 10, got: %d", i)
 	}
 }
@@ -54,17 +54,17 @@ func TestGoSliceExpand(t *testing.T) {
 	sum;
 	`
 	r := New()
-	a := []interface{}{int64(1), int64(2), int64(3), int64(4)}
+	a := []interface{}{1, 2, 3, 4}
 	r.Set("a", &a)
 	v, err := r.RunString(SCRIPT)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum := int64(0)
+	sum := 0
 	for _, v := range a {
-		sum += v.(int64)
+		sum += v.(int)
 	}
-	if i := v.ToInteger(); i != sum {
+	if i := v.ToInt(); i != sum {
 		t.Fatalf("Expected %d, got: %d", sum, i)
 	}
 }

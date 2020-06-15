@@ -6,7 +6,7 @@ func TestArray1(t *testing.T) {
 	r := &Runtime{}
 	a := r.newArray(nil)
 	a.put(valueInt(0), asciiString("test"), true)
-	if l := a.getStr("length").ToInteger(); l != 1 {
+	if l := a.getStr("length").ToInt(); l != 1 {
 		t.Fatalf("Unexpected length: %d", l)
 	}
 }
@@ -29,7 +29,11 @@ func TestDefineProperty(t *testing.T) {
 
 	err = o.DefineAccessorProperty("accessor_rw",
 		r.ToValue(func(call FunctionCall) Value {
-			return o.Get("__hidden")
+			h, err := o.Get("__hidden")
+			if err != nil {
+				t.Fatal(err)
+			}
+			return h
 		}),
 		r.ToValue(func(call FunctionCall) (ret Value) {
 			o.Set("__hidden", call.Argument(0))
@@ -41,7 +45,11 @@ func TestDefineProperty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := o.Get("accessor_ro"); v.ToInteger() != 1 {
+	a, err := o.Get("accessor_ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := a; v.ToInt() != 1 {
 		t.Fatalf("Unexpected accessor value: %v", v)
 	}
 
@@ -61,8 +69,11 @@ func TestDefineProperty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if v := o.Get("accessor_rw"); v.ToInteger() != 42 {
+	rw, err := o.Get("accessor_rw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := rw; v.ToInt() != 42 {
 		t.Fatalf("Unexpected value: %v", v)
 	}
 }
@@ -168,7 +179,7 @@ func BenchmarkToString2(b *testing.B) {
 func BenchmarkConv(b *testing.B) {
 	count := int64(0)
 	for i := 0; i < b.N; i++ {
-		count += valueInt(123).ToInteger()
+		count += valueInt(123).ToInt64()
 	}
 	if count == 0 {
 		b.Fatal("zero")

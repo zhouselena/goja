@@ -136,7 +136,7 @@ func TestGoReflectPreserveCustomType(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ve := v.Export()
+	ve, _ := v.Export()
 
 	if ii, ok := ve.(CustomInt); ok {
 		if ii != i {
@@ -534,8 +534,12 @@ func TestGoReflectCustomNaming(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(v.Export(), []interface{}{"b"}) {
-			t.Fatalf("Expected [\"b\"], got %v", v.Export())
+		x, err := v.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(x, []interface{}{"b"}) {
+			t.Fatalf("Expected [\"b\"], got %v", x)
 		}
 	})
 }

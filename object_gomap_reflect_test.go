@@ -87,7 +87,10 @@ func TestGoMapReflectJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := vm.Get("f")
+	f, err := vm.Get("f")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if call, ok := AssertFunction(f); ok {
 		v, err := call(nil, ([]Value{vm.ToValue(m)})...)
 		if err != nil {
