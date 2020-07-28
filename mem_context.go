@@ -1,25 +1,35 @@
 package goja
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 type visitTracker struct {
-	objsVisited    map[*objRef]bool
+	objsVisited    map[objectImpl]bool
 	stashesVisited map[*stash]bool
 }
 
-func (vt visitTracker) IsObjVisited(obj *objRef) bool {
+func (vt visitTracker) IsObjVisited(obj objectImpl) bool {
 	_, ok := vt.objsVisited[obj]
 	return ok
 }
 
-func (vt visitTracker) VisitObj(obj *objRef) {
+func (vt visitTracker) VisitObj(obj objectImpl) {
 	vt.objsVisited[obj] = true
 }
 
 func (vt visitTracker) IsStashVisited(stash *stash) bool {
 	_, ok := vt.stashesVisited[stash]
+	fmt.Println("visited :check:")
 	return ok
 }
+
+// func (vt visitTracker) IsStackVisited(stash valueStack) bool {
+// 	_, ok := vt.stashesVisited[stash]
+// 	fmt.Println("visited :check:")
+// 	return ok
+// }
 
 func (vt visitTracker) VisitStash(stash *stash) {
 	vt.stashesVisited[stash] = true
@@ -54,20 +64,30 @@ type NativeMemUsageChecker interface {
 }
 
 func (self *stash) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	// spew.Dump(self.obj, self.outer, "woo")
 	if ctx.IsStashVisited(self) {
 		return 0, nil
 	}
 	ctx.VisitStash(self)
 	total := uint64(0)
+	// spew.Dump(self.obj, self.outer, "woo")
 	if self.obj != nil {
-		// inc, err := self.obj.MemUsage(ctx)
-		// total += inc
-		// if err != nil {
-		// 	return total, err
-		// }
+		inc, err := self.obj.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
 	}
+
 	if self.outer != nil {
 		inc, err := self.outer.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+	if len(self.values) > 0 {
+		inc, err := self.values.MemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err
@@ -85,7 +105,7 @@ type MemUsageContext struct {
 
 func NewMemUsageContext(maxDepth int, nativeChecker NativeMemUsageChecker) *MemUsageContext {
 	return &MemUsageContext{
-		visitTracker:          visitTracker{objsVisited: map[*objRef]bool{}, stashesVisited: map[*stash]bool{}},
+		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, stashesVisited: map[*stash]bool{}},
 		depthTracker:          &depthTracker{curDepth: 0, maxDepth: maxDepth},
 		NativeMemUsageChecker: nativeChecker,
 	}

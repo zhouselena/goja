@@ -72,6 +72,9 @@ func (s unicodeString) reader(start int) io.RuneReader {
 	}
 }
 
+func (s unicodeString) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return uint64(len(s.String())), nil
+}
 func (s unicodeString) ToInt() int {
 	return 0
 }

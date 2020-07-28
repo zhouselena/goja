@@ -84,9 +84,9 @@ func (s asciiString) _toFloat() (float64, error) {
 	return f, err
 }
 
-// func (s asciiString) ToTrueInteger() interface{} {
-// 	return s.ToInt()
-// }
+func (s asciiString) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return uint64(s.length()), nil
+}
 
 func (s asciiString) ToInt() int {
 	if s == "" {

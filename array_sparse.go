@@ -27,6 +27,10 @@ func (a *sparseArrayObject) init() {
 	a._put("length", &a.lengthProp)
 }
 
+func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return EmptySize, nil
+}
+
 func (a *sparseArrayObject) findIdx(idx int64) int {
 	return sort.Search(len(a.items), func(i int) bool {
 		return a.items[i].idx >= idx

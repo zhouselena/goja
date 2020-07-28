@@ -65,6 +65,8 @@ type objectImpl interface {
 	export() (interface{}, error)
 	exportType() reflect.Type
 	equal(objectImpl) bool
+
+	MemUsage(ctx *MemUsageContext) (uint64, error)
 }
 
 type baseObject struct {
@@ -82,6 +84,25 @@ type primitiveValueObject struct {
 	pValue Value
 }
 
+func (self *primitiveValueObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := EmptySize
+	// self.mu.RLock()
+	// defer self.mu.RUnlock()
+	for k, v := range self.values {
+		// if val, ok := v.(Value); ok {
+		inc, err := v.MemUsage(ctx)
+		total += inc
+		total += uint64(len(k)) // count size of property name towards total object size.
+		if err != nil {
+			return total, err
+		}
+		// } else {
+		// 	// most likely a propertyGetSet. ignore for now.
+		// }
+	}
+	return total, nil
+	// return EmptySize, nil
+}
 func (o *primitiveValueObject) export() (interface{}, error) {
 	return o.pValue.Export()
 }
@@ -130,6 +151,35 @@ func (o *baseObject) init() {
 
 func (o *baseObject) className() string {
 	return o.class
+}
+func (o *baseObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if ctx.IsObjVisited(o) {
+		return 0, nil
+	}
+	ctx.VisitObj(o)
+	total := EmptySize
+	// if o.val != nil {
+	// 	inc, err := o.val.MemUsage(ctx)
+	// 	total += inc
+	// 	if err != nil {
+	// 		return total, err
+	// 	}
+	// }
+
+	for k, val := range o.values {
+		// spew.Dump("what is the value?", val)
+		total += uint64(len(k))
+		if val == nil {
+			continue
+		}
+		inc, err := val.MemUsage(ctx)
+		total += inc
+		// count size of property name towards total object size.
+		if err != nil {
+			return total, err
+		}
+	}
+	return total, nil
 }
 
 func (o *baseObject) getPropStr(name string) Value {
@@ -527,9 +577,11 @@ func (o *baseObject) export() (interface{}, error) {
 			v = o.getStr(item.name)
 		}
 		if v != nil {
-			m[item.name], err = v.Export()
-			if err != nil {
-				return nil, err
+			if _, ok := v.(*valueProperty); !ok {
+				m[item.name], err = v.Export()
+				if err != nil {
+					return nil, err
+				}
 			}
 		} else {
 			m[item.name] = nil

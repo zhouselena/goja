@@ -83,6 +83,9 @@ func (s *stringObject) init() {
 	s.baseObject.init()
 	s.setLength()
 }
+func (s *stringObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return uint64(s.length), nil
+}
 
 func (s *stringObject) setLength() {
 	if s.value != nil {
