@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -70,7 +69,6 @@ func dateParse(date string) (time.Time, bool) {
 }
 
 func (r *Runtime) newDateObject(t time.Time, isSet bool) *Object {
-	fmt.Println("is this a new time obj?")
 	v := &Object{runtime: r}
 	d := &dateObject{}
 	v.self = d
@@ -88,6 +86,9 @@ func dateFormat(t time.Time) string {
 	return t.Local().Format(dateTimeLayout)
 }
 
+func (d *dateObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return EmptySize, nil
+}
 func (d *dateObject) toPrimitive() Value {
 	return d.toPrimitiveString()
 }

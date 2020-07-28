@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"unsafe"
 )
 
 var (
@@ -73,12 +74,17 @@ type Value interface {
 	assertFloat() (float64, bool)
 
 	baseObject(r *Runtime) *Object
+
+	MemUsage(ctx *MemUsageContext) (uint64, error)
 }
 
-// type valueNumber struct {
+const (
+	BoolSize   = uint64(unsafe.Sizeof(true))
+	NumberSize = uint64(unsafe.Sizeof(float64(0)))
+	IntSize    = uint64(unsafe.Sizeof(float64(0)))
+	EmptySize  = uint64(unsafe.Sizeof((*baseObject)(nil)))
+)
 
-// 	trueVal interface{}
-// }
 type valueNumber struct {
 	_type reflect.Type
 	val   interface{}
@@ -144,8 +150,8 @@ func propSetter(o Value, v Value, r *Runtime) *Object {
 	return nil
 }
 
-func (i valueNumber) toTrueValue() (interface{}, reflect.Type) {
-	return i.val, i._type
+func (i valueNumber) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return NumberSize, nil
 }
 
 func (i valueNumber) ToInteger() (int, bool) {
@@ -344,6 +350,10 @@ func (i valueNumber) ExportType() reflect.Type {
 	return i._type
 }
 
+func (i valueUInt32) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return NumberSize, nil
+}
+
 func (i valueUInt32) ToInt() int {
 	return int(i)
 }
@@ -455,6 +465,10 @@ func (i valueUInt32) Export() (interface{}, error) {
 
 func (i valueUInt32) ExportType() reflect.Type {
 	return reflectTypeUInt32
+}
+
+func (i valueInt32) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return NumberSize, nil
 }
 
 func (i valueInt32) ToInt() int {
@@ -570,6 +584,10 @@ func (i valueInt32) ExportType() reflect.Type {
 	return reflectTypeInt32
 }
 
+func (i valueInt64) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return NumberSize, nil
+}
+
 func (i valueInt64) ToInt() int {
 	return int(i)
 }
@@ -683,6 +701,10 @@ func (i valueInt64) ExportType() reflect.Type {
 	return reflectTypeInt64
 }
 
+func (i valueInt) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return NumberSize, nil
+}
+
 func (i valueInt) ToInt() int {
 	return int(i)
 }
@@ -794,6 +816,10 @@ func (i valueInt) Export() (interface{}, error) {
 
 func (i valueInt) ExportType() reflect.Type {
 	return reflectTypeInt
+}
+
+func (o valueBool) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return BoolSize, nil
 }
 
 func (o valueBool) ToInt64() int64 {
@@ -982,6 +1008,10 @@ func (n valueNull) ToFloat() float64 {
 	return 0
 }
 
+func (n valueNull) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return EmptySize, nil
+}
+
 func (n valueNull) ToBoolean() bool {
 	return false
 }
@@ -1051,6 +1081,20 @@ func (n valueNull) IsNumber() bool {
 
 func (n valueNull) ExportType() reflect.Type {
 	return reflectTypeNil
+}
+
+func (p *valueProperty) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := EmptySize
+	total += uint64(len(p.String())) // count size of property name towards total object size.
+	if p.value != nil {
+		inc, err := p.value.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	return total, nil
 }
 
 func (p *valueProperty) ToInt() int {
@@ -1174,6 +1218,10 @@ func (n *valueProperty) Export() (interface{}, error) {
 
 func (n *valueProperty) ExportType() reflect.Type {
 	panic("Cannot export valueProperty")
+}
+
+func (f valueFloat) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return NumberSize, nil
 }
 
 func (f valueFloat) ToInt() int {
@@ -1357,6 +1405,148 @@ func (f valueFloat) ExportType() reflect.Type {
 	return reflectTypeFloat
 }
 
+func (o *Object) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if o.__wrapped != nil {
+		return EmptySize, nil
+	}
+
+	switch x := o.self.(type) {
+	case *objectGoReflect:
+		return EmptySize, nil
+	case *objectGoMapReflect:
+		return EmptySize, nil
+	case *objectGoMapSimple:
+		return EmptySize, nil
+	case *objectArrayBuffer:
+		return EmptySize, nil
+	case *objectGoSlice:
+		return EmptySize, nil
+	case *objectGoSliceReflect:
+		return EmptySize, nil
+	case *arrayObject:
+		return x.MemUsage(ctx)
+		// fmt.Println("it is an array")
+		// return EmptySize, nil
+	case *nativeFuncObject:
+		// total := uint64(0)
+		return x.MemUsage(ctx)
+		// for k, v := range x.values {
+
+		// }
+		// x.baseFuncObject
+		// return x.baseFuncObject.MemUsage(ctx)
+		// for k, v := range  {
+		// 	v.(*valueProperty
+		// 	spew.Dump("what is v", v)
+
+		// 	// inc, err := v.MemUsage(ctx)
+		// 	// total += inc
+		// 	total += uint64(len(k)) // count size of property name towards total object size.
+		// 	// if err != nil {
+		// 	// 	return total, err
+		// 	// }
+		// }
+		// return total, nil
+	case *baseObject:
+		if o.self == nil {
+			return 0, nil
+		}
+		// if ctx.IsObjVisited(o.self) {
+		// 	return 0, nil
+		// }
+		// ctx.VisitObj(o.self)
+		err := ctx.Descend()
+		if err != nil {
+			return 0, err
+		}
+		total, err := o.self.MemUsage(ctx)
+		ctx.Ascend()
+		return total, err
+	case *lazyObject:
+		if o.self == nil {
+			return 0, nil
+		}
+		// err := ctx.Descend()
+		// if err != nil {
+		// 	return 0, err
+		// }
+		total, err := o.self.MemUsage(ctx)
+		// ctx.Ascend()
+		return total, err
+	case *primitiveValueObject:
+		if o.self == nil {
+			return 0, nil
+		}
+		// err := ctx.Descend()
+		// if err != nil {
+		// 	return 0, err
+		// }
+		total, err := o.self.MemUsage(ctx)
+		// ctx.Ascend()
+		return total, err
+	case *stringObject:
+		if x.val == nil {
+			return 0, nil
+		}
+		return x.MemUsage(ctx)
+		// fmt.Println("descending lazy!!")
+		// err := ctx.Descend()
+		// if err != nil {
+		// 	return 0, err
+		// }
+		// total, err := o.self.MemUsage(ctx)
+		// ctx.Ascend()
+		// return total, err
+	default:
+		// spew.Dump("what is default", o.self)
+
+		// if err != nil {
+		// 	return 0, err
+		// }
+
+		// spew.Dump("what is default", inner)
+		// if _, ok := inner.(func(FunctionCall) Value); ok {
+		// 	i++
+		// 	fmt.Println("i is ", i)
+		// }
+		// // err = ctx.Descend()
+		// // if err != nil {
+		// // 	return 0, err
+		// // }
+		// switch val := inner.(type) {
+		// // case Value:
+		// // 	fmt.Println("descending!!")
+		// // 	err := ctx.Descend()
+		// // 	if err != nil {
+		// // 		return 0, err
+		// // 	}
+		// // 	total, err := val.MemUsage(ctx)
+		// // 	return total, err
+		// case *baseObject:
+		// 	fmt.Println("descending!!")
+		// 	err := ctx.Descend()
+		// 	if err != nil {
+		// 		return 0, err
+		// 	}
+		// 	total, err := val.MemUsage(ctx)
+		// 	ctx.Ascend()
+		// 	return total, err
+		// case *nativeFuncObject:
+		// 	fmt.Println("descending!!")
+		// 	err := ctx.Descend()
+		// 	if err != nil {
+		// 		return 0, err
+		// 	}
+		// 	total, err := val.MemUsage(ctx)
+		// 	ctx.Ascend()
+		// 	return total, err
+		// default:
+
+		// 	spew.Dump("inner type type?", o.self)
+		// }
+	}
+	return 0, nil
+}
 func (o *Object) ToInt() int {
 	return o.self.toPrimitiveNumber().ToNumber().ToInt()
 }
@@ -1549,6 +1739,10 @@ func (o valueUnresolved) throw() {
 	o.r.throwReferenceError(o.ref)
 }
 
+func (o valueUnresolved) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	o.throw()
+	return 0, nil
+}
 func (o valueUnresolved) ToInt() int {
 	o.throw()
 	return 0

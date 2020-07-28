@@ -7,6 +7,42 @@ type lazyObject struct {
 	create func(*Object) objectImpl
 }
 
+func (o *lazyObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if o.val != nil {
+		return EmptySize, nil
+	}
+	if ctx.IsObjVisited(o.val.self) {
+		return 0, nil
+	}
+	ctx.VisitObj(o)
+	total := uint64(0)
+
+	inc, err := o.val.MemUsage(ctx)
+	total += inc
+	if err != nil {
+		return total, err
+	}
+
+	// for _, key := range o.val.Keys() {
+	// 	// spew.Dump("what is the value?", val)
+	// 	// if _, ok := val.(*valueProperty); !ok {
+	// 	// 	spew.Dump("undefined", val, val.ExportType())
+	// 	// }
+	// 	total += uint64(len(key))
+	// 	val, err := o.val.Get(key)
+	// 	if err != nil {
+	// 		return total, err
+	// 	}
+	// 	inc, err := val.MemUsage(ctx)
+	// 	total += inc
+	// 	// count size of property name towards total object size.
+	// 	if err != nil {
+	// 		return total, err
+	// 	}
+	// }
+	return total, nil
+}
+
 func (o *lazyObject) className() string {
 	obj := o.create(o.val)
 	o.val.self = obj

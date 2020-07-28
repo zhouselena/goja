@@ -384,12 +384,26 @@ func (r *Runtime) CreateObject(proto *Object) *Object {
 	return r.newBaseObject(proto, classObject).val
 }
 
-//TODO(goja) properly get memUsage
 func (r *Runtime) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if r.vm.stash == nil {
-		return 0, nil
+	total := uint64(0)
+
+	if r.globalObject != nil {
+		inc, err := r.globalObject.self.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
 	}
-	return r.vm.stash.MemUsage(ctx)
+
+	if r.vm.stash != nil {
+		inc, err := r.vm.stash.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	return total, nil
 }
 
 func (r *Runtime) NewTypeError(args ...interface{}) *Object {
@@ -1251,7 +1265,6 @@ func (r *Runtime) CreateNativeClass(
 		call.This.__wrapped = val
 		// add the toString function first so it can be overridden if user wants to do so
 		call.This.self._putProp("name", asciiString(className), true, false, true)
-
 		for _, prop := range funcProps {
 			// obj.propNames = append(obj.propNames, prop.Name)
 			// responseProto.self._putProp(prop.Name, prop.Value, true, false, true)
@@ -1267,7 +1280,8 @@ func (r *Runtime) CreateNativeClass(
 	responseObject := r.ToValue(ctorImpl).(*Object)
 	// responseObject.Set("prototype", classProto)
 	p, _ := responseObject.Get("prototype")
-	proto := p.(*Object).self
+	pObject := p.(*Object)
+	proto := pObject.self
 
 	proto._putProp("name", asciiString(className), true, false, true)
 	for _, prop := range classProps {
@@ -1287,7 +1301,7 @@ func (r *Runtime) CreateNativeClass(
 		// proto.Set(prop.Name, prop.Value)
 	}
 
-	v := NativeClass{classProto: classProto, className: className, classProps: classProps, funcProps: funcProps, ctor: ctor, Function: responseObject}
+	v := NativeClass{classProto: pObject, className: className, classProps: classProps, funcProps: funcProps, ctor: ctor, Function: responseObject}
 	v.runtime = r
 
 	return v

@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 func TestGoReflectGet(t *testing.T) {
@@ -953,8 +951,6 @@ func TestStructNonAddressableAnonStruct(t *testing.T) {
 	}
 
 	expected := `{"B":{"C":{"Z":1,"X":"X2"},"Z":1,"X":"X2","Y":"Y3"}}`
-	{"B":{"C":{"Z":1,"X":"X2"},"Z":1,"X":"X2","Y":"Y3"}}
-	{"B":{"C":{"X":"X2"},			 "X":"X2","Y":"Y3"}}
 	if expected != v.String() {
 		t.Fatalf("Expected '%s', got '%s'", expected, v.String())
 	}

@@ -18,6 +18,37 @@ const (
 
 type valueStack []Value
 
+func (stack valueStack) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := uint64(0)
+	fmt.Println("we're out the stack", len(stack))
+	for _, self := range stack {
+		// spew.Dump(self.obj, self.outer, "woo")
+		// if ctx.IsStashVisited(self) {
+		// 	return 0, nil
+		// }
+		// ctx.VisitStash(self)
+
+		// spew.Dump(self.MemUsage(), self.outer, "woo")
+		// if self.obj != nil {
+		inc, err := self.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+		// spew.Dump("incrementing by ", self, inc)
+		// }
+		// if self.outer != nil {
+		// 	inc, err := self.outer.MemUsage(ctx)
+		// 	total += inc
+		// 	if err != nil {
+		// 		return total, err
+		// 	}
+		// }
+	}
+
+	return total, nil
+}
+
 type stash struct {
 	values    valueStack
 	extraArgs valueStack
@@ -68,6 +99,8 @@ type objRef struct {
 	base   objectImpl
 	name   string
 	strict bool
+
+	mu sync.RWMutex
 }
 
 func (r *objRef) get() Value {
@@ -81,6 +114,98 @@ func (r *objRef) set(v Value) {
 func (r *objRef) refname() string {
 	return r.name
 }
+
+// func (self Value) MemUsage(ctx *MemUsageContext) (uint64, error) {
+// 	if self.IsNative() {
+// 		goNativeValue := self.exportNative()
+// 		nativeMem, ok := ctx.NativeMemUsage(goNativeValue)
+// 		if ok {
+// 			return nativeMem, nil
+// 		}
+// 	}
+// 	switch self.kind {
+// 	case valueUndefined:
+// 		return EmptySize, nil
+// 	case valueNull:
+// 		return EmptySize, nil
+// 	case valueBoolean:
+// 		return BoolSize, nil
+// 	case valueNumber:
+// 		return NumberSize, nil
+// 	case valueString:
+// 		switch value := self.value.(type) {
+// 		case string:
+// 			return uint64(len(value)), nil
+// 		case []uint16:
+// 			return uint64(16 * len(value)), nil
+// 		}
+// 	case valueObject:
+// 		object := self._object()
+// 		switch object.value.(type) {
+// 		case *_goStructObject:
+// 			return EmptySize, nil
+// 		case *_goMapObject:
+// 			return EmptySize, nil
+// 		case *_goArrayObject:
+// 			return EmptySize, nil
+// 		case *_goSliceObject:
+// 			return EmptySize, nil
+// 		default:
+// 			switch val := self.value.(type) {
+// 			case *_object:
+// 				err := ctx.Descend()
+// 				if err != nil {
+// 					return 0, err
+// 				}
+// 				total, err := val.MemUsage(ctx)
+// 				ctx.Ascend()
+// 				return total, err
+// 			}
+// 		}
+// 	}
+
+// 	return 0, nil
+// }
+
+// func (self *objRef) MemUsage(ctx *MemUsageContext) (uint64, error) {
+// 	if ctx.IsObjVisited(self) {
+// 		return 0, nil
+// 	}
+// 	ctx.VisitObj(self)
+// 	total := EmptySize
+// 	self.mu.RLock()
+// 	defer self.mu.RUnlock()
+
+// 	for {
+// 		curr, next := self.base._enumerate(true)()
+
+// 		inc, err := curr.value.MemUsage(ctx)
+// 		total += inc
+// 		total += uint64(len(curr.name)) // count size of property name towards total object size.
+// 		if err != nil {
+// 			return total, err
+// 		}
+
+// 		if next == nil {
+// 			break
+// 		}
+
+// 	}
+// 	// for k, v := range  {
+// 	// 	if val, ok := v.value.(Value); ok {
+// 	// 		inc, err := val.MemUsage(ctx)
+// 	// 		total += inc
+// 	// 		total += uint64(len(k)) // count size of property name towards total object size.
+// 	// 		if err != nil {
+// 	// 			return total, err
+// 	// 		}
+// 	// 	} else {
+// 	// 		// most likely a propertyGetSet. ignore for now.
+// 	// 	}
+// 	// }
+// 	return total, nil
+
+// }
 
 type unresolvedRef struct {
 	runtime *Runtime
@@ -229,6 +354,7 @@ func toIntIgnoreNegZero(v Value) (int64, bool) {
 }
 
 func (s *valueStack) expand(idx int) {
+
 	if idx < len(*s) {
 		return
 	}
@@ -243,6 +369,7 @@ func (s *valueStack) expand(idx int) {
 }
 
 func (s *stash) put(name string, v Value) bool {
+	fmt.Println("puttingo n stash", name)
 	if s.obj != nil {
 		if found := s.obj.self.getStr(name); found != nil {
 			s.obj.self.putStr(name, v, false)

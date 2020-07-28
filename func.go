@@ -2,6 +2,7 @@ package goja
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 )
 
@@ -31,6 +32,25 @@ type boundFuncObject struct {
 	nativeFuncObject
 }
 
+func (f *nativeFuncObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if ctx.IsObjVisited(&f.baseFuncObject) {
+		return 0, nil
+	}
+	ctx.VisitObj(&f.baseFuncObject)
+
+	total := EmptySize
+	for _, k := range f.propNames {
+		prop := f.getPropStr(k)
+		inc, err := prop.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+
+	}
+	return total, nil
+}
+
 func (f *nativeFuncObject) export() (interface{}, error) {
 	return f.f, nil
 }
@@ -39,6 +59,12 @@ func (f *nativeFuncObject) exportType() reflect.Type {
 	return reflect.TypeOf(f.f)
 }
 
+func (f *funcObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	for k, v := range f.values {
+		fmt.Println("func object mem usage!!", k, v)
+	}
+	return f.baseObject.MemUsage(ctx)
+}
 func (f *funcObject) _addProto(n string) Value {
 	if n == "prototype" {
 		if _, exists := f.values["prototype"]; !exists {
