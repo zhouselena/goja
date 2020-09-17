@@ -2521,8 +2521,6 @@ func (vm *vm) _nativeNew(f *nativeFuncObject, n int) {
 		// 	vm.sp -= n
 		// 	vm.stack[vm.sp-1] = f.val
 	} else {
-		fmt.Printf("what is it then3332 %+v\n", f.val.ClassName())
-		fmt.Printf("what is it then3332 %+v\n", f.values)
 		vm.r.typeErrorResult(true, "Not a constructor2")
 	}
 }

@@ -15,6 +15,7 @@ const (
 	classError    = "Error"
 	classRegExp   = "RegExp"
 	classDate     = "Date"
+	classSymbol   = "Symbol"
 )
 
 type Object struct {
@@ -22,6 +23,17 @@ type Object struct {
 	self      objectImpl
 	depth     int
 	__wrapped interface{}
+}
+
+func (o *Object) CyclicalCount() int {
+	return 0
+}
+
+func (o *Object) IncCyclicalCount() {
+
+}
+func (o *Object) DecCyclicalCount() {
+
 }
 
 type iterNextFunc func() (propIterItem, iterNextFunc)

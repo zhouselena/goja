@@ -38,6 +38,7 @@ type global struct {
 	Boolean  *Object
 	RegExp   *Object
 	Date     *Object
+	Symbol   *Object
 
 	ArrayBuffer *Object
 
@@ -59,6 +60,7 @@ type global struct {
 	FunctionPrototype *Object
 	RegExpPrototype   *Object
 	DatePrototype     *Object
+	SymbolPrototype   *Object
 
 	ArrayBufferPrototype *Object
 
@@ -283,6 +285,7 @@ func (r *Runtime) init() {
 	r.initRegExp()
 	r.initDate()
 	r.initBoolean()
+	r.initSymbol()
 
 	r.initErrors()
 

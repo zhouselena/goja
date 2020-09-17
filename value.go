@@ -1730,7 +1730,7 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 }
 
 // ClassName returns the class name
-func (o *Object) ClassName() string {
+func (o *Object) Class() string {
 	return o.self.className()
 }
 
