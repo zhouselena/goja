@@ -326,3 +326,110 @@ func (s asciiString) Export() interface{} {
 func (s asciiString) ExportType() reflect.Type {
 	return reflectTypeString
 }
+
+func (s asciiString) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return uint64(s.length()), nil
+}
+
+func (s asciiString) ToInt() int {
+	if s == "" {
+		return 0
+	}
+	if s == "Infinity" || s == "+Infinity" {
+		return math.MaxInt64
+	}
+	if s == "-Infinity" {
+		return math.MinInt64
+	}
+	i, err := s._toInt()
+	if err != nil {
+		f, err := s._toFloat()
+		if err == nil {
+			return int(f)
+		}
+	}
+	return int(i)
+}
+func (s asciiString) ToInt32() int32 {
+	if s == "" {
+		return 0
+	}
+	if s == "Infinity" || s == "+Infinity" {
+		return math.MaxInt32
+	}
+	if s == "-Infinity" {
+		return math.MinInt32
+	}
+	i, err := s._toInt()
+	if err != nil {
+		f, err := s._toFloat()
+		if err == nil {
+			return int32(f)
+		}
+	}
+	return int32(i)
+}
+func (s asciiString) ToUInt32() uint32 {
+	if s == "" {
+		return 0
+	}
+	if s == "Infinity" || s == "+Infinity" {
+		return math.MaxInt32
+	}
+	if s == "-Infinity" {
+		return 0
+	}
+	i, err := s._toInt()
+	if err != nil {
+		f, err := s._toFloat()
+		if err == nil {
+			return uint32(f)
+		}
+	}
+	return uint32(i)
+}
+func (s asciiString) ToInt64() int64 {
+	if s == "" {
+		return 0
+	}
+	if s == "Infinity" || s == "+Infinity" {
+		return math.MaxInt64
+	}
+	if s == "-Infinity" {
+		return math.MinInt64
+	}
+	i, err := s._toInt()
+	if err != nil {
+		f, err := s._toFloat()
+		if err == nil {
+			return int64(f)
+		}
+	}
+	return i
+}
+
+func (s asciiString) IsObject() bool {
+	return false
+}
+func (s asciiString) IsNumber() bool {
+	return false
+}
+
+func (s asciiString) assertInt() (int, bool) {
+	return 0, false
+}
+func (s asciiString) assertUInt32() (uint32, bool) {
+	return 0, false
+}
+func (s asciiString) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (s asciiString) assertInt64() (int64, bool) {
+	return 0, false
+}
+func (s asciiString) assertFloat() (float64, bool) {
+	return 0, false
+}
+func (s asciiString) assertString() (valueString, bool) {
+	return s, true
+}

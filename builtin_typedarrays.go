@@ -29,6 +29,7 @@ func (ctx *typedArraySortCtx) Less(i, j int) bool {
 		x := ctx.ta.typedArray.get(offset + i)
 		y := ctx.ta.typedArray.get(offset + j)
 		res := ctx.compare(FunctionCall{
+			ctx:       ctx.ta.defaultCtor.runtime.ctx,
 			This:      _undefined,
 			Arguments: []Value{x, y},
 		}).ToNumber()
@@ -427,6 +428,7 @@ func (r *Runtime) typedArrayProto_every(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -472,6 +474,7 @@ func (r *Runtime) typedArrayProto_filter(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -510,6 +513,7 @@ func (r *Runtime) typedArrayProto_find(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		predicate := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -532,6 +536,7 @@ func (r *Runtime) typedArrayProto_findIndex(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		predicate := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -553,6 +558,7 @@ func (r *Runtime) typedArrayProto_forEach(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -732,6 +738,7 @@ func (r *Runtime) typedArrayProto_map(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -752,6 +759,7 @@ func (r *Runtime) typedArrayProto_reduce(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, call.This},
 		}
@@ -784,6 +792,7 @@ func (r *Runtime) typedArrayProto_reduceRight(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, call.This},
 		}
@@ -942,6 +951,7 @@ func (r *Runtime) typedArrayProto_some(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -1104,6 +1114,7 @@ func (r *Runtime) typedArrayFrom(ctor, items *Object, mapFn, thisValue Value) *O
 			}
 		} else {
 			fc := FunctionCall{
+				ctx:       r.ctx,
 				This:      thisValue,
 				Arguments: []Value{nil, nil},
 			}
@@ -1123,6 +1134,7 @@ func (r *Runtime) typedArrayFrom(ctor, items *Object, mapFn, thisValue Value) *O
 		}
 	} else {
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      thisValue,
 			Arguments: []Value{nil, nil},
 		}

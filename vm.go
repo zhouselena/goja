@@ -1,8 +1,10 @@
 package goja
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
@@ -26,13 +28,16 @@ type stash struct {
 	outer *stash
 }
 
-type context struct {
+type vmContext struct {
+	ctx       context.Context
 	prg       *Program
 	funcName  unistring.String
 	stash     *stash
 	newTarget Value
 	pc, sb    int
 	args      int
+
+	mu sync.RWMutex
 }
 
 type iterStackItem struct {
@@ -101,6 +106,7 @@ func (r *unresolvedRef) refname() unistring.String {
 }
 
 type vm struct {
+	ctx          context.Context
 	r            *Runtime
 	prg          *Program
 	funcName     unistring.String
@@ -109,7 +115,7 @@ type vm struct {
 	sp, sb, args int
 
 	stash     *stash
-	callStack []context
+	callStack []vmContext
 	iterStack []iterStackItem
 	refStack  []ref
 	newTarget Value
@@ -337,7 +343,7 @@ func (vm *vm) ClearInterrupt() {
 }
 
 func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame {
-	// Unroll the context stack
+	// Unroll the vmContext stack
 	stack = append(stack, StackFrame{prg: vm.prg, pc: vm.pc, funcName: vm.funcName})
 	for i := len(vm.callStack) - 1; i > ctxOffset-1; i-- {
 		if vm.callStack[i].pc != -1 {
@@ -347,9 +353,10 @@ func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame {
 	return stack
 }
 
-func (vm *vm) try(f func()) (ex *Exception) {
-	var ctx context
+func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
+	var ctx vmContext
 	vm.saveCtx(&ctx)
+	ctx.ctx = ctx1
 
 	ctxOffset := len(vm.callStack)
 	sp := vm.sp
@@ -383,6 +390,25 @@ func (vm *vm) try(f func()) (ex *Exception) {
 				ex = &Exception{
 					val: x1,
 				}
+				if x1.ExportType().Kind() == reflect.String {
+					ex.ignoreStack = true
+				}
+				v := x1.baseObject(vm.r)
+				if v != nil {
+					name := v.Get("name")
+					if name != nil && !name.SameAs(Undefined()) && name.String() == "Error" {
+						ex.ignoreStack = true
+					}
+					if v.__wrapped != nil {
+						if nErr, ok := v.__wrapped.(error); ok {
+							ex.nativeErr = nErr
+						}
+					}
+					ce := v.Get("customerror")
+					if ce != nil && ce.SameAs(TrueValue()) {
+						ex.ignoreStack = true
+					}
+				}
 			case *InterruptedError:
 				x1.stack = vm.captureStack(x1.stack, ctxOffset)
 				panic(x1)
@@ -414,8 +440,8 @@ func (vm *vm) try(f func()) (ex *Exception) {
 	return
 }
 
-func (vm *vm) runTry() (ex *Exception) {
-	return vm.try(vm.run)
+func (vm *vm) runTry(ctx context.Context) (ex *Exception) {
+	return vm.try(ctx, vm.run)
 }
 
 func (vm *vm) push(v Value) {
@@ -433,7 +459,7 @@ func (vm *vm) peek() Value {
 	return vm.stack[vm.sp-1]
 }
 
-func (vm *vm) saveCtx(ctx *context) {
+func (vm *vm) saveCtx(ctx *vmContext) {
 	ctx.prg = vm.prg
 	if vm.funcName != "" {
 		ctx.funcName = vm.funcName
@@ -445,22 +471,23 @@ func (vm *vm) saveCtx(ctx *context) {
 	ctx.pc = vm.pc
 	ctx.sb = vm.sb
 	ctx.args = vm.args
+	ctx.ctx = vm.ctx
 }
 
 func (vm *vm) pushCtx() {
 	/*
-		vm.ctxStack = append(vm.ctxStack, context{
+		vm.ctxStack = append(vm.ctxStack, vmContext{
 			prg: vm.prg,
 			stash: vm.stash,
 			pc: vm.pc,
 			sb: vm.sb,
 			args: vm.args,
 		})*/
-	vm.callStack = append(vm.callStack, context{})
+	vm.callStack = append(vm.callStack, vmContext{})
 	vm.saveCtx(&vm.callStack[len(vm.callStack)-1])
 }
 
-func (vm *vm) restoreCtx(ctx *context) {
+func (vm *vm) restoreCtx(ctx *vmContext) {
 	vm.prg = ctx.prg
 	vm.funcName = ctx.funcName
 	vm.pc = ctx.pc
@@ -468,6 +495,7 @@ func (vm *vm) restoreCtx(ctx *context) {
 	vm.sb = ctx.sb
 	vm.args = ctx.args
 	vm.newTarget = ctx.newTarget
+	vm.ctx = ctx.ctx
 }
 
 func (vm *vm) popCtx() {
@@ -480,6 +508,7 @@ func (vm *vm) popCtx() {
 	vm.callStack[l].stash = nil
 	vm.sb = vm.callStack[l].sb
 	vm.args = vm.callStack[l].args
+	vm.ctx = vm.callStack[l].ctx
 
 	vm.callStack = vm.callStack[:l]
 }
@@ -496,6 +525,7 @@ func (vm *vm) toCallee(v Value) *Object {
 		panic(vm.r.NewTypeError("Object has no member '%s'", unresolved.ref))
 	}
 	panic(vm.r.NewTypeError("Value is not an object: %s", v.toString()))
+	//panic(r.NewTypeError("Value is not an object: %T", v))
 }
 
 type _newStash struct{}
@@ -1794,7 +1824,7 @@ repeat:
 		vm.pushCtx()
 		vm.prg = nil
 		vm.funcName = "proxy"
-		ret := f.apply(FunctionCall{This: vm.stack[vm.sp-n-2], Arguments: vm.stack[vm.sp-n : vm.sp]})
+		ret := f.apply(FunctionCall{ctx: vm.ctx, This: vm.stack[vm.sp-n-2], Arguments: vm.stack[vm.sp-n : vm.sp]})
 		if ret == nil {
 			ret = _undefined
 		}
@@ -1816,6 +1846,7 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) {
 		vm.prg = nil
 		vm.funcName = f.nameProp.get(nil).string()
 		ret := f.f(FunctionCall{
+			ctx:       vm.ctx,
 			Arguments: vm.stack[vm.sp-n : vm.sp],
 			This:      vm.stack[vm.sp-n-2],
 		})
@@ -2242,7 +2273,7 @@ type try struct {
 func (t try) exec(vm *vm) {
 	o := vm.pc
 	vm.pc++
-	ex := vm.runTry()
+	ex := vm.runTry(vm.ctx)
 	if ex != nil && t.catchOffset > 0 {
 		// run the catch block (in try)
 		vm.pc = o + int(t.catchOffset)
@@ -2253,7 +2284,7 @@ func (t try) exec(vm *vm) {
 		} else {
 			vm.push(ex.val)
 		}
-		ex = vm.runTry()
+		ex = vm.runTry(vm.ctx)
 		if t.dynamic {
 			vm.stash = vm.stash.outer
 		}
@@ -2341,6 +2372,12 @@ func (_typeof) exec(vm *vm) {
 		r = stringObjectC
 	case *Object:
 	repeat:
+		if v == nil {
+			r = stringFunction
+			vm.stack[vm.sp-1] = r
+			vm.pc++
+			break
+		}
 		switch s := v.self.(type) {
 		case *funcObject, *nativeFuncObject, *boundFuncObject:
 			r = stringFunction
@@ -2354,7 +2391,7 @@ func (_typeof) exec(vm *vm) {
 		r = stringBoolean
 	case valueString:
 		r = stringString
-	case valueInt, valueFloat:
+	case valueInt, valueFloat, valueNumber:
 		r = stringNumber
 	case *valueSymbol:
 		r = stringSymbol
@@ -2519,11 +2556,42 @@ type iterNext int32
 func (jmp iterNext) exec(vm *vm) {
 	l := len(vm.iterStack) - 1
 	iter := vm.iterStack[l].iter
-	res := vm.r.toObject(toMethod(iter.self.getStr("next", nil))(FunctionCall{This: iter}))
+	res := vm.r.toObject(toMethod(iter.self.getStr("next", nil))(FunctionCall{ctx: vm.ctx, This: iter}))
 	if nilSafe(res.self.getStr("done", nil)).ToBoolean() {
 		vm.pc += int(jmp)
 	} else {
 		vm.iterStack[l].val = nilSafe(res.self.getStr("value", nil))
 		vm.pc++
 	}
+}
+
+func (stack valueStack) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := uint64(0)
+	fmt.Println("we're out the stack", len(stack))
+	for _, self := range stack {
+		// spew.Dump(self.obj, self.outer, "woo")
+		// if ctx.IsStashVisited(self) {
+		// 	return 0, nil
+		// }
+		// ctx.VisitStash(self)
+
+		// spew.Dump(self.MemUsage(), self.outer, "woo")
+		// if self.obj != nil {
+		inc, err := self.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+		// spew.Dump("incrementing by ", self, inc)
+		// }
+		// if self.outer != nil {
+		// 	inc, err := self.outer.MemUsage(ctx)
+		// 	total += inc
+		// 	if err != nil {
+		// 		return total, err
+		// 	}
+		// }
+	}
+
+	return total, nil
 }

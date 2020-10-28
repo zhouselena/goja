@@ -138,3 +138,7 @@ func (d *dateObject) time() time.Time {
 func (d *dateObject) timeUTC() time.Time {
 	return timeFromMsec(d.msec).In(time.UTC)
 }
+
+func (d *dateObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return EmptySize, nil
+}

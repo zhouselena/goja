@@ -165,7 +165,7 @@ func (r *Runtime) builtin_newWeakMap(args []Value, newTarget *Object) *Object {
 					itemObj := r.toObject(item)
 					k := itemObj.self.getIdx(i0, nil)
 					v := itemObj.self.getIdx(i1, nil)
-					adderFn(FunctionCall{This: o, Arguments: []Value{k, v}})
+					adderFn(FunctionCall{ctx: o.runtime.ctx, This: o, Arguments: []Value{k, v}})
 				})
 			}
 		}

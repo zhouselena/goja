@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"context"
 	"math"
 	"sort"
 )
@@ -207,11 +208,13 @@ func (r *Runtime) arrayproto_toString(call FunctionCall) Value {
 	if fObj, ok := f.(*Object); ok {
 		if fcall, ok := fObj.self.assertCallable(); ok {
 			return fcall(FunctionCall{
+				ctx:  r.ctx,
 				This: array,
 			})
 		}
 	}
 	return r.objectproto_toString(FunctionCall{
+		ctx:  r.ctx,
 		This: array,
 	})
 }
@@ -221,6 +224,7 @@ func (r *Runtime) writeItemLocaleString(item Value, buf *valueStringBuilder) {
 		if f, ok := r.getVStr(item, "toLocaleString").(*Object); ok {
 			if c, ok := f.self.assertCallable(); ok {
 				strVal := c(FunctionCall{
+					ctx:  r.ctx,
 					This: item,
 				})
 				buf.WriteString(strVal.toString())
@@ -616,6 +620,7 @@ func (r *Runtime) arrayproto_every(call FunctionCall) Value {
 	length := toLength(o.self.getStr("length", nil))
 	callbackFn := r.toCallable(call.Argument(0))
 	fc := FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: []Value{nil, nil, o},
 	}
@@ -637,6 +642,7 @@ func (r *Runtime) arrayproto_some(call FunctionCall) Value {
 	length := toLength(o.self.getStr("length", nil))
 	callbackFn := r.toCallable(call.Argument(0))
 	fc := FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: []Value{nil, nil, o},
 	}
@@ -658,6 +664,7 @@ func (r *Runtime) arrayproto_forEach(call FunctionCall) Value {
 	length := toLength(o.self.getStr("length", nil))
 	callbackFn := r.toCallable(call.Argument(0))
 	fc := FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: []Value{nil, nil, o},
 	}
@@ -677,6 +684,7 @@ func (r *Runtime) arrayproto_map(call FunctionCall) Value {
 	length := toLength(o.self.getStr("length", nil))
 	callbackFn := r.toCallable(call.Argument(0))
 	fc := FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: []Value{nil, nil, o},
 	}
@@ -714,6 +722,7 @@ func (r *Runtime) arrayproto_filter(call FunctionCall) Value {
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		a := arraySpeciesCreate(o, 0)
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, o},
 		}
@@ -760,6 +769,7 @@ func (r *Runtime) arrayproto_reduce(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, o},
 		}
@@ -804,6 +814,7 @@ func (r *Runtime) arrayproto_reduceRight(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
+			ctx:       r.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, o},
 		}
@@ -988,6 +999,7 @@ func (r *Runtime) arrayproto_find(call FunctionCall) Value {
 	l := toLength(o.self.getStr("length", nil))
 	predicate := r.toCallable(call.Argument(0))
 	fc := FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: []Value{nil, nil, o},
 	}
@@ -1008,6 +1020,7 @@ func (r *Runtime) arrayproto_findIndex(call FunctionCall) Value {
 	l := toLength(o.self.getStr("length", nil))
 	predicate := r.toCallable(call.Argument(0))
 	fc := FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: []Value{nil, nil, o},
 	}
@@ -1104,7 +1117,7 @@ func (r *Runtime) array_from(call FunctionCall) Value {
 		k := int64(0)
 		r.iterate(iter, func(val Value) {
 			if mapFn != nil {
-				val = mapFn(FunctionCall{This: t, Arguments: []Value{val, intToValue(k)}})
+				val = mapFn(FunctionCall{ctx: call.ctx, This: t, Arguments: []Value{val, intToValue(k)}})
 			}
 			createDataPropertyOrThrow(arr, intToValue(k), val)
 			k++
@@ -1132,7 +1145,7 @@ func (r *Runtime) array_from(call FunctionCall) Value {
 			idx := valueInt(k)
 			item := arrayLike.self.getIdx(idx, nil)
 			if mapFn != nil {
-				item = mapFn(FunctionCall{This: t, Arguments: []Value{item, idx}})
+				item = mapFn(FunctionCall{ctx: call.ctx, This: t, Arguments: []Value{item, idx}})
 			} else {
 				item = nilSafe(item)
 			}
@@ -1321,6 +1334,7 @@ func (a *arraySortCtx) sortCompare(x, y Value) int {
 
 	if a.compare != nil {
 		f := a.compare(FunctionCall{
+			ctx:       context.Background(),
 			This:      _undefined,
 			Arguments: []Value{x, y},
 		}).ToFloat()

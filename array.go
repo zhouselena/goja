@@ -632,3 +632,26 @@ func strToGoIdx(s unistring.String) int {
 	}
 	return int(i)
 }
+
+func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := EmptySize
+
+	// inc, err := a.baseObject.MemUsage(ctx)
+	// total += inc
+	// if err != nil {
+	// 	return total, err
+	// }
+	inc, err := a.lengthProp.MemUsage(ctx)
+	total += inc
+	if err != nil {
+		return total, err
+	}
+	for _, v := range a.values {
+		inc, err := v.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+	return total, nil
+}

@@ -542,3 +542,48 @@ func (s unicodeString) hash(hash *maphash.Hash) uint64 {
 func (s unicodeString) string() unistring.String {
 	return unistring.FromUtf16(s)
 }
+
+func (s unicodeString) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return uint64(len(s.String())), nil
+}
+func (s unicodeString) ToInt() int {
+	return 0
+}
+
+func (s unicodeString) ToInt32() int32 {
+	return 0
+}
+func (s unicodeString) ToUInt32() uint32 {
+	return 0
+}
+
+func (s unicodeString) ToInt64() int64 {
+	return 0
+}
+
+func (s unicodeString) IsObject() bool {
+	return false
+}
+func (s unicodeString) IsNumber() bool {
+	return false
+}
+
+func (s unicodeString) assertInt() (int, bool) {
+	return 0, false
+}
+func (s unicodeString) assertUInt32() (uint32, bool) {
+	return 0, false
+}
+func (s unicodeString) assertInt32() (int32, bool) {
+	return 0, false
+}
+func (s unicodeString) assertInt64() (int64, bool) {
+	return 0, false
+}
+func (s unicodeString) assertFloat() (float64, bool) {
+	return 0, false
+}
+
+func (s unicodeString) assertString() (valueString, bool) {
+	return s, true
+}

@@ -343,3 +343,7 @@ func (s *stringObject) hasOwnPropertyIdx(idx valueInt) bool {
 	}
 	return s.baseObject.hasOwnPropertyStr(idx.string())
 }
+
+func (s *stringObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return uint64(s.length), nil
+}

@@ -2,11 +2,12 @@ package goja
 
 import (
 	"fmt"
-	"github.com/dop251/goja/parser"
 	"regexp"
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"github.com/dop251/goja/parser"
 )
 
 func (r *Runtime) newRegexpObject(proto *Object) *regexpObject {
@@ -631,6 +632,7 @@ func (r *Runtime) regexpproto_getFlags(call FunctionCall) Value {
 
 func (r *Runtime) regExpExec(execFn func(FunctionCall) Value, rxObj *Object, arg Value) Value {
 	res := execFn(FunctionCall{
+		ctx:       r.ctx,
 		This:      rxObj,
 		Arguments: []Value{arg},
 	})
@@ -989,6 +991,7 @@ func (r *Runtime) regexpproto_stdReplacerGeneric(rxObj *Object, s, replaceStr va
 		if rcall != nil {
 			captures = append(captures, intToValue(int64(position)), s)
 			replacement = rcall(FunctionCall{
+				ctx:       r.ctx,
 				This:      _undefined,
 				Arguments: captures,
 			}).toString()

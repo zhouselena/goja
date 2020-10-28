@@ -403,6 +403,12 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 	case valueUndefined:
 		return stringObjectUndefined
 	default:
+		// if o == nil {
+		// 	return newStringValue("[object Object]")
+		// }
+		// if o.self.get(asciiString("name")) != UndefinedValue() && o.self.get(asciiString("name")) != nil {
+		// 	return newStringValue(fmt.Sprintf("[object %s]", o.self.get(asciiString("name"))))
+		// }
 		obj := o.ToObject(r)
 		var clsName string
 		if isArray(obj) {
@@ -421,7 +427,7 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 
 func (r *Runtime) objectproto_toLocaleString(call FunctionCall) Value {
 	toString := toMethod(r.getVStr(call.This, "toString"))
-	return toString(FunctionCall{This: call.This})
+	return toString(FunctionCall{ctx: r.ctx, This: call.This})
 }
 
 func (r *Runtime) objectproto_getProto(call FunctionCall) Value {
