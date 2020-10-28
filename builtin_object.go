@@ -403,13 +403,13 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 	case valueUndefined:
 		return stringObjectUndefined
 	default:
-		// if o == nil {
-		// 	return newStringValue("[object Object]")
-		// }
-		// if o.self.get(asciiString("name")) != UndefinedValue() && o.self.get(asciiString("name")) != nil {
-		// 	return newStringValue(fmt.Sprintf("[object %s]", o.self.get(asciiString("name"))))
-		// }
 		obj := o.ToObject(r)
+		if obj == nil {
+			return newStringValue("[object Object]")
+		}
+		if obj.self.getStr("name", nil) != UndefinedValue() && obj.self.getStr("name", nil) != nil {
+			return newStringValue(fmt.Sprintf("[object %s]", obj.self.getStr("name", nil)))
+		}
 		var clsName string
 		if isArray(obj) {
 			clsName = classArray
