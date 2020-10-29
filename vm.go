@@ -1748,6 +1748,10 @@ func (_pop) exec(vm *vm) {
 }
 
 func (vm *vm) callEval(n int, strict bool) {
+	// DIVERSION: if the user tries to call eval, we will throw a function not found
+	if _, ok := vm.stack[vm.sp-n-1].(*Object); !ok {
+		panic(vm.r.NewTypeError("'eval' is not a function"))
+	}
 	if vm.r.toObject(vm.stack[vm.sp-n-1]) == vm.r.global.Eval {
 		if n > 0 {
 			srcVal := vm.stack[vm.sp-n]

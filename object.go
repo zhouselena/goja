@@ -118,6 +118,9 @@ type Object struct {
 
 	depth     int
 	__wrapped interface{}
+
+	mu            sync.RWMutex
+	cyclicalCount int
 }
 
 func (o *Object) CyclicalCount() int {

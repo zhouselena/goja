@@ -2173,6 +2173,7 @@ func (r *Runtime) toObject(v Value, args ...interface{}) *Object {
 		} else {
 			s = v.String()
 		}
+		panic("ah")
 		panic(r.NewTypeError("Value is not an object: %s", s))
 	}
 }
