@@ -124,14 +124,20 @@ type Object struct {
 }
 
 func (o *Object) CyclicalCount() int {
-	return 0
+	return o.cyclicalCount
 }
 
 func (o *Object) IncCyclicalCount() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
+	o.cyclicalCount++
 }
 func (o *Object) DecCyclicalCount() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
+	o.cyclicalCount--
 }
 
 type iterNextFunc func() (propIterItem, iterNextFunc)

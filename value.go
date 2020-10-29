@@ -1052,6 +1052,12 @@ func (o *Object) Export() interface{} {
 		return o.__wrapped
 	}
 
+	if o.CyclicalCount() >= 1 {
+		return nil
+	}
+	o.IncCyclicalCount()
+	defer o.DecCyclicalCount()
+
 	if bo, ok := o.baseObject(o.runtime).self.(*objectGoReflect); ok {
 		return bo.export(&objectExportCtx{})
 	}
