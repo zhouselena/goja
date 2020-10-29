@@ -95,7 +95,7 @@ func (r *Runtime) functionproto_apply(call FunctionCall) Value {
 
 	f := r.toCallable(call.This)
 	return f(FunctionCall{
-		ctx:       call.Context(),
+		ctx:       call.ctx,
 		This:      call.Argument(0),
 		Arguments: args,
 	})

@@ -208,7 +208,7 @@ func (r *Runtime) arrayproto_toString(call FunctionCall) Value {
 	if fObj, ok := f.(*Object); ok {
 		if fcall, ok := fObj.self.assertCallable(); ok {
 			return fcall(FunctionCall{
-				ctx:  r.ctx,
+				ctx:  call.ctx,
 				This: array,
 			})
 		}
@@ -769,7 +769,7 @@ func (r *Runtime) arrayproto_reduce(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
-			ctx:       r.ctx,
+			ctx:       call.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, o},
 		}
@@ -814,7 +814,7 @@ func (r *Runtime) arrayproto_reduceRight(call FunctionCall) Value {
 	callbackFn := call.Argument(0).ToObject(r)
 	if callbackFn, ok := callbackFn.self.assertCallable(); ok {
 		fc := FunctionCall{
-			ctx:       r.ctx,
+			ctx:       call.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, o},
 		}

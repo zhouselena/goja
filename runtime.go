@@ -335,7 +335,9 @@ func (e *Exception) String() string {
 		b.WriteString(e.val.String())
 		b.WriteByte('\n')
 	}
-	e.writeFullStack(&b)
+	if !e.ignoreStack {
+		e.writeFullStack(&b)
+	}
 	return b.String()
 }
 
@@ -345,7 +347,9 @@ func (e *Exception) Error() string {
 	}
 	var b bytes.Buffer
 	b.WriteString(e.val.String())
-	e.writeShortStack(&b)
+	if !e.ignoreStack {
+		e.writeShortStack(&b)
+	}
 	return b.String()
 }
 
@@ -560,6 +564,7 @@ func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name 
 	v := &Object{runtime: r}
 
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -594,6 +599,7 @@ func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newT
 	}
 
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -625,6 +631,7 @@ func (r *Runtime) newNativeFunc(call func(FunctionCall) Value, construct func(ar
 	v := &Object{runtime: r}
 
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -647,6 +654,7 @@ func (r *Runtime) newNativeFunc(call func(FunctionCall) Value, construct func(ar
 
 func (r *Runtime) newNativeFuncConstructObj(v *Object, construct func(args []Value, proto *Object) *Object, name unistring.String, proto *Object, length int) *nativeFuncObject {
 	f := &nativeFuncObject{
+		ctx: r.ctx,
 		baseFuncObject: baseFuncObject{
 			baseObject: baseObject{
 				class:      classFunction,
@@ -673,7 +681,7 @@ func (r *Runtime) newNativeFuncConstruct(construct func(args []Value, proto *Obj
 func (r *Runtime) newNativeFuncConstructProto(construct func(args []Value, proto *Object) *Object, name unistring.String, prototype, proto *Object, length int) *Object {
 	v := &Object{runtime: r}
 
-	f := &nativeFuncObject{}
+	f := &nativeFuncObject{ctx: r.ctx}
 	f.class = classFunction
 	f.val = v
 	f.extensible = true

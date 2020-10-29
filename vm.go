@@ -150,9 +150,11 @@ func floatToInt(f float64) (result int64, ok bool) {
 }
 
 func floatToValue(f float64) (result Value) {
-	if i, ok := floatToInt(f); ok {
-		return intToValue(i)
-	}
+	// if i, ok := floatToInt(f); ok {
+	// 	fmt.Printf("here1 %T %v\n", f, f)
+	// 	fmt.Printf("here2 %T %v\n", i, i)
+	// 	return intToValue(i)
+	// }
 	switch {
 	case f == 0:
 		return _negativeZero
@@ -355,8 +357,8 @@ func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame {
 
 func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 	var ctx vmContext
-	vm.saveCtx(&ctx)
 	ctx.ctx = ctx1
+	vm.saveCtx(&ctx)
 
 	ctxOffset := len(vm.callStack)
 	sp := vm.sp
@@ -522,10 +524,10 @@ func (vm *vm) toCallee(v Value) *Object {
 		unresolved.throw()
 		panic("Unreachable")
 	case memberUnresolved:
-		panic(vm.r.NewTypeError("Object has no member '%s'", unresolved.ref))
+		// (REALMC-XXXX) can revert this once otto is gone
+		panic(vm.r.NewTypeError("'%s' is not a function", unresolved.ref))
 	}
 	panic(vm.r.NewTypeError("Value is not an object: %s", v.toString()))
-	//panic(r.NewTypeError("Value is not an object: %T", v))
 }
 
 type _newStash struct{}
@@ -1173,7 +1175,8 @@ func (g getProp) exec(vm *vm) {
 	v := vm.stack[vm.sp-1]
 	obj := v.baseObject(vm.r)
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", g))
+		// (REALMC-XXXX) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", g))
 	}
 	vm.stack[vm.sp-1] = nilSafe(obj.self.getStr(unistring.String(g), v))
 
@@ -1187,7 +1190,8 @@ func (g getPropCallee) exec(vm *vm) {
 	obj := v.baseObject(vm.r)
 	n := unistring.String(g)
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined or null", n))
+		// (REALMC-XXXX) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", n))
 	}
 	prop := obj.self.getStr(n, v)
 	if prop == nil {
@@ -1207,7 +1211,8 @@ func (_getElem) exec(vm *vm) {
 	obj := v.baseObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+		// (REALMC-XXXX) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", propName.String()))
 	}
 
 	vm.stack[vm.sp-2] = nilSafe(obj.get(propName, v))
@@ -1225,7 +1230,8 @@ func (_getElemCallee) exec(vm *vm) {
 	obj := v.baseObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+		// (REALMC-XXXX) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", propName.String()))
 	}
 
 	prop := obj.get(propName, v)
@@ -1845,6 +1851,7 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) {
 		vm.pushCtx()
 		vm.prg = nil
 		vm.funcName = f.nameProp.get(nil).string()
+		// spew.Dump("what is func name, etc", vm.funcName, vm.stack[vm.sp-n-2], vm.stack[vm.sp-n:vm.sp])
 		ret := f.f(FunctionCall{
 			ctx:       vm.ctx,
 			Arguments: vm.stack[vm.sp-n : vm.sp],

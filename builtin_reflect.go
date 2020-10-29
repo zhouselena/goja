@@ -2,7 +2,7 @@ package goja
 
 func (r *Runtime) builtin_reflect_apply(call FunctionCall) Value {
 	return r.toCallable(call.Argument(0))(FunctionCall{
-		ctx:       r.ctx,
+		ctx:       call.ctx,
 		This:      call.Argument(1),
 		Arguments: r.createListFromArrayLike(call.Argument(2))})
 }

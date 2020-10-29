@@ -888,6 +888,10 @@ func (o *baseObject) toPrimitiveNumber() Value {
 }
 
 func (o *baseObject) toPrimitiveString() Value {
+	if o.prototype == nil {
+		// trs hack
+		o.prototype = o.val.runtime.global.ObjectPrototype
+	}
 	if v := o.tryPrimitive("toString"); v != nil {
 		return v
 	}

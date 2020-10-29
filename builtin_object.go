@@ -407,7 +407,7 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 		if obj == nil {
 			return newStringValue("[object Object]")
 		}
-		if obj.self.getStr("name", nil) != UndefinedValue() && obj.self.getStr("name", nil) != nil {
+		if obj.self.getStr("name", nil) != UndefinedValue() && obj.self.getStr("name", nil) != nil && obj.self.getStr("name", nil).string() != "" {
 			return newStringValue(fmt.Sprintf("[object %s]", obj.self.getStr("name", nil)))
 		}
 		var clsName string

@@ -428,7 +428,7 @@ func (r *Runtime) typedArrayProto_every(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
-			ctx:       r.ctx,
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
