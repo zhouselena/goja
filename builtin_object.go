@@ -537,7 +537,19 @@ func (r *Runtime) initObject() {
 	o._putProp("isFrozen", r.newNativeFunc(r.object_isFrozen, nil, "isFrozen", nil, 1), true, false, true)
 	o._putProp("isExtensible", r.newNativeFunc(r.object_isExtensible, nil, "isExtensible", nil, 1), true, false, true)
 	o._putProp("keys", r.newNativeFunc(r.object_keys, nil, "keys", nil, 1), true, false, true)
+	o._putProp("entries", r.newNativeFunc(r.object_keys, nil, "entries", nil, 1), true, false, true)
 	o._putProp("setPrototypeOf", r.newNativeFunc(r.object_setPrototypeOf, nil, "setPrototypeOf", nil, 2), true, false, true)
+
+	bl := r.newBaseObject(nil, classObject)
+	bl.setOwnStr("copyWithin", valueTrue, true)
+	bl.setOwnStr("entries", valueTrue, true)
+	bl.setOwnStr("fill", valueTrue, true)
+	bl.setOwnStr("find", valueTrue, true)
+	bl.setOwnStr("findIndex", valueTrue, true)
+	bl.setOwnStr("includes", valueTrue, true)
+	bl.setOwnStr("keys", valueTrue, true)
+	bl.setOwnStr("values", valueTrue, true)
+	o._putSym(symUnscopables, valueProp(bl.val, false, false, true))
 
 	r.addToGlobal("Object", r.global.Object)
 }

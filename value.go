@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"fmt"
 	"hash/maphash"
 	"math"
 	"reflect"
@@ -1052,12 +1053,6 @@ func (o *Object) Export() interface{} {
 		return o.__wrapped
 	}
 
-	if o.CyclicalCount() >= 1 {
-		return nil
-	}
-	o.IncCyclicalCount()
-	defer o.DecCyclicalCount()
-
 	if bo, ok := o.baseObject(o.runtime).self.(*objectGoReflect); ok {
 		return bo.export(&objectExportCtx{})
 	}
@@ -1322,6 +1317,7 @@ func (o *Object) Class() string {
 }
 
 func (o valueUnresolved) throw() {
+	fmt.Println("here")
 	o.r.throwReferenceError(o.ref)
 }
 

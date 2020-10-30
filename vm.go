@@ -525,6 +525,9 @@ func (vm *vm) toCallee(v Value) *Object {
 		panic("Unreachable")
 	case memberUnresolved:
 		// (REALMC-XXXX) can revert this once otto is gone
+		fmt.Printf("what is this then %T\n", v)
+		// time.Sleep(time.Second * 10)
+		// panic("ah")
 		panic(vm.r.NewTypeError("'%s' is not a function", unresolved.ref))
 	}
 	panic(vm.r.NewTypeError("Value is not an object: %s", v.toString()))

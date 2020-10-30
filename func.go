@@ -164,7 +164,9 @@ func (f *funcObject) call(call FunctionCall, newTarget Value) Value {
 	vm.stash = f.stash
 	vm.newTarget = newTarget
 	vm.pc = 0
-	vm.ctx = call.ctx
+	if vm.ctx == nil {
+		vm.ctx = call.ctx
+	}
 	vm.run()
 	vm.pc = pc
 	vm.halt = false
