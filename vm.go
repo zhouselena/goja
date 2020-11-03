@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/dop251/goja/unistring"
 )
 
@@ -1858,7 +1859,10 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) {
 		vm.pushCtx()
 		vm.prg = nil
 		vm.funcName = f.nameProp.get(nil).string()
-		// spew.Dump("what is func name, etc", vm.funcName, vm.stack[vm.sp-n-2], vm.stack[vm.sp-n:vm.sp])
+		spew.Dump("what is func name, etc", vm.ctx)
+		// if vm.ctx == nil {
+		// 	panic("first occurence")
+		// }
 		ret := f.f(FunctionCall{
 			ctx:       vm.ctx,
 			Arguments: vm.stack[vm.sp-n : vm.sp],

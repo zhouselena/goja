@@ -204,7 +204,7 @@ func (r *Runtime) CreateNativeClass(
 	ctorImpl := func(call ConstructorCall) *Object {
 		fmt.Println("creating new inside ctor", className)
 		fCall := FunctionCall{
-			ctx:       r.vm.ctx,
+			ctx:       call.ctx,
 			This:      call.This,
 			Arguments: call.Arguments,
 		}

@@ -164,9 +164,10 @@ func (f *funcObject) call(call FunctionCall, newTarget Value) Value {
 	vm.stash = f.stash
 	vm.newTarget = newTarget
 	vm.pc = 0
-	if vm.ctx == nil {
-		vm.ctx = call.ctx
-	}
+	// if vm.ctx == nil {
+	vm.ctx = call.ctx
+	// spew.Dump("ctx battle", call.ctx, vm.ctx)
+	// }
 	vm.run()
 	vm.pc = pc
 	vm.halt = false
@@ -234,6 +235,7 @@ func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object,
 	}
 	obj := f.val.runtime.newBaseObject(protoObj, classObject).val
 	ret := ccall(ConstructorCall{
+		ctx:       f.ctx,
 		This:      obj,
 		Arguments: args,
 	})

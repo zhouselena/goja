@@ -1260,7 +1260,7 @@ func (r *Runtime) RunProgram(p *Program) (result Value, err error) {
 	}
 	r.vm.prg = p
 	r.vm.pc = 0
-	ex := r.vm.runTry(r.ctx)
+	ex := r.vm.runTry(r.vm.ctx)
 	if ex == nil {
 		result = r.vm.pop()
 	} else {
