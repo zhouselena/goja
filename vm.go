@@ -1,8 +1,10 @@
 package goja
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
@@ -26,13 +28,16 @@ type stash struct {
 	outer *stash
 }
 
-type context struct {
+type vmContext struct {
+	ctx       context.Context
 	prg       *Program
 	funcName  unistring.String
 	stash     *stash
 	newTarget Value
 	pc, sb    int
 	args      int
+
+	mu sync.RWMutex
 }
 
 type iterStackItem struct {
@@ -101,6 +106,7 @@ func (r *unresolvedRef) refname() unistring.String {
 }
 
 type vm struct {
+	ctx          context.Context
 	r            *Runtime
 	prg          *Program
 	funcName     unistring.String
@@ -109,7 +115,7 @@ type vm struct {
 	sp, sb, args int
 
 	stash     *stash
-	callStack []context
+	callStack []vmContext
 	iterStack []iterStackItem
 	refStack  []ref
 	newTarget Value
@@ -144,9 +150,6 @@ func floatToInt(f float64) (result int64, ok bool) {
 }
 
 func floatToValue(f float64) (result Value) {
-	if i, ok := floatToInt(f); ok {
-		return intToValue(i)
-	}
 	switch {
 	case f == 0:
 		return _negativeZero
@@ -301,10 +304,36 @@ func (vm *vm) run() {
 	interrupted := false
 	ticks := 0
 	for !vm.halt {
+		vm.r.waitOneTick(ticks)
 		if interrupted = atomic.LoadUint32(&vm.interrupted) != 0; interrupted {
-			break
+			if f, ok := vm.interruptVal.(func()); ok {
+				defer func() {
+					if x := recover(); x != nil {
+						vm.interruptLock.Lock()
+						atomic.StoreUint32(&vm.interrupted, 1)
+						vm.interruptVal = nil
+						vm.interruptLock.Unlock()
+						vm.halt = true
+						vm.clearStack()
+						// if this is a go error, just panic this up the stack
+						if err, ok := x.(error); ok {
+							panic(err)
+						}
+
+						v := &InterruptedError{
+							iface: x,
+						}
+						panic(v)
+					}
+				}()
+				f()
+				atomic.StoreUint32(&vm.interrupted, 0)
+			} else {
+				break
+			}
+		} else {
+			vm.prg.code[vm.pc].exec(vm)
 		}
-		vm.prg.code[vm.pc].exec(vm)
 		ticks++
 		if ticks > 10000 {
 			runtime.Gosched()
@@ -315,6 +344,18 @@ func (vm *vm) run() {
 
 	if interrupted {
 		vm.interruptLock.Lock()
+		if f, ok := vm.interruptVal.(func()); ok {
+			f()
+			vm.interruptVal = nil
+			vm.interruptLock.Unlock()
+			return
+		}
+		if err, ok := vm.interruptVal.(error); ok {
+			vm.interruptVal = nil
+			vm.interruptLock.Unlock()
+			panic(err)
+
+		}
 		v := &InterruptedError{
 			iface: vm.interruptVal,
 		}
@@ -337,7 +378,7 @@ func (vm *vm) ClearInterrupt() {
 }
 
 func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame {
-	// Unroll the context stack
+	// Unroll the vmContext stack
 	stack = append(stack, StackFrame{prg: vm.prg, pc: vm.pc, funcName: vm.funcName})
 	for i := len(vm.callStack) - 1; i > ctxOffset-1; i-- {
 		if vm.callStack[i].pc != -1 {
@@ -347,8 +388,9 @@ func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame {
 	return stack
 }
 
-func (vm *vm) try(f func()) (ex *Exception) {
-	var ctx context
+func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
+	var ctx vmContext
+	ctx.ctx = ctx1
 	vm.saveCtx(&ctx)
 
 	ctxOffset := len(vm.callStack)
@@ -383,8 +425,34 @@ func (vm *vm) try(f func()) (ex *Exception) {
 				ex = &Exception{
 					val: x1,
 				}
+				if x1.ExportType().Kind() == reflect.String {
+					ex.ignoreStack = true
+				}
+				v := x1.baseObject(vm.r)
+				if v != nil {
+					name := v.Get("name")
+					if name != nil && !name.SameAs(Undefined()) && name.String() == "Error" {
+						ex.ignoreStack = true
+					}
+					if v.__wrapped != nil {
+						if nErr, ok := v.__wrapped.(error); ok {
+							ex.nativeErr = nErr
+						}
+					}
+					ce := v.Get(fieldCustomError)
+					if ce != nil && ce.SameAs(TrueValue()) {
+						ex.ignoreStack = true
+					}
+				}
 			case *InterruptedError:
-				x1.stack = vm.captureStack(x1.stack, ctxOffset)
+				if x1.iface != nil {
+					if err, ok := x1.iface.(error); !ok {
+						x1.stack = vm.captureStack(x1.stack, ctxOffset)
+					} else {
+						x1.nativeErr = err
+					}
+				}
+
 				panic(x1)
 			case *Exception:
 				ex = x1
@@ -414,8 +482,8 @@ func (vm *vm) try(f func()) (ex *Exception) {
 	return
 }
 
-func (vm *vm) runTry() (ex *Exception) {
-	return vm.try(vm.run)
+func (vm *vm) runTry(ctx context.Context) (ex *Exception) {
+	return vm.try(ctx, vm.run)
 }
 
 func (vm *vm) push(v Value) {
@@ -433,7 +501,7 @@ func (vm *vm) peek() Value {
 	return vm.stack[vm.sp-1]
 }
 
-func (vm *vm) saveCtx(ctx *context) {
+func (vm *vm) saveCtx(ctx *vmContext) {
 	ctx.prg = vm.prg
 	if vm.funcName != "" {
 		ctx.funcName = vm.funcName
@@ -445,22 +513,23 @@ func (vm *vm) saveCtx(ctx *context) {
 	ctx.pc = vm.pc
 	ctx.sb = vm.sb
 	ctx.args = vm.args
+	ctx.ctx = vm.ctx
 }
 
 func (vm *vm) pushCtx() {
 	/*
-		vm.ctxStack = append(vm.ctxStack, context{
+		vm.ctxStack = append(vm.ctxStack, vmContext{
 			prg: vm.prg,
 			stash: vm.stash,
 			pc: vm.pc,
 			sb: vm.sb,
 			args: vm.args,
 		})*/
-	vm.callStack = append(vm.callStack, context{})
+	vm.callStack = append(vm.callStack, vmContext{ctx: vm.ctx})
 	vm.saveCtx(&vm.callStack[len(vm.callStack)-1])
 }
 
-func (vm *vm) restoreCtx(ctx *context) {
+func (vm *vm) restoreCtx(ctx *vmContext) {
 	vm.prg = ctx.prg
 	vm.funcName = ctx.funcName
 	vm.pc = ctx.pc
@@ -468,6 +537,8 @@ func (vm *vm) restoreCtx(ctx *context) {
 	vm.sb = ctx.sb
 	vm.args = ctx.args
 	vm.newTarget = ctx.newTarget
+	vm.ctx = ctx.ctx
+
 }
 
 func (vm *vm) popCtx() {
@@ -480,6 +551,7 @@ func (vm *vm) popCtx() {
 	vm.callStack[l].stash = nil
 	vm.sb = vm.callStack[l].sb
 	vm.args = vm.callStack[l].args
+	vm.ctx = vm.callStack[l].ctx
 
 	vm.callStack = vm.callStack[:l]
 }
@@ -493,7 +565,8 @@ func (vm *vm) toCallee(v Value) *Object {
 		unresolved.throw()
 		panic("Unreachable")
 	case memberUnresolved:
-		panic(vm.r.NewTypeError("Object has no member '%s'", unresolved.ref))
+		// (REALMC-7469) can revert this once otto is gone
+		panic(vm.r.NewTypeError("'%s' is not a function", unresolved.ref))
 	}
 	panic(vm.r.NewTypeError("Value is not an object: %s", v.toString()))
 }
@@ -1143,7 +1216,8 @@ func (g getProp) exec(vm *vm) {
 	v := vm.stack[vm.sp-1]
 	obj := v.baseObject(vm.r)
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", g))
+		// (REALMC-7469) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", g))
 	}
 	vm.stack[vm.sp-1] = nilSafe(obj.self.getStr(unistring.String(g), v))
 
@@ -1157,7 +1231,8 @@ func (g getPropCallee) exec(vm *vm) {
 	obj := v.baseObject(vm.r)
 	n := unistring.String(g)
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined or null", n))
+		// (REALMC-7469) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", n))
 	}
 	prop := obj.self.getStr(n, v)
 	if prop == nil {
@@ -1177,7 +1252,8 @@ func (_getElem) exec(vm *vm) {
 	obj := v.baseObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+		// (REALMC-7469) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", propName.String()))
 	}
 
 	vm.stack[vm.sp-2] = nilSafe(obj.get(propName, v))
@@ -1195,7 +1271,8 @@ func (_getElemCallee) exec(vm *vm) {
 	obj := v.baseObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
 	if obj == nil {
-		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+		// (REALMC-7469) can revert this once otto is gone
+		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", propName.String()))
 	}
 
 	prop := obj.get(propName, v)
@@ -1712,6 +1789,10 @@ func (_pop) exec(vm *vm) {
 }
 
 func (vm *vm) callEval(n int, strict bool) {
+	// REALMC-5102 if the user tries to call eval, we will throw a function not found
+	if _, ok := vm.stack[vm.sp-n-1].(*Object); !ok {
+		panic(vm.r.NewTypeError("'eval' is not a function"))
+	}
 	if vm.r.toObject(vm.stack[vm.sp-n-1]) == vm.r.global.Eval {
 		if n > 0 {
 			srcVal := vm.stack[vm.sp-n]
@@ -1775,7 +1856,11 @@ func (numargs call) exec(vm *vm) {
 	n := int(numargs)
 	v := vm.stack[vm.sp-n-1] // callee
 	obj := vm.toCallee(v)
+
 repeat:
+	if vm.r.stackDepthLimit != 0 && len(vm.callStack)+1 >= vm.r.stackDepthLimit {
+		panic(rangeError("Maximum call stack size exceeded"))
+	}
 	switch f := obj.self.(type) {
 	case *funcObject:
 		vm.pc++
@@ -1794,7 +1879,7 @@ repeat:
 		vm.pushCtx()
 		vm.prg = nil
 		vm.funcName = "proxy"
-		ret := f.apply(FunctionCall{This: vm.stack[vm.sp-n-2], Arguments: vm.stack[vm.sp-n : vm.sp]})
+		ret := f.apply(FunctionCall{ctx: vm.ctx, This: vm.stack[vm.sp-n-2], Arguments: vm.stack[vm.sp-n : vm.sp]})
 		if ret == nil {
 			ret = _undefined
 		}
@@ -1816,6 +1901,7 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) {
 		vm.prg = nil
 		vm.funcName = f.nameProp.get(nil).string()
 		ret := f.f(FunctionCall{
+			ctx:       vm.ctx,
 			Arguments: vm.stack[vm.sp-n : vm.sp],
 			This:      vm.stack[vm.sp-n-2],
 		})
@@ -2242,7 +2328,8 @@ type try struct {
 func (t try) exec(vm *vm) {
 	o := vm.pc
 	vm.pc++
-	ex := vm.runTry()
+
+	ex := vm.runTry(vm.ctx)
 	if ex != nil && t.catchOffset > 0 {
 		// run the catch block (in try)
 		vm.pc = o + int(t.catchOffset)
@@ -2253,7 +2340,7 @@ func (t try) exec(vm *vm) {
 		} else {
 			vm.push(ex.val)
 		}
-		ex = vm.runTry()
+		ex = vm.runTry(vm.ctx)
 		if t.dynamic {
 			vm.stash = vm.stash.outer
 		}
@@ -2309,8 +2396,17 @@ type _new uint32
 func (n _new) exec(vm *vm) {
 	sp := vm.sp - int(n)
 	obj := vm.stack[sp-1]
-	ctor := vm.r.toConstructor(obj)
-	vm.stack[sp-1] = ctor(vm.stack[sp:vm.sp], nil)
+
+	obj = vm.stack[sp-1]
+	if ctor := vm.r.toObject(obj).self.assertConstructor(); ctor != nil {
+		vm.stack[sp-1] = ctor(vm.stack[sp:vm.sp], nil)
+	} else if f, ok := vm.r.toObject(obj).self.(*nativeFuncObject); ok {
+		vm.stack[sp-1] = f.f(FunctionCall{
+			ctx:       vm.ctx,
+			Arguments: vm.stack[vm.sp-vm.args : vm.sp],
+			This:      obj,
+		})
+	}
 	vm.sp = sp
 	vm.pc++
 }
@@ -2341,6 +2437,12 @@ func (_typeof) exec(vm *vm) {
 		r = stringObjectC
 	case *Object:
 	repeat:
+		if v == nil {
+			r = stringFunction
+			vm.stack[vm.sp-1] = r
+			vm.pc++
+			break
+		}
 		switch s := v.self.(type) {
 		case *funcObject, *nativeFuncObject, *boundFuncObject:
 			r = stringFunction
@@ -2354,7 +2456,7 @@ func (_typeof) exec(vm *vm) {
 		r = stringBoolean
 	case valueString:
 		r = stringString
-	case valueInt, valueFloat:
+	case valueInt, valueFloat, valueNumber, valueInt32, valueInt64, valueUInt32:
 		r = stringNumber
 	case *valueSymbol:
 		r = stringSymbol
@@ -2519,11 +2621,36 @@ type iterNext int32
 func (jmp iterNext) exec(vm *vm) {
 	l := len(vm.iterStack) - 1
 	iter := vm.iterStack[l].iter
-	res := vm.r.toObject(toMethod(iter.self.getStr("next", nil))(FunctionCall{This: iter}))
+	res := vm.r.toObject(toMethod(iter.self.getStr("next", nil))(FunctionCall{ctx: vm.ctx, This: iter}))
 	if nilSafe(res.self.getStr("done", nil)).ToBoolean() {
 		vm.pc += int(jmp)
 	} else {
 		vm.iterStack[l].val = nilSafe(res.self.getStr("value", nil))
 		vm.pc++
 	}
+}
+
+func (stack valueStack) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := uint64(0)
+	for _, self := range stack {
+		if self != nil && self.ExportType() != nil && self.ExportType().Kind() == reflect.Func {
+			return 0, nil
+		}
+		// obj := self.baseObject(ctx.vm)
+		// if ctx.IsValVisited(self) {
+		// 	fmt.Printf("self is visited %T %+v\n", self, self)
+		// 	return 0, nil
+		// }
+		// ctx.VisitVal(self)
+
+		inc, err := self.MemUsage(ctx)
+		fmt.Printf("self is not visited, incrementing by %v %T %+v\n", inc, self, self)
+		total += inc
+		fmt.Println("this brings total to: ", total)
+		if err != nil {
+			return total, err
+		}
+	}
+
+	return total, nil
 }

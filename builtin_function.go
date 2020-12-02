@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -89,11 +90,14 @@ func (r *Runtime) createListFromArrayLike(a Value) []Value {
 func (r *Runtime) functionproto_apply(call FunctionCall) Value {
 	var args []Value
 	if len(call.Arguments) >= 2 {
-		args = r.createListFromArrayLike(call.Arguments[1])
+		if call.Arguments[1] != Undefined() && call.Arguments[1] != Null() {
+			args = r.createListFromArrayLike(call.Arguments[1])
+		}
 	}
 
 	f := r.toCallable(call.This)
 	return f(FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(0),
 		Arguments: args,
 	})
@@ -107,12 +111,13 @@ func (r *Runtime) functionproto_call(call FunctionCall) Value {
 
 	f := r.toCallable(call.This)
 	return f(FunctionCall{
+		ctx:       call.ctx,
 		This:      call.Argument(0),
 		Arguments: args,
 	})
 }
 
-func (r *Runtime) boundCallable(target func(FunctionCall) Value, boundArgs []Value) func(FunctionCall) Value {
+func (r *Runtime) boundCallable(ctx context.Context, target func(FunctionCall) Value, boundArgs []Value) func(FunctionCall) Value {
 	var this Value
 	var args []Value
 	if len(boundArgs) > 0 {
@@ -125,6 +130,7 @@ func (r *Runtime) boundCallable(target func(FunctionCall) Value, boundArgs []Val
 	return func(call FunctionCall) Value {
 		a := append(args, call.Arguments...)
 		return target(FunctionCall{
+			ctx:       ctx,
 			This:      this,
 			Arguments: a,
 		})
@@ -167,7 +173,7 @@ func (r *Runtime) functionproto_bind(call FunctionCall) Value {
 
 	v := &Object{runtime: r}
 
-	ff := r.newNativeFuncObj(v, r.boundCallable(fcall, call.Arguments), r.boundConstruct(construct, call.Arguments), nameStr.string(), nil, l)
+	ff := r.newNativeFuncObj(v, r.boundCallable(call.ctx, fcall, call.Arguments), r.boundConstruct(construct, call.Arguments), nameStr.string(), nil, l)
 	v.self = &boundFuncObject{
 		nativeFuncObject: *ff,
 		wrapped:          obj,

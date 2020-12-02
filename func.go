@@ -1,12 +1,15 @@
 package goja
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/dop251/goja/unistring"
 )
 
 type baseFuncObject struct {
+	ctx context.Context
+
 	baseObject
 
 	nameProp, lenProp valueProperty
@@ -21,6 +24,7 @@ type funcObject struct {
 }
 
 type nativeFuncObject struct {
+	ctx context.Context
 	baseFuncObject
 
 	f         func(FunctionCall) Value
@@ -115,6 +119,7 @@ func (f *funcObject) construct(args []Value, newTarget *Object) *Object {
 
 	obj := f.val.runtime.newBaseObject(protoObj, classObject).val
 	ret := f.call(FunctionCall{
+		ctx:       f.val.runtime.vm.ctx,
 		This:      obj,
 		Arguments: args,
 	}, newTarget)
@@ -158,6 +163,7 @@ func (f *funcObject) call(call FunctionCall, newTarget Value) Value {
 	vm.stash = f.stash
 	vm.newTarget = newTarget
 	vm.pc = 0
+	vm.ctx = call.ctx
 	vm.run()
 	vm.pc = pc
 	vm.halt = false
@@ -225,6 +231,7 @@ func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object,
 	}
 	obj := f.val.runtime.newBaseObject(protoObj, classObject).val
 	ret := ccall(ConstructorCall{
+		ctx:       f.ctx,
 		This:      obj,
 		Arguments: args,
 	})
@@ -278,4 +285,27 @@ func (f *boundFuncObject) setForeignStr(name unistring.String, val, receiver Val
 
 func (f *boundFuncObject) hasInstance(v Value) bool {
 	return instanceOfOperator(v, f.wrapped)
+}
+
+func (f *nativeFuncObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if ctx.IsObjVisited(f) {
+		return 0, nil
+	}
+	ctx.VisitObj(f)
+
+	total := SizeEmpty
+	for _, k := range f.propNames {
+		prop := f.getOwnPropStr(k)
+		inc, err := prop.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+
+	}
+	return total, nil
+}
+
+func (f *funcObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return f.baseObject.MemUsage(ctx)
 }

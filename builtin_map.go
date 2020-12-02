@@ -115,7 +115,7 @@ func (r *Runtime) mapProto_forEach(call FunctionCall) Value {
 		if entry == nil {
 			break
 		}
-		callbackFn(FunctionCall{This: t, Arguments: []Value{entry.value, entry.key, thisObj}})
+		callbackFn(FunctionCall{ctx: r.vm.ctx, This: t, Arguments: []Value{entry.value, entry.key, thisObj}})
 	}
 
 	return _undefined
@@ -174,7 +174,7 @@ func (r *Runtime) builtin_newMap(args []Value, newTarget *Object) *Object {
 					itemObj := r.toObject(item)
 					k := itemObj.self.getIdx(i0, nil)
 					v := itemObj.self.getIdx(i1, nil)
-					adderFn(FunctionCall{This: o, Arguments: []Value{k, v}})
+					adderFn(FunctionCall{ctx: r.vm.ctx, This: o, Arguments: []Value{k, v}})
 				})
 			}
 		}

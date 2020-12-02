@@ -29,6 +29,7 @@ func (ctx *typedArraySortCtx) Less(i, j int) bool {
 		x := ctx.ta.typedArray.get(offset + i)
 		y := ctx.ta.typedArray.get(offset + j)
 		res := ctx.compare(FunctionCall{
+			ctx:       ctx.ta.defaultCtor.runtime.ctx,
 			This:      _undefined,
 			Arguments: []Value{x, y},
 		}).ToNumber()
@@ -92,6 +93,11 @@ func (r *Runtime) arrayBufferProto_getByteLength(call FunctionCall) Value {
 		return intToValue(int64(len(b.data)))
 	}
 	panic(r.NewTypeError("Object is not ArrayBuffer: %s", o))
+}
+
+// (REALMC-7469: can be removed) arrayBufferProto_setByteLength is needed to satisfy otto
+func (r *Runtime) arrayBufferProto_setByteLength(call FunctionCall) Value {
+	return _undefined
 }
 
 func (r *Runtime) arrayBufferProto_slice(call FunctionCall) Value {
@@ -205,6 +211,11 @@ func (r *Runtime) dataViewProto_getByteLen(call FunctionCall) Value {
 		return intToValue(int64(dv.byteLen))
 	}
 	panic(r.NewTypeError("Method get DataView.prototype.byteLength called on incompatible receiver %s", call.This.String()))
+}
+
+// (REALMC-7469: can be removed) arrayBufferProto_setByteLength is needed to satisfy otto
+func (r *Runtime) dataViewProto_setByteLen(call FunctionCall) Value {
+	return _undefined
 }
 
 func (r *Runtime) dataViewProto_getByteOffset(call FunctionCall) Value {
@@ -370,6 +381,11 @@ func (r *Runtime) typedArrayProto_getByteLen(call FunctionCall) Value {
 	panic(r.NewTypeError("Method get TypedArray.prototype.byteLength called on incompatible receiver %s", call.This.String()))
 }
 
+// (REALMC-7469: can be removed) arrayBufferProto_setByteLength is needed to satisfy otto
+func (r *Runtime) typedArrayProto_setByteLen(call FunctionCall) Value {
+	return _undefined
+}
+
 func (r *Runtime) typedArrayProto_getLength(call FunctionCall) Value {
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok {
 		if ta.viewedArrayBuf.data == nil {
@@ -427,6 +443,7 @@ func (r *Runtime) typedArrayProto_every(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       call.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -472,6 +489,7 @@ func (r *Runtime) typedArrayProto_filter(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -510,6 +528,7 @@ func (r *Runtime) typedArrayProto_find(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		predicate := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -532,6 +551,7 @@ func (r *Runtime) typedArrayProto_findIndex(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		predicate := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -553,6 +573,7 @@ func (r *Runtime) typedArrayProto_forEach(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -732,6 +753,7 @@ func (r *Runtime) typedArrayProto_map(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -752,6 +774,7 @@ func (r *Runtime) typedArrayProto_reduce(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, call.This},
 		}
@@ -784,6 +807,7 @@ func (r *Runtime) typedArrayProto_reduceRight(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      _undefined,
 			Arguments: []Value{nil, nil, nil, call.This},
 		}
@@ -942,6 +966,7 @@ func (r *Runtime) typedArrayProto_some(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      call.Argument(1),
 			Arguments: []Value{nil, nil, call.This},
 		}
@@ -1104,6 +1129,7 @@ func (r *Runtime) typedArrayFrom(ctor, items *Object, mapFn, thisValue Value) *O
 			}
 		} else {
 			fc := FunctionCall{
+				ctx:       r.vm.ctx,
 				This:      thisValue,
 				Arguments: []Value{nil, nil},
 			}
@@ -1123,6 +1149,7 @@ func (r *Runtime) typedArrayFrom(ctor, items *Object, mapFn, thisValue Value) *O
 		}
 	} else {
 		fc := FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      thisValue,
 			Arguments: []Value{nil, nil},
 		}
@@ -1246,7 +1273,9 @@ func (r *Runtime) createArrayBufferProto(val *Object) objectImpl {
 	byteLengthProp := &valueProperty{
 		accessor:     true,
 		configurable: true,
+		writable:     true,
 		getterFunc:   r.newNativeFunc(r.arrayBufferProto_getByteLength, nil, "get byteLength", nil, 0),
+		setterFunc:   r.newNativeFunc(r.arrayBufferProto_setByteLength, nil, "set byteLength", nil, 0),
 	}
 	b._put("byteLength", byteLengthProp)
 	b._putProp("constructor", r.global.ArrayBuffer, true, false, true)
@@ -1276,7 +1305,9 @@ func (r *Runtime) createDataViewProto(val *Object) objectImpl {
 	b._put("byteLength", &valueProperty{
 		accessor:     true,
 		configurable: true,
+		writable:     true,
 		getterFunc:   r.newNativeFunc(r.dataViewProto_getByteLen, nil, "get byteLength", nil, 0),
+		setterFunc:   r.newNativeFunc(r.dataViewProto_getByteLen, nil, "set byteLength", nil, 0),
 	})
 	b._put("byteOffset", &valueProperty{
 		accessor:     true,
@@ -1320,7 +1351,9 @@ func (r *Runtime) createTypedArrayProto(val *Object) objectImpl {
 	b._put("byteLength", &valueProperty{
 		accessor:     true,
 		configurable: true,
+		writable:     true,
 		getterFunc:   r.newNativeFunc(r.typedArrayProto_getByteLen, nil, "get byteLength", nil, 0),
+		setterFunc:   r.newNativeFunc(r.typedArrayProto_setByteLen, nil, "set byteLength", nil, 0),
 	})
 	b._put("byteOffset", &valueProperty{
 		accessor:     true,

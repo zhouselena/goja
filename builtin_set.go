@@ -91,7 +91,7 @@ func (r *Runtime) setProto_forEach(call FunctionCall) Value {
 		if entry == nil {
 			break
 		}
-		callbackFn(FunctionCall{This: t, Arguments: []Value{entry.key, entry.key, thisObj}})
+		callbackFn(FunctionCall{ctx: r.vm.ctx, This: t, Arguments: []Value{entry.key, entry.key, thisObj}})
 	}
 
 	return _undefined
@@ -149,7 +149,7 @@ func (r *Runtime) builtin_newSet(args []Value, newTarget *Object) *Object {
 					panic(r.NewTypeError("Set.add in missing"))
 				}
 				r.iterate(iter, func(item Value) {
-					adderFn(FunctionCall{This: o, Arguments: []Value{item}})
+					adderFn(FunctionCall{ctx: r.vm.ctx, This: o, Arguments: []Value{item}})
 				})
 			}
 		}

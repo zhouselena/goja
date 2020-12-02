@@ -161,6 +161,7 @@ func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holde
 		}
 	}
 	return reviver(FunctionCall{
+		ctx:       holder.runtime.ctx,
 		This:      holder,
 		Arguments: []Value{name, value},
 	})
@@ -270,6 +271,7 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 		if toJSON, ok := object.self.getStr("toJSON", nil).(*Object); ok {
 			if c, ok := toJSON.self.assertCallable(); ok {
 				value = c(FunctionCall{
+					ctx:       holder.runtime.ctx,
 					This:      value,
 					Arguments: []Value{key},
 				})
@@ -279,6 +281,7 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 
 	if ctx.replacerFunction != nil {
 		value = ctx.replacerFunction(FunctionCall{
+			ctx:       holder.runtime.ctx,
 			This:      holder,
 			Arguments: []Value{key, value},
 		})

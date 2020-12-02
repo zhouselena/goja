@@ -271,6 +271,7 @@ func (o *objectGoSliceReflect) toPrimitiveNumber() Value {
 
 func (o *objectGoSliceReflect) toPrimitiveString() Value {
 	return o.val.runtime.arrayproto_join(FunctionCall{
+		ctx:  o.val.runtime.ctx,
 		This: o.val,
 	})
 }

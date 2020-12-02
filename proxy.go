@@ -124,6 +124,7 @@ func (p *proxyObject) proxyCall(trap proxyTrap, args ...Value) (Value, bool) {
 
 	if m := toMethod(r.getVStr(p.handler, unistring.String(trap.String()))); m != nil {
 		return m(FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      p.handler,
 			Arguments: args,
 		}), true

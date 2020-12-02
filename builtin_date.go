@@ -10,7 +10,7 @@ func (r *Runtime) makeDate(args []Value, utc bool) (t time.Time, valid bool) {
 	switch {
 	case len(args) >= 2:
 		t = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.Local)
-		t, valid = _dateSetYear(t, FunctionCall{Arguments: args}, 0, utc)
+		t, valid = _dateSetYear(t, FunctionCall{ctx: r.vm.ctx, Arguments: args}, 0, utc)
 	case len(args) == 0:
 		t = r.now()
 		valid = true
@@ -152,6 +152,7 @@ func (r *Runtime) dateproto_toJSON(call FunctionCall) Value {
 	if toISO, ok := obj.self.getStr("toISOString", nil).(*Object); ok {
 		if toISO, ok := toISO.self.assertCallable(); ok {
 			return toISO(FunctionCall{
+				ctx:  r.vm.ctx,
 				This: obj,
 			})
 		}

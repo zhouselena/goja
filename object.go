@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"reflect"
@@ -114,6 +115,29 @@ type Object struct {
 	self    objectImpl
 
 	weakRef *objectWeakRef
+
+	depth     int
+	__wrapped interface{}
+
+	mu            sync.RWMutex
+	cyclicalCount int
+}
+
+func (o *Object) CyclicalCount() int {
+	return o.cyclicalCount
+}
+
+func (o *Object) IncCyclicalCount() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	o.cyclicalCount++
+}
+func (o *Object) DecCyclicalCount() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	o.cyclicalCount--
 }
 
 type iterNextFunc func() (propIterItem, iterNextFunc)
@@ -253,6 +277,8 @@ type objectImpl interface {
 
 	_putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value
 	_putSym(s *valueSymbol, prop Value)
+
+	MemUsage(ctx *MemUsageContext) (uint64, error)
 }
 
 type baseObject struct {
@@ -288,13 +314,23 @@ func (o *primitiveValueObject) exportType() reflect.Type {
 }
 
 type FunctionCall struct {
+	ctx       context.Context
 	This      Value
 	Arguments []Value
 }
 
 type ConstructorCall struct {
+	ctx       context.Context
 	This      *Object
 	Arguments []Value
+}
+
+func (f FunctionCall) Context() context.Context {
+	return f.ctx
+}
+
+func (f ConstructorCall) Context() context.Context {
+	return f.ctx
 }
 
 func (f FunctionCall) Argument(idx int) Value {
@@ -836,6 +872,7 @@ func (o *baseObject) tryPrimitive(methodName unistring.String) Value {
 	if method, ok := o.val.self.getStr(methodName, nil).(*Object); ok {
 		if call, ok := method.self.assertCallable(); ok {
 			v := call(FunctionCall{
+				ctx:  o.val.runtime.ctx,
 				This: o.val,
 			})
 			if _, fail := v.(*Object); !fail {
@@ -860,6 +897,9 @@ func (o *baseObject) toPrimitiveNumber() Value {
 }
 
 func (o *baseObject) toPrimitiveString() Value {
+	if o.prototype == nil {
+		o.prototype = o.val.runtime.global.ObjectPrototype
+	}
 	if v := o.tryPrimitive("toString"); v != nil {
 		return v
 	}
@@ -889,6 +929,7 @@ func (o *Object) tryExoticToPrimitive(hint Value) Value {
 	exoticToPrimitive := toMethod(o.self.getSym(symToPrimitive, nil))
 	if exoticToPrimitive != nil {
 		ret := exoticToPrimitive(FunctionCall{
+			ctx:       o.runtime.ctx,
 			This:      o,
 			Arguments: []Value{hint},
 		})
@@ -1203,6 +1244,7 @@ func toMethod(v Value) func(FunctionCall) Value {
 func instanceOfOperator(o Value, c *Object) bool {
 	if instOfHandler := toMethod(c.self.getSym(symHasInstance, c)); instOfHandler != nil {
 		return instOfHandler(FunctionCall{
+			ctx:       c.runtime.ctx,
 			This:      c,
 			Arguments: []Value{o},
 		}).ToBoolean()
@@ -1532,4 +1574,66 @@ func (ctx *objectExportCtx) putTyped(key objectImpl, typ reflect.Type, value int
 		m[typ] = value
 		ctx.cache[key] = m
 	}
+}
+
+func (o *baseObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if ctx.IsObjVisited(o) {
+		return 0, nil
+	}
+	ctx.VisitObj(o)
+	total := SizeEmpty
+	// if o.val != nil {
+	// 	inc, err := o.val.MemUsage(ctx)
+	// 	total += inc
+	// 	if err != nil {
+	// 		return total, err
+	// 	}
+	// }
+
+	for k, v := range o.values {
+		total += uint64(len(k))
+		// v := o.val.self.getStr(name.string(), nil)
+		// if v == nil {
+		// 	continue
+		// }
+
+		inc, err := v.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+	// for k, val := range o.values {
+	// 	total += uint64(len(k))
+	// 	if val == nil {
+	// 		continue
+	// 	}
+	// 	inc, err := val.MemUsage(ctx)
+	// 	total += inc
+	// 	// count size of property name towards total object size.
+	// 	if err != nil {
+	// 		return total, err
+	// 	}
+	// }
+	return total, nil
+}
+
+func (self *primitiveValueObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := SizeEmpty
+	// self.mu.RLock()
+	// defer self.mu.RUnlock()
+	for k, v := range self.values {
+		// if val, ok := v.(Value); ok {
+		inc, err := v.MemUsage(ctx)
+		total += inc
+		total += uint64(len(k)) // count size of property name towards total object size.
+		if err != nil {
+			return total, err
+		}
+		// } else {
+		// 	// most likely a propertyGetSet. ignore for now.
+		// }
+	}
+	return total, nil
+	// return SizeEmpty, nil
 }

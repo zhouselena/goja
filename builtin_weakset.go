@@ -95,7 +95,7 @@ func (r *Runtime) populateWeakSetGeneric(s *Object, adderValue Value, iterable V
 	}
 	iter := r.getIterator(iterable, nil)
 	r.iterate(iter, func(val Value) {
-		adder(FunctionCall{This: s, Arguments: []Value{val}})
+		adder(FunctionCall{ctx: r.ctx, This: s, Arguments: []Value{val}})
 	})
 }
 

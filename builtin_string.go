@@ -1,13 +1,14 @@
 package goja
 
 import (
-	"github.com/dop251/goja/unistring"
+	"context"
 	"math"
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/dop251/goja/parser"
+	"github.com/dop251/goja/unistring"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
@@ -346,6 +347,7 @@ func (r *Runtime) stringproto_match(call FunctionCall) Value {
 	if regexp != _undefined && regexp != _null {
 		if matcher := toMethod(r.getV(regexp, symMatch)); matcher != nil {
 			return matcher(FunctionCall{
+				ctx:       r.vm.ctx,
 				This:      regexp,
 				Arguments: []Value{call.This},
 			})
@@ -363,6 +365,7 @@ func (r *Runtime) stringproto_match(call FunctionCall) Value {
 
 	if matcher, ok := r.toObject(rx.getSym(symMatch, nil)).self.assertCallable(); ok {
 		return matcher(FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      rx.val,
 			Arguments: []Value{call.This.toString()},
 		})
@@ -549,7 +552,7 @@ func getReplaceValue(replaceValue Value) (str valueString, rcall func(FunctionCa
 	return
 }
 
-func stringReplace(s valueString, found [][]int, newstring valueString, rcall func(FunctionCall) Value) Value {
+func stringReplace(ctx context.Context, s valueString, found [][]int, newstring valueString, rcall func(FunctionCall) Value) Value {
 	if len(found) == 0 {
 		return s
 	}
@@ -587,6 +590,7 @@ func stringReplace(s valueString, found [][]int, newstring valueString, rcall fu
 			argumentList[matchCount] = valueInt(item[0])
 			argumentList[matchCount+1] = s
 			replacement := rcall(FunctionCall{
+				ctx:       ctx,
 				This:      _undefined,
 				Arguments: argumentList,
 			}).toString()
@@ -626,6 +630,7 @@ func (r *Runtime) stringproto_replace(call FunctionCall) Value {
 	if searchValue != _undefined && searchValue != _null {
 		if replacer := toMethod(r.getV(searchValue, symReplace)); replacer != nil {
 			return replacer(FunctionCall{
+				ctx:       r.vm.ctx,
 				This:      searchValue,
 				Arguments: []Value{call.This, replaceValue},
 			})
@@ -641,7 +646,7 @@ func (r *Runtime) stringproto_replace(call FunctionCall) Value {
 	}
 
 	str, rcall := getReplaceValue(replaceValue)
-	return stringReplace(s, found, str, rcall)
+	return stringReplace(call.ctx, s, found, str, rcall)
 }
 
 func (r *Runtime) stringproto_search(call FunctionCall) Value {
@@ -650,6 +655,7 @@ func (r *Runtime) stringproto_search(call FunctionCall) Value {
 	if regexp != _undefined && regexp != _null {
 		if searcher := toMethod(r.getV(regexp, symSearch)); searcher != nil {
 			return searcher(FunctionCall{
+				ctx:       r.vm.ctx,
 				This:      regexp,
 				Arguments: []Value{call.This},
 			})
@@ -667,6 +673,7 @@ func (r *Runtime) stringproto_search(call FunctionCall) Value {
 
 	if searcher, ok := r.toObject(rx.getSym(symSearch, nil)).self.assertCallable(); ok {
 		return searcher(FunctionCall{
+			ctx:       r.vm.ctx,
 			This:      rx.val,
 			Arguments: []Value{call.This.toString()},
 		})
@@ -723,6 +730,7 @@ func (r *Runtime) stringproto_split(call FunctionCall) Value {
 	if separatorValue != _undefined && separatorValue != _null {
 		if splitter := toMethod(r.getV(separatorValue, symSplit)); splitter != nil {
 			return splitter(FunctionCall{
+				ctx:       r.vm.ctx,
 				This:      separatorValue,
 				Arguments: []Value{call.This, limitValue},
 			})

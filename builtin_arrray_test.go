@@ -19,7 +19,6 @@ func TestArrayDelete(t *testing.T) {
 	var deleted = delete a[0];
 	var undef = a[0] === undefined;
 	var len = a.length;
-
 	deleted && undef && len === 2;
 	`
 

@@ -11,6 +11,30 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 	if !isNumber(this) {
 		r.typeErrorResult(true, "Value is not a number")
 	}
+	if x, ok := this.assertInt64(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeInt64,
+		}
+	}
+	if x, ok := this.assertInt32(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeInt32,
+		}
+	}
+	if x, ok := this.assertUInt32(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeUInt32,
+		}
+	}
+	if x, ok := this.assertInt(); ok {
+		return valueNumber{
+			val:   x,
+			_type: reflectTypeInt,
+		}
+	}
 	switch t := this.(type) {
 	case valueInt, valueFloat:
 		return this
@@ -23,9 +47,13 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 	panic(r.NewTypeError("Number.prototype.valueOf is not generic"))
 }
 
+func IsNumber(v Value) bool {
+	return isNumber(v)
+}
+
 func isNumber(v Value) bool {
 	switch t := v.(type) {
-	case valueFloat, valueInt:
+	case valueFloat, valueInt, valueInt32, valueInt64, valueUInt32, valueNumber:
 		return true
 	case *Object:
 		switch t := t.self.(type) {
