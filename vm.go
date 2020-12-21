@@ -40,6 +40,36 @@ type vmContext struct {
 	mu sync.RWMutex
 }
 
+func (vc *vmContext) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := SizeEmpty
+
+	if vc.newTarget != nil {
+		inc, err := vc.newTarget.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if vc.stash != nil {
+		inc, err := vc.stash.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if vc.prg != nil {
+		inc, err := vc.prg.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	return total, nil
+}
+
 type iterStackItem struct {
 	val  Value
 	f    iterNextFunc
@@ -2633,20 +2663,12 @@ func (jmp iterNext) exec(vm *vm) {
 func (stack valueStack) MemUsage(ctx *MemUsageContext) (uint64, error) {
 	total := uint64(0)
 	for _, self := range stack {
-		if self != nil && self.ExportType() != nil && self.ExportType().Kind() == reflect.Func {
-			return 0, nil
+		if self == nil {
+			continue
 		}
-		// obj := self.baseObject(ctx.vm)
-		// if ctx.IsValVisited(self) {
-		// 	fmt.Printf("self is visited %T %+v\n", self, self)
-		// 	return 0, nil
-		// }
-		// ctx.VisitVal(self)
 
 		inc, err := self.MemUsage(ctx)
-		fmt.Printf("self is not visited, incrementing by %v %T %+v\n", inc, self, self)
 		total += inc
-		fmt.Println("this brings total to: ", total)
 		if err != nil {
 			return total, err
 		}

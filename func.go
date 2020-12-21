@@ -288,24 +288,32 @@ func (f *boundFuncObject) hasInstance(v Value) bool {
 }
 
 func (f *nativeFuncObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if ctx.IsObjVisited(f) {
-		return 0, nil
+	if f == nil || ctx.IsObjVisited(f) {
+		return SizeEmpty, nil
 	}
 	ctx.VisitObj(f)
 
-	total := SizeEmpty
-	for _, k := range f.propNames {
-		prop := f.getOwnPropStr(k)
-		inc, err := prop.MemUsage(ctx)
+	return f.baseFuncObject.MemUsage(ctx)
+}
+
+func (f *funcObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if f == nil || ctx.IsObjVisited(f) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(f)
+
+	total, baseObjectErr := f.baseObject.MemUsage(ctx)
+	if baseObjectErr != nil {
+		return total, baseObjectErr
+	}
+
+	if f.stash != nil {
+		inc, err := f.stash.MemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err
 		}
-
 	}
-	return total, nil
-}
 
-func (f *funcObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return f.baseObject.MemUsage(ctx)
+	return total, nil
 }

@@ -431,28 +431,28 @@ func (r *Runtime) MemUsage(ctx *MemUsageContext) (uint64, error) {
 	total := uint64(0)
 
 	if r.globalObject != nil {
-		inc, err := r.globalObject.self.MemUsage(ctx)
+		inc, err := r.globalObject.MemUsage(ctx)
 		total += inc
-		fmt.Println("inc, total", inc, total)
 		if err != nil {
 			return total, err
 		}
 	}
 
-	if r.vm.stack != nil {
-		inc, err := r.vm.stack.MemUsage(ctx)
+	for idx := range r.vm.callStack {
+		inc, err := r.vm.callStack[idx].MemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err
 		}
 	}
-	// if r.vm.stash != nil {
-	// 	inc, err := r.vm.stash.MemUsage(ctx)
-	// 	total += inc
-	// 	if err != nil {
-	// 		return total, err
-	// 	}
-	// }
+
+	if r.vm.stash != nil {
+		inc, err := r.vm.stash.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
 
 	return total, nil
 }

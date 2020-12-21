@@ -296,20 +296,13 @@ func (o *lazyObject) swap(i, j int64) {
 }
 
 func (o *lazyObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if o.val == nil {
+	if o.val == nil || ctx.IsObjVisited(o) {
 		return SizeEmpty, nil
 	}
-	if ctx.IsObjVisited(o.val.self) {
-		return 0, nil
-	}
 	ctx.VisitObj(o)
-	total := uint64(0)
 
+	total := uint64(SizeEmpty)
 	inc, err := o.val.MemUsage(ctx)
 	total += inc
-	if err != nil {
-		return total, err
-	}
-
-	return total, nil
+	return total, err
 }

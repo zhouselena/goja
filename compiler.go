@@ -172,6 +172,23 @@ func (p *Program) sourceOffset(pc int) int {
 	return 0
 }
 
+func (p *Program) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	total := uint64(0)
+	for _, val := range p.values {
+		if val == nil {
+			continue
+		}
+
+		inc, err := val.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	return total, nil
+}
+
 func (s *scope) isFunction() bool {
 	if !s.lexical {
 		return s.outer != nil

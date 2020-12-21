@@ -726,10 +726,25 @@ func (p *valueProperty) hash(*maphash.Hash) uint64 {
 }
 
 func (p *valueProperty) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	total := SizeEmpty
-	total += uint64(len(p.String())) // count size of property name towards total object size.
+	total := uint64(0)
 	if p.value != nil {
 		inc, err := p.value.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if p.getterFunc != nil {
+		inc, err := p.getterFunc.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if p.setterFunc != nil {
+		inc, err := p.setterFunc.MemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err
@@ -1069,9 +1084,17 @@ func (o *Object) hash(*maphash.Hash) uint64 {
 }
 
 func (o *Object) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if o.__wrapped != nil {
+	if o == nil || o.self == nil {
 		return SizeEmpty, nil
 	}
+
+	if o.__wrapped != nil {
+		nativeMem, ok := ctx.NativeMemUsage(o.__wrapped)
+		if ok {
+			return nativeMem, nil
+		}
+	}
+
 	switch x := o.self.(type) {
 	case *objectGoReflect:
 		return SizeEmpty, nil
@@ -1083,42 +1106,15 @@ func (o *Object) MemUsage(ctx *MemUsageContext) (uint64, error) {
 		return SizeEmpty, nil
 	case *objectGoSliceReflect:
 		return SizeEmpty, nil
-	case *arrayObject:
-		return x.MemUsage(ctx)
-	case *nativeFuncObject:
-		return x.MemUsage(ctx)
-	case *baseObject:
-		if o.self == nil {
-			return 0, nil
-		}
-		err := ctx.Descend()
-		if err != nil {
-			return 0, err
-		}
-		total, err := o.self.MemUsage(ctx)
-		ctx.Ascend()
-		return total, err
-	case *lazyObject:
-		if o.self == nil {
-			return 0, nil
-		}
-		total, err := o.self.MemUsage(ctx)
-		return total, err
-	case *primitiveValueObject:
-		if o.self == nil {
-			return 0, nil
-		}
-		total, err := o.self.MemUsage(ctx)
-		return total, err
-	case *stringObject:
-		if x.val == nil {
-			return 0, nil
-		}
-		return x.MemUsage(ctx)
 	default:
+		r, ok := x.(MemUsageReporter)
+		if !ok {
+			return 0, nil
+		}
+		return r.MemUsage(ctx)
 	}
-	return 0, nil
 }
+
 func (o *Object) ToInt() int {
 	return o.self.toPrimitiveNumber().ToNumber().ToInt()
 }

@@ -805,3 +805,41 @@ func (p *proxyObject) revoke() {
 	p.handler = nil
 	p.target = nil
 }
+
+func (p *proxyObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if p == nil || ctx.IsObjVisited(p) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(p)
+
+	if err := ctx.Descend(); err != nil {
+		return 0, err
+	}
+
+	total := SizeEmpty
+	inc, baseObjetErr := p.baseObject.MemUsage(ctx)
+	total += inc
+	if baseObjetErr != nil {
+		return total, baseObjetErr
+	}
+
+	if p.target != nil {
+		inc, err := p.target.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if p.handler != nil {
+		inc, err := p.handler.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	ctx.Ascend()
+
+	return total, nil
+}

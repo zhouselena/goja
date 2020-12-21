@@ -40,6 +40,48 @@ func (mo *mapObject) init() {
 	mo.m = newOrderedMap(mo.val.runtime.getHash())
 }
 
+func (mo *mapObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if mo == nil || ctx.IsObjVisited(mo) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(mo)
+
+	if err := ctx.Descend(); err != nil {
+		return 0, err
+	}
+
+	total, err := mo.baseObject.MemUsage(ctx)
+	if err != nil {
+		return total, err
+	}
+
+	for _, entry := range mo.m.hashTable {
+		if entry == nil {
+			continue
+		}
+
+		if entry.key != nil {
+			inc, err := entry.key.MemUsage(ctx)
+			total += inc
+			if err != nil {
+				return total, err
+			}
+		}
+
+		if entry.value != nil {
+			inc, err := entry.value.MemUsage(ctx)
+			total += inc
+			if err != nil {
+				return total, err
+			}
+		}
+	}
+
+	ctx.Ascend()
+
+	return total, nil
+}
+
 func (r *Runtime) mapProto_clear(call FunctionCall) Value {
 	thisObj := r.toObject(call.This)
 	mo, ok := thisObj.self.(*mapObject)

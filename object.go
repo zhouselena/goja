@@ -1577,63 +1577,63 @@ func (ctx *objectExportCtx) putTyped(key objectImpl, typ reflect.Type, value int
 }
 
 func (o *baseObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if ctx.IsObjVisited(o) {
-		return 0, nil
+	if o == nil || ctx.IsObjVisited(o) {
+		return SizeEmpty, nil
 	}
 	ctx.VisitObj(o)
-	total := SizeEmpty
-	// if o.val != nil {
-	// 	inc, err := o.val.MemUsage(ctx)
-	// 	total += inc
-	// 	if err != nil {
-	// 		return total, err
-	// 	}
-	// }
 
-	for k, v := range o.values {
-		total += uint64(len(k))
-		// v := o.val.self.getStr(name.string(), nil)
-		// if v == nil {
-		// 	continue
-		// }
+	if err := ctx.Descend(); err != nil {
+		return 0, err
+	}
+
+	total := SizeEmpty
+
+	for _, k := range o.propNames {
+		v := o.values[k]
+		if v == nil {
+			continue
+		}
 
 		inc, err := v.MemUsage(ctx)
+		total += inc
+		total += uint64(len(k))
+
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if o.prototype != nil {
+		inc, err := o.prototype.MemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err
 		}
 	}
-	// for k, val := range o.values {
-	// 	total += uint64(len(k))
-	// 	if val == nil {
-	// 		continue
-	// 	}
-	// 	inc, err := val.MemUsage(ctx)
-	// 	total += inc
-	// 	// count size of property name towards total object size.
-	// 	if err != nil {
-	// 		return total, err
-	// 	}
-	// }
+
+	ctx.Ascend()
+
 	return total, nil
 }
 
 func (self *primitiveValueObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	total := SizeEmpty
-	// self.mu.RLock()
-	// defer self.mu.RUnlock()
-	for k, v := range self.values {
-		// if val, ok := v.(Value); ok {
-		inc, err := v.MemUsage(ctx)
+	if self == nil || ctx.IsObjVisited(self) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(self)
+
+	total := uint64(0)
+
+	if self.pValue != nil {
+		inc, err := self.pValue.MemUsage(ctx)
 		total += inc
-		total += uint64(len(k)) // count size of property name towards total object size.
 		if err != nil {
 			return total, err
 		}
-		// } else {
-		// 	// most likely a propertyGetSet. ignore for now.
-		// }
 	}
-	return total, nil
-	// return SizeEmpty, nil
+
+	inc, baseErr := self.baseObject.MemUsage(ctx)
+	total += inc
+	return total, baseErr
+
 }

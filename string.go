@@ -345,5 +345,13 @@ func (s *stringObject) hasOwnPropertyIdx(idx valueInt) bool {
 }
 
 func (s *stringObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return uint64(s.length), nil
+	if s == nil || ctx.IsObjVisited(s) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(s)
+
+	total := uint64(s.length)
+	inc, err := s.baseObject.MemUsage(ctx)
+	total += inc
+	return total, err
 }

@@ -634,24 +634,34 @@ func strToGoIdx(s unistring.String) int {
 }
 
 func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	total := SizeEmpty
+	if a == nil || ctx.IsObjVisited(a) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(a)
 
-	// inc, err := a.baseObject.MemUsage(ctx)
-	// total += inc
-	// if err != nil {
-	// 	return total, err
-	// }
-	inc, err := a.lengthProp.MemUsage(ctx)
+	total := SizeEmpty
+	inc, err := a.baseObject.MemUsage(ctx)
 	total += inc
 	if err != nil {
 		return total, err
 	}
+
+	if err := ctx.Descend(); err != nil {
+		return total, err
+	}
+
 	for _, v := range a.values {
+		if v == nil {
+			continue
+		}
+
 		inc, err := v.MemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err
 		}
 	}
+
+	ctx.Ascend()
 	return total, nil
 }

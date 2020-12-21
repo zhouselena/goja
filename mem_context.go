@@ -2,14 +2,11 @@ package goja
 
 import (
 	"errors"
-	"hash/maphash"
 )
 
 type visitTracker struct {
 	objsVisited    map[objectImpl]bool
 	stashesVisited map[*stash]bool
-	valsVisited    map[uint64]bool
-	h              *maphash.Hash
 }
 
 func (vt visitTracker) IsObjVisited(obj objectImpl) bool {
@@ -21,28 +18,10 @@ func (vt visitTracker) VisitObj(obj objectImpl) {
 	vt.objsVisited[obj] = true
 }
 
-func (vt visitTracker) IsValVisited(obj Value) bool {
-	if obj == nil {
-		return true
-	}
-	_, ok := vt.valsVisited[obj.hash(vt.h)]
-	return ok
-}
-
-func (vt visitTracker) VisitVal(obj Value) {
-	vt.valsVisited[obj.hash(vt.h)] = true
-}
-
 func (vt visitTracker) IsStashVisited(stash *stash) bool {
 	_, ok := vt.stashesVisited[stash]
 	return ok
 }
-
-// func (vt visitTracker) IsStackVisited(stash valueStack) bool {
-// 	_, ok := vt.stashesVisited[stash]
-// 	fmt.Println("visited :check:")
-// 	return ok
-// }
 
 func (vt visitTracker) VisitStash(stash *stash) {
 	vt.stashesVisited[stash] = true
@@ -109,7 +88,6 @@ func (self *stash) MemUsage(ctx *MemUsageContext) (uint64, error) {
 }
 
 type MemUsageContext struct {
-	vm *Runtime
 	visitTracker
 	*depthTracker
 	NativeMemUsageChecker
@@ -117,8 +95,7 @@ type MemUsageContext struct {
 
 func NewMemUsageContext(vm *Runtime, maxDepth int, nativeChecker NativeMemUsageChecker) *MemUsageContext {
 	return &MemUsageContext{
-		vm:                    vm,
-		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, valsVisited: map[uint64]bool{}, stashesVisited: map[*stash]bool{}, h: &maphash.Hash{}},
+		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, stashesVisited: map[*stash]bool{}},
 		depthTracker:          &depthTracker{curDepth: 0, maxDepth: maxDepth},
 		NativeMemUsageChecker: nativeChecker,
 	}
@@ -127,3 +104,7 @@ func NewMemUsageContext(vm *Runtime, maxDepth int, nativeChecker NativeMemUsageC
 var (
 	ErrMaxDepth = errors.New("reached max depth")
 )
+
+type MemUsageReporter interface {
+	MemUsage(ctx *MemUsageContext) (uint64, error)
+}

@@ -453,5 +453,31 @@ func (a *sparseArrayObject) exportType() reflect.Type {
 }
 
 func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return SizeEmpty, nil
+	if a == nil || ctx.IsObjVisited(a) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(a)
+
+	if err := ctx.Descend(); err != nil {
+		return SizeEmpty, err
+	}
+
+	total := SizeEmpty
+	for _, item := range a.items {
+		// Add the size of the index
+		total += SizeInt32
+		if item.value != nil {
+			inc, err := item.value.MemUsage(ctx)
+			total += inc
+			if err != nil {
+				return total, err
+			}
+		}
+	}
+
+	ctx.Ascend()
+
+	inc, err := a.baseObject.MemUsage(ctx)
+	total += inc
+	return total, err
 }

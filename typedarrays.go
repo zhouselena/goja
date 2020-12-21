@@ -109,6 +109,10 @@ func (a ArrayBuffer) Detached() bool {
 	return a.buf.detached
 }
 
+func (a ArrayBuffer) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	return a.buf.MemUsage(ctx)
+}
+
 func (r *Runtime) NewArrayBuffer(data []byte) ArrayBuffer {
 	buf := r._newArrayBuffer(r.global.ArrayBufferPrototype, nil)
 	buf.data = data
@@ -641,6 +645,34 @@ func (a *typedArrayObject) enumerateUnfiltered() iterNextFunc {
 	}).next
 }
 
+func (a *typedArrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if a == nil || ctx.IsObjVisited(a) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(a)
+
+	total := SizeEmpty
+	if a.viewedArrayBuf != nil {
+		inc, err := a.viewedArrayBuf.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	if a.defaultCtor != nil {
+		inc, err := a.defaultCtor.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	inc, err := a.baseObject.MemUsage(ctx)
+	total += inc
+	return total, err
+}
+
 func (r *Runtime) _newTypedArrayObject(buf *arrayBufferObject, offset, length, elemSize int, defCtor *Object, arr typedArray, proto *Object) *typedArrayObject {
 	o := &Object{runtime: r}
 	a := &typedArrayObject{
@@ -717,6 +749,26 @@ func (o *dataViewObject) getIdxAndByteOrder(idxVal, littleEndianVal Value, size 
 		bo = nativeEndian
 	}
 	return getIdx, bo
+}
+
+func (o *dataViewObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if o == nil || ctx.IsObjVisited(o) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(o)
+
+	total := SizeEmpty
+	if o.viewedArrayBuf != nil {
+		inc, err := o.viewedArrayBuf.MemUsage(ctx)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+	}
+
+	inc, err := o.baseObject.MemUsage(ctx)
+	total += inc
+	return total, err
 }
 
 func (o *arrayBufferObject) ensureNotDetached() {
@@ -852,6 +904,18 @@ func (o *arrayBufferObject) export(*objectExportCtx) interface{} {
 	return ArrayBuffer{
 		buf: o,
 	}
+}
+
+func (o *arrayBufferObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	if o == nil || ctx.IsObjVisited(o) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(o)
+
+	total := uint64(len(o.data))
+	inc, err := o.baseObject.MemUsage(ctx)
+	total += inc
+	return total, err
 }
 
 func (r *Runtime) _newArrayBuffer(proto *Object, o *Object) *arrayBufferObject {

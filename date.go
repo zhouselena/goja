@@ -140,5 +140,14 @@ func (d *dateObject) timeUTC() time.Time {
 }
 
 func (d *dateObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return SizeEmpty, nil
+	if d == nil || ctx.IsObjVisited(d) {
+		return SizeEmpty, nil
+	}
+	ctx.VisitObj(d)
+
+	// start with the size of msec
+	total := SizeNumber
+	inc, err := d.baseObject.MemUsage(ctx)
+	total += inc
+	return total, err
 }
