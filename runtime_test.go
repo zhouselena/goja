@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/dop251/goja/parser"
 )
 
 func TestGlobalObjectProto(t *testing.T) {
@@ -1712,6 +1714,139 @@ func TestNativeCtorNewTarget(t *testing.T) {
 	o.__proto__ === NewTarget.prototype && o.toString() === "[object Number]";
 	`
 	testScript1(SCRIPT, valueTrue, t)
+}
+
+func TestNativeCtorNonNewCall(t *testing.T) {
+	vm := New()
+	vm.Set(`Animal`, func(call ConstructorCall) *Object {
+		obj := call.This
+		obj.Set(`name`, call.Argument(0).String())
+		obj.Set(`eat`, func(call FunctionCall) Value {
+			self := call.This.(*Object)
+			return vm.ToValue(fmt.Sprintf("%s eat", self.Get(`name`)))
+		})
+		return nil
+	})
+	v, err := vm.RunString(`
+
+	function __extends(d, b){
+		function __() {
+			this.constructor = d;
+		}
+		d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	}
+
+	var Cat = (function (_super) {
+		__extends(Cat, _super);
+		function Cat() {
+			return _super.call(this, "cat") || this;
+		}
+		return Cat;
+	}(Animal));
+
+	var cat = new Cat();
+	cat instanceof Cat && cat.eat() === "cat eat";
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != valueTrue {
+		t.Fatal(v)
+	}
+}
+
+func ExampleNewSymbol() {
+	sym1 := NewSymbol("66")
+	sym2 := NewSymbol("66")
+	fmt.Printf("%s %s %v", sym1, sym2, sym1.Equals(sym2))
+	// Output: 66 66 false
+}
+
+func ExampleObject_SetSymbol() {
+	type IterResult struct {
+		Done  bool
+		Value Value
+	}
+
+	vm := New()
+	vm.SetFieldNameMapper(UncapFieldNameMapper()) // to use IterResult
+
+	o := vm.NewObject()
+	o.SetSymbol(SymIterator, func() *Object {
+		count := 0
+		iter := vm.NewObject()
+		iter.Set("next", func() IterResult {
+			if count < 10 {
+				count++
+				return IterResult{
+					Value: vm.ToValue(count),
+				}
+			}
+			return IterResult{
+				Done: true,
+			}
+		})
+		return iter
+	})
+	vm.Set("o", o)
+
+	res, err := vm.RunString(`
+	var acc = "";
+	for (var v of o) {
+		acc += v + " ";
+	}
+	acc;
+	`)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res)
+	// Output: 1 2 3 4 5 6 7 8 9 10
+}
+
+func ExampleRuntime_NewArray() {
+	vm := New()
+	array := vm.NewArray(1, 2, true)
+	vm.Set("array", array)
+	res, err := vm.RunString(`
+	var acc = "";
+	for (var v of array) {
+		acc += v + " ";
+	}
+	acc;
+	`)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res)
+	// Output: 1 2 true
+}
+
+func ExampleRuntime_SetParserOptions() {
+	vm := New()
+	vm.SetParserOptions(parser.WithDisableSourceMaps)
+
+	res, err := vm.RunString(`
+	"I did not hang!";
+//# sourceMappingURL=/dev/zero`)
+
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.String())
+	// Output: I did not hang!
+}
+
+func TestRuntime_SetParserOptions_Eval(t *testing.T) {
+	vm := New()
+	vm.SetParserOptions(parser.WithDisableSourceMaps)
+
+	_, err := vm.RunString(`
+	eval("//# sourceMappingURL=/dev/zero");
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 /*
