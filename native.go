@@ -7,8 +7,6 @@ import (
 	"github.com/dop251/goja/unistring"
 )
 
-const fieldCustomError = "customerror"
-
 type Property struct {
 	Name  string
 	Value Value
@@ -25,7 +23,8 @@ type NativeClass struct {
 
 	Function *Object
 
-	getStacktrace func(err error) string
+	getStacktrace  func(err error) string
+	initStacktrace func(err error, stacktrace string)
 }
 
 func (r *Runtime) TryToValue(i interface{}) (Value, error) {
@@ -42,7 +41,6 @@ func (r *Runtime) TryToValue(i interface{}) (Value, error) {
 func (r *Runtime) MakeCustomError(name, msg string) *Object {
 	e := r.newError(r.global.Error, msg).(*Object)
 	e.self.setOwnStr("name", asciiString(name), false)
-	e.self.setOwnStr(fieldCustomError, TrueValue(), false)
 	return e
 }
 
@@ -54,7 +52,6 @@ func (r *Runtime) CreateNativeErrorClass(
 	classProps []Property,
 	funcProps []Property,
 ) NativeClass {
-	//TODO goja handle getStacktrace
 	classProto := r.builtin_new(r.global.Error, []Value{})
 	o := classProto.self
 	o._putProp("name", asciiString(className), true, false, true)
@@ -74,7 +71,8 @@ func (r *Runtime) CreateNativeErrorClass(
 
 		err := ctor(call)
 		ex := &Exception{
-			val: r.newError(r.global.ReferenceError, err.Error()),
+			val:        r.newError(r.global.ReferenceError, err.Error()),
+			traceLimit: r.stackTraceLimit,
 		}
 		stackTrace := bytes.NewBuffer(nil)
 		ex.writeShortStack(stackTrace)
@@ -94,7 +92,7 @@ func (r *Runtime) CreateNativeErrorClass(
 	}
 	v.runtime = r
 
-	return NativeClass{Object: v, runtime: r, classProto: classProto, className: className, Function: v, getStacktrace: getStacktrace}
+	return NativeClass{Object: v, runtime: r, classProto: classProto, className: className, Function: v, getStacktrace: getStacktrace, initStacktrace: initStacktrace}
 }
 
 func (r *Runtime) CreateNativeError(name string) (Value, func(err error) Value) {
@@ -189,8 +187,15 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 		if n.getStacktrace != nil {
 			stackTrace := n.getStacktrace(err)
 			if len(stackTrace) == 0 {
-				obj.self.setOwnStr(fieldCustomError, TrueValue(), false)
+				ex := &Exception{
+					val:        r.newError(r.global.ReferenceError, err.Error()),
+					traceLimit: r.stackTraceLimit,
+				}
+				ex.stack = r.vm.captureStack(ex.stack, 0)
+
+				stackTrace = ex.String()
 			}
+			n.initStacktrace(err, stackTrace)
 		}
 		obj.self._putProp("message", newStringValue(err.Error()), true, false, true)
 	}

@@ -245,9 +245,20 @@ func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object,
 
 func (f *nativeFuncObject) assertCallable() (func(FunctionCall) Value, bool) {
 	if f.f != nil {
-		return f.f, true
+		return f.Call, true
 	}
 	return nil, false
+}
+
+func (f *nativeFuncObject) Call(call FunctionCall) Value {
+	vm := f.val.runtime.vm
+	prevFuncName := vm.funcName
+	// This is done to display the correct function name in the stack trace when executing a
+	// native function with Function.prototype.apply/call
+	vm.funcName = f.nameProp.get(nil).string()
+	rv := f.f(call)
+	vm.funcName = prevFuncName
+	return rv
 }
 
 func (f *nativeFuncObject) assertConstructor() func(args []Value, newTarget *Object) *Object {

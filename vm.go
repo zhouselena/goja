@@ -353,6 +353,7 @@ func (vm *vm) run() {
 						v := &InterruptedError{
 							iface: x,
 						}
+						v.traceLimit = vm.r.stackTraceLimit
 						panic(v)
 					}
 				}()
@@ -389,6 +390,7 @@ func (vm *vm) run() {
 		v := &InterruptedError{
 			iface: vm.interruptVal,
 		}
+		v.traceLimit = vm.r.stackTraceLimit
 		atomic.StoreUint32(&vm.interrupted, 0)
 		vm.interruptVal = nil
 		vm.interruptLock.Unlock()
@@ -460,18 +462,10 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 				}
 				v := x1.baseObject(vm.r)
 				if v != nil {
-					name := v.Get("name")
-					if name != nil && !name.SameAs(Undefined()) && name.String() == "Error" {
-						ex.ignoreStack = true
-					}
 					if v.__wrapped != nil {
 						if nErr, ok := v.__wrapped.(error); ok {
 							ex.nativeErr = nErr
 						}
-					}
-					ce := v.Get(fieldCustomError)
-					if ce != nil && ce.SameAs(TrueValue()) {
-						ex.ignoreStack = true
 					}
 				}
 			case *InterruptedError:
@@ -504,6 +498,7 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 				*/
 				panic(x)
 			}
+			ex.traceLimit = vm.r.stackTraceLimit
 			ex.stack = vm.captureStack(ex.stack, ctxOffset)
 		}
 	}()

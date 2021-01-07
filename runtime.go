@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dop251/goja/file"
 	"go/ast"
 	"hash/maphash"
 	"math"
@@ -15,6 +14,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/dop251/goja/file"
 
 	"golang.org/x/text/collate"
 	"golang.org/x/time/rate"
@@ -28,6 +29,8 @@ const (
 	sqrt1_2 float64 = math.Sqrt2 / 2
 
 	deoptimiseRegexp = false
+
+	defaultStackTraceLimit = 10
 )
 
 var (
@@ -189,6 +192,7 @@ type Runtime struct {
 
 	stackDepth      int
 	stackDepthLimit int
+	stackTraceLimit int
 
 	Limiter *rate.Limiter
 	ticks   uint64
@@ -200,6 +204,13 @@ func (self *Runtime) Ticks() uint64 {
 
 func (self *Runtime) SetStackDepthLimit(limit int) {
 	self.stackDepthLimit = limit
+}
+
+// SetStackTraceLimit sets an upper limit to the number of stack frames that
+// goja will use when formatting an error's stack trace. By default, the limit
+// is 10. This is consistent with V8 and SpiderMonkey.
+func (self *Runtime) SetStackTraceLimit(limit int) {
+	self.stackTraceLimit = limit
 }
 
 type StackFrame struct {
@@ -272,6 +283,7 @@ type Exception struct {
 
 	nativeErr   error
 	ignoreStack bool
+	traceLimit  int
 }
 
 func (e *Exception) NativeError() error {
@@ -315,7 +327,16 @@ func (e *InterruptedError) Error() string {
 }
 
 func (e *Exception) writeFullStack(b *bytes.Buffer) {
-	for _, frame := range e.stack {
+	limit := e.traceLimit
+	if limit == 0 {
+		limit = defaultStackTraceLimit
+	}
+
+	for i, frame := range e.stack {
+		if i >= limit {
+			break
+		}
+
 		b.WriteString("\tat ")
 		frame.Write(b)
 		b.WriteByte('\n')
@@ -532,7 +553,6 @@ func (r *Runtime) NewTypeError(args ...interface{}) *Object {
 		msg = fmt.Sprintf(f, args[1:]...)
 	}
 	e := r.builtin_new(r.global.TypeError, []Value{newStringValue(msg)})
-	e.Set(fieldCustomError, true)
 	return e
 }
 
@@ -1267,11 +1287,13 @@ func (r *Runtime) compile(name, src string, strict, eval bool) (p *Program, err 
 		switch x1 := err.(type) {
 		case *CompilerSyntaxError:
 			err = &Exception{
-				val: r.builtin_new(r.global.SyntaxError, []Value{newStringValue(x1.Error())}),
+				val:        r.builtin_new(r.global.SyntaxError, []Value{newStringValue(x1.Error())}),
+				traceLimit: r.stackTraceLimit,
 			}
 		case *CompilerReferenceError:
 			err = &Exception{
-				val: r.newError(r.global.ReferenceError, x1.Message),
+				val:        r.newError(r.global.ReferenceError, x1.Message),
+				traceLimit: r.stackTraceLimit,
 			} // TODO proper message
 		}
 	}
@@ -2094,7 +2116,7 @@ func (r *Runtime) SetParserOptions(opts ...parser.Option) {
 
 // New is an equivalent of the 'new' operator allowing to call it directly from Go.
 func (r *Runtime) New(construct Value, args ...Value) (o *Object, err error) {
-	err = tryFunc(func() {
+	err = r.tryFunc(func() {
 		o = r.builtin_new(r.toObject(construct), args)
 	})
 	return
@@ -2226,7 +2248,7 @@ func NegativeInf() Value {
 	return _negativeInf
 }
 
-func tryFunc(f func()) (err error) {
+func (r *Runtime) tryFunc(f func()) (err error) {
 	defer func() {
 		if x := recover(); x != nil {
 			switch x := x.(type) {
@@ -2236,7 +2258,8 @@ func tryFunc(f func()) (err error) {
 				err = x
 			case Value:
 				err = &Exception{
-					val: x,
+					val:        x,
+					traceLimit: r.stackTraceLimit,
 				}
 			default:
 				panic(x)
@@ -2344,7 +2367,7 @@ func (r *Runtime) getIterator(obj Value, method func(FunctionCall) Value) *Objec
 func returnIter(iter *Object) {
 	retMethod := toMethod(iter.self.getStr("return", nil))
 	if retMethod != nil {
-		_ = tryFunc(func() {
+		_ = iter.runtime.tryFunc(func() {
 			retMethod(FunctionCall{ctx: iter.runtime.ctx, This: iter})
 		})
 	}
@@ -2356,7 +2379,7 @@ func (r *Runtime) iterate(iter *Object, step func(Value)) {
 		if nilSafe(res.self.getStr("done", nil)).ToBoolean() {
 			break
 		}
-		err := tryFunc(func() {
+		err := r.tryFunc(func() {
 			step(nilSafe(res.self.getStr("value", nil)))
 		})
 		if err != nil {
@@ -2494,7 +2517,6 @@ func (r *Runtime) MakeTypeError(args ...interface{}) *Object {
 	}
 
 	e := r.builtin_new(r.global.TypeError, []Value{newStringValue(msg)})
-	e.self.setOwnStr(fieldCustomError, TrueValue(), false)
 	return e
 }
 

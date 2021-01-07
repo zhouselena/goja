@@ -1956,3 +1956,178 @@ func BenchmarkAsciiStringMapGet(b *testing.B) {
 		}
 	}
 }
+
+func TestException(t *testing.T) {
+	const SCRIPT = `
+	function myFunc(times) {
+		if (times == 0) {
+			throw new Error("oh no!");
+		}
+		myFunc(times-1);
+	}
+	myFunc(5);`
+
+	r := New()
+	r.SetStackTraceLimit(3)
+	_, err := r.RunString(SCRIPT)
+
+	if err == nil {
+		t.Fatal("Expected err to not be nil")
+	}
+
+	ex, ok := err.(*Exception)
+	if !ok {
+		t.Fatalf("Expected err to be of type Exception, but got %T", err)
+	}
+
+	expected := `Error: oh no!
+	at myFunc (<eval>:4:10(8))
+	at myFunc (<eval>:6:9(13))
+	at myFunc (<eval>:6:9(13))
+`
+	if ex.String() != expected {
+		t.Fatalf("Expected: \n%s\n but got \n%s", expected, ex.String())
+	}
+}
+
+func TestExceptionWithinNativeFunction(t *testing.T) {
+	const SCRIPT = `
+	function myFunc() {
+		myNativeFunc();
+	}
+	myFunc(5);
+`
+
+	r := New()
+	native := func(call FunctionCall) Value {
+		if len(call.Arguments) < 1 {
+			panic(r.NewTypeError("oh no!"))
+		}
+
+		return UndefinedValue()
+	}
+	nativeFunc, nativeFuncErr := r.CreateNativeFunction("myNativeFunc", "", native)
+	if nativeFuncErr != nil {
+		t.Fatal("Expected nativeFuncErr to be nil")
+	}
+	if err := r.Set("myNativeFunc", nativeFunc); err != nil {
+		t.Fatal("Expected err to be nil")
+	}
+
+	_, err := r.RunString(SCRIPT)
+
+	if err == nil {
+		t.Fatal("Expected err to not be nil")
+	}
+
+	ex, ok := err.(*Exception)
+	if !ok {
+		t.Fatalf("Expected err to be of type Exception, but got %T", err)
+	}
+
+	expected := `TypeError: oh no!
+	at myNativeFunc (native)
+	at myFunc (<eval>:3:3(1))
+	at <eval>:5:8(7)
+`
+	if ex.String() != expected {
+		t.Fatalf("Expected: \n%s\n but got \n%s", expected, ex.String())
+	}
+}
+
+func TestExceptionWithinAppliedNativeFunc(t *testing.T) {
+	const SCRIPT = `
+	function myFunc() {
+		myNativeFunc.apply(null, []);
+	}
+	myFunc(5);
+`
+
+	r := New()
+	native := func(call FunctionCall) Value {
+		if len(call.Arguments) < 1 {
+			panic(r.NewTypeError("oh no!"))
+		}
+
+		return UndefinedValue()
+	}
+	nativeFunc, nativeFuncErr := r.CreateNativeFunction("myNativeFunc", "", native)
+	if nativeFuncErr != nil {
+		t.Fatal("Expected nativeFuncErr to be nil")
+	}
+	if err := r.Set("myNativeFunc", nativeFunc); err != nil {
+		t.Fatal("Expected err to be nil")
+	}
+
+	_, err := r.RunString(SCRIPT)
+
+	if err == nil {
+		t.Fatal("Expected err to not be nil")
+	}
+
+	ex, ok := err.(*Exception)
+	if !ok {
+		t.Fatalf("Expected err to be of type Exception, but got %T", err)
+	}
+
+	expected := `TypeError: oh no!
+	at myNativeFunc (native)
+	at myFunc (<eval>:3:28(5))
+	at <eval>:5:8(7)
+`
+	if ex.String() != expected {
+		t.Fatalf("Expected: \n%s\n but got \n%s", expected, ex.String())
+	}
+}
+
+func TestExceptionWithinAppliedObjectFunc(t *testing.T) {
+	const SCRIPT = `
+	function foo(arg) {
+		if (!arg) {
+			throw new Error("oh no!");
+		}
+	}
+
+	function myFunc() {
+		foo.apply(null, []);
+	}
+
+	myFunc();
+`
+
+	r := New()
+	native := func(call FunctionCall) Value {
+		if len(call.Arguments) < 1 {
+			panic(r.NewTypeError("oh no!"))
+		}
+
+		return UndefinedValue()
+	}
+	nativeFunc, nativeFuncErr := r.CreateNativeFunction("myNativeFunc", "", native)
+	if nativeFuncErr != nil {
+		t.Fatal("Expected nativeFuncErr to be nil")
+	}
+	if err := r.Set("myNativeFunc", nativeFunc); err != nil {
+		t.Fatal("Expected err to be nil")
+	}
+
+	_, err := r.RunString(SCRIPT)
+
+	if err == nil {
+		t.Fatal("Expected err to not be nil")
+	}
+
+	ex, ok := err.(*Exception)
+	if !ok {
+		t.Fatalf("Expected err to be of type Exception, but got %T", err)
+	}
+
+	expected := `Error: oh no!
+	at foo (<eval>:4:10(7))
+	at myFunc (<eval>:9:19(5))
+	at <eval>:12:8(11)
+`
+	if ex.String() != expected {
+		t.Fatalf("Expected: \n%s\n but got \n%s", expected, ex.String())
+	}
+}
