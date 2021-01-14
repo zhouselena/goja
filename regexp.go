@@ -2,13 +2,14 @@ package goja
 
 import (
 	"fmt"
-	"github.com/dlclark/regexp2"
-	"github.com/dop251/goja/unistring"
 	"io"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf16"
+
+	"github.com/dlclark/regexp2"
+	"github.com/dop251/goja/unistring"
 )
 
 type regexp2MatchCache struct {
@@ -480,12 +481,10 @@ func (r *regexpObject) execResultToArray(target valueString, result []int) Value
 	captureCount := len(result) >> 1
 	valueArray := make([]Value, captureCount)
 	matchIndex := result[0]
-	lowerBound := matchIndex
 	for index := 0; index < captureCount; index++ {
 		offset := index << 1
-		if result[offset] >= lowerBound {
+		if result[offset] >= 0 {
 			valueArray[index] = target.substring(result[offset], result[offset+1])
-			lowerBound = result[offset]
 		} else {
 			valueArray[index] = _undefined
 		}

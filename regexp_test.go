@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -516,7 +517,163 @@ func TestRegexpLookbehindAssertion(t *testing.T) {
 	re = /(?<!-)\d+/;
 	assert(re.test("3"), "#3");
 	assert(!re.test("-3"), "#4");
+
+	var match = "JackSprat".match(/(?<=Jack|Tom)Sprat/)
+	assert.sameValue(match.length, 1);
+	assert.sameValue(match[0], "Sprat");
+
+	var matchWithCaptureGroup = "1 turkey costs $30 or £5".match(/(?<=(\$|£))\d+/)
+	assert.sameValue(matchWithCaptureGroup.length, 2);
+	assert.sameValue(matchWithCaptureGroup[0], "30");
+	assert.sameValue(matchWithCaptureGroup[1], "$");
+
+	var matchWithGlobalFlag = "1 turkey costs $30 or £5".match(/(?<=(\$|£))\d+/g)
+	assert.sameValue(matchWithGlobalFlag.length, 2);
+	assert.sameValue(matchWithGlobalFlag[0], "30");
+	assert.sameValue(matchWithGlobalFlag[1], "5");
 	`
+	testScript1(TESTLIB+SCRIPT, _undefined, t)
+}
+
+func TestRegexpLookaheadAssertion(t *testing.T) {
+	const SCRIPT = `
+	var re = /x(?=y)/;
+	assert.sameValue(re.toString(), "/x(?=y)/");
+
+	var str = "1 turkey costs 30€";
+	var match = str.match(/\d+(?=€)/);
+	assert.sameValue(match.length, 1);
+	assert.sameValue(match[0], "30");
+
+	var matchWithCaptureGroup = str.match(/\d+(?=€)/);
+	assert.sameValue(matchWithCaptureGroup.length, 1);
+	assert.sameValue(matchWithCaptureGroup[0], "30");
+
+	var negativeLookahead = str.match(/\d+\b(?!€)/g); // 1 (the price is not matched)
+	assert.sameValue(negativeLookahead.length, 1);
+	assert.sameValue(negativeLookahead[0], "1");
+
+	var matchWithCaptureGroup = str.match(/\d+(?=(€|kr))/);
+	assert.sameValue(matchWithCaptureGroup.length, 2);
+	assert.sameValue(matchWithCaptureGroup[0], "30");
+	assert.sameValue(matchWithCaptureGroup[1], "€");
+	`
+	testScript1(TESTLIB+SCRIPT, _undefined, t)
+}
+
+func TestRegexpExec(t *testing.T) {
+	for i, tc := range []struct {
+		script string
+	}{
+		{
+			`
+				var abc = /(?:ab|cd)\d?/g;
+				var found = [];
+				do {
+						match = abc.exec("ab  cd2  ab34  cd");
+						if (match !== null) {
+								found.push(match[0]);
+						} else {
+								break;
+						}
+				} while (true);
+				
+				assert(deepEqual(found, ["ab","cd2","ab3","cd"]));
+			`,
+		},
+		{
+			`
+				abc = /./g;
+				def = '123456';
+				count = 0;
+				while (count < 100 && abc.exec(def) !== null) {
+					count += 1;
+				}
+
+				assert.sameValue(count, 6);
+				assert.sameValue(def.length, 6);
+			`,
+		},
+		{
+			`
+				abc = /[abc](\d)?/g;
+				def = 'a0 b c1 d3';
+				count = 0;
+				lastIndex = 0;
+				while (count < 100 && abc.exec(def) !== null) {
+						lastIndex = abc.lastIndex;
+						count += 1;
+
+				}
+
+				assert.sameValue(count, 3);
+				assert.sameValue(lastIndex, 7);
+			`,
+		},
+		{
+			`
+				var abc = /[abc](\d)?/.exec("a0 b c1 d3");
+				assert.sameValue(abc.length, 2);
+				assert.sameValue(abc.input, "a0 b c1 d3");
+				assert.sameValue(abc.index, 0);
+				assert.sameValue(abc[0], "a0");
+				assert.sameValue(abc[1], "0");
+			`,
+		},
+		{
+			`
+				var abc = /\w{3}\d?/.exec("CE\uFFFFL\uFFDDbox127");
+				assert.sameValue(abc.input.length, 11);
+				assert.sameValue(abc.length, 1);
+				assert.sameValue(abc.input, "CE\uFFFFL\uFFDDbox127");
+				assert.sameValue(abc.index, 5);
+				assert.sameValue(abc[0], "box1");
+			`,
+		},
+	} {
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			testScript1(TESTLIBX+tc.script, _undefined, t)
+		})
+	}
+}
+
+func TestRegexpConstructor(t *testing.T) {
+	SCRIPT := `
+		function buildGroups(result, g) {
+			return Object.keys(g).reduce(function (groups, name) {
+				groups[name] = result[g[name]];
+				return groups;
+			}, Object.create(null));
+		}
+
+		function BabelRegExp(re, flags, groups) {
+			var _this = Reflect.construct(RegExp, [re, flags], BabelRegExp);
+			_this._groups = groups;
+			return _this;
+		}
+
+		BabelRegExp.prototype.exec = function (str) {
+			var result = RegExp.prototype.exec.call(this, str);
+			if (result) result.groups = buildGroups(result, this._groups);
+			return result;
+		};
+
+		var re = new BabelRegExp(
+			/First_Name: ([0-9A-Z_a-z]+), Last_Name: ([0-9A-Z_a-z]+)/,
+			undefined,
+			{
+				firstname: 1,
+				lastname: 2
+			})
+		var match = re.exec('First_Name: John, Last_Name: Doe');
+		assert.sameValue(match.length, 3);
+		assert.sameValue(match[0], "First_Name: John, Last_Name: Doe");
+		assert.sameValue(match[1], "John");
+		assert.sameValue(match[2], "Doe");
+		assert.sameValue(match.groups.firstname, "John");
+		assert.sameValue(match.groups.lastname, "Doe");
+	`
+
 	testScript1(TESTLIB+SCRIPT, _undefined, t)
 }
 
