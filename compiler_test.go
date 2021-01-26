@@ -1967,7 +1967,7 @@ func TestEmptyCodeError(t *testing.T) {
 	if _, err := New().RunString(`i`); err == nil {
 		t.Fatal("Expected an error")
 	} else {
-		if e := err.Error(); e != "ReferenceError: 'i' is not defined at <eval>:1:1(0)" {
+		if e := err.Error(); e != "ReferenceError: 'i' is not defined" {
 			t.Fatalf("Unexpected error: '%s'", e)
 		}
 	}

@@ -231,6 +231,21 @@ func (r *Runtime) object_defineProperties(call FunctionCall) Value {
 	return obj
 }
 
+func (r *Runtime) object_defineSetter(call FunctionCall) Value {
+	setter, ok := call.Argument(1).(*Object)
+	if !ok {
+		r.typeErrorResult(true, "Object.prototype.__defineSetter__: Expecting function")
+	}
+	if _, callable := setter.self.assertCallable(); !callable {
+		r.typeErrorResult(true, "Object.prototype.__defineSetter__: Expecting function")
+	}
+
+	obj := call.This.ToObject(r)
+	key := toPropertyKey(call.Argument(0))
+	obj.defineOwnProperty(key, PropertyDescriptor{Setter: setter}, true)
+	return _undefined
+}
+
 func (r *Runtime) object_seal(call FunctionCall) Value {
 	// ES6
 	arg := call.Argument(0)
@@ -563,6 +578,7 @@ func (r *Runtime) initObject() {
 		Setter:       r.newNativeFunc(r.objectproto_setProto, nil, "set __proto__", nil, 1),
 		Configurable: FLAG_TRUE,
 	}, true)
+	o._putProp("__defineSetter__", r.newNativeFunc(r.object_defineSetter, nil, "__defineSetter__", nil, 2), true, false, true)
 
 	r.global.Object = r.newNativeFuncConstruct(r.builtin_Object, classObject, r.global.ObjectPrototype, 1)
 	o = r.global.Object.self

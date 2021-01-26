@@ -284,3 +284,57 @@ func TestObject_fromEntries(t *testing.T) {
 		}
 	}
 }
+
+func TestObject_defineSetter(t *testing.T) {
+	vm := New()
+
+	src := `
+		var o = {};
+		o.__defineSetter__('value', function(val) { this.anotherValue = val; });
+		o.value = 5;
+		[o.value + "," + o.anotherValue]
+	`
+
+	actual, err := vm.RunString(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed := gocmp.Diff(actual.String(), "undefined,5"); failed != "" {
+		t.Fatal(failed)
+	}
+}
+
+func TestObject_defineSetterError(t *testing.T) {
+	vm := New()
+
+	for _, tc := range []struct {
+		desc string
+		src  string
+	}{
+		{
+			"with an undefined function",
+			`
+			var o = {};
+			Object.prototype.__defineSetter__('value');
+		`,
+		},
+		{
+			"with an empty object",
+			`
+				var o = {};
+				Object.prototype.__defineSetter__('value', {});
+			`,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := vm.RunString(tc.src)
+			if err == nil {
+				t.Fatal("Expected an error")
+			}
+
+			if err.Error() != "TypeError: Object.prototype.__defineSetter__: Expecting function" {
+				t.Fatal("Unexpected error: ", err)
+			}
+		})
+	}
+}
