@@ -17,7 +17,6 @@ type NativeClass struct {
 	runtime    *Runtime
 	classProto *Object
 	className  string
-	ctor       func(call FunctionCall) interface{}
 	classProps []Property
 	funcProps  []Property
 
@@ -114,53 +113,40 @@ func (r *Runtime) CreateNativeClass(
 	funcProps []Property,
 ) NativeClass {
 	classProto := r.builtin_new(r.global.Object, []Value{})
-	o := classProto.self
-	o._putProp("name", asciiString(className), true, false, true)
-
+	proto := classProto.self
 	for _, prop := range classProps {
-		o._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
-	}
-
-	ctorImpl := func(call ConstructorCall) *Object {
-		fCall := FunctionCall{
-			ctx:       r.vm.ctx,
-			This:      call.This,
-			Arguments: call.Arguments,
-		}
-		val := ctor(fCall)
-		call.This.__wrapped = val
-		// add the toString function first so it can be overridden if user wants to do so
-		call.This.self._putProp("name", asciiString(className), true, false, true)
-		for _, prop := range funcProps {
-			call.This.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
-		}
-		for _, prop := range classProps {
-			call.This.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
-		}
-		return nil
-	}
-	responseObject := r.ToValue(ctorImpl).(*Object)
-	p := responseObject.Get("prototype")
-	pObject := p.(*Object)
-	proto := pObject.self
-
-	proto._putProp("name", asciiString(className), true, false, true)
-	for _, prop := range classProps {
-		proto.setOwnStr(unistring.String(prop.Name), prop.Value, false)
-	}
-	responseObject.self._putProp("name", asciiString(className), true, false, true)
-	for _, prop := range funcProps {
-		responseObject.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
-	}
-
-	for _, prop := range funcProps {
 		proto._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
 	}
 
-	v := NativeClass{classProto: pObject, className: className, classProps: classProps, funcProps: funcProps, ctor: ctor, Function: responseObject}
-	v.runtime = r
+	classFunc := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+		obj := r.newBaseObject(proto, className)
+		obj.class = className
 
-	return v
+		call := FunctionCall{
+			This:      obj.val,
+			ctx:       r.vm.ctx,
+			Arguments: args,
+		}
+		val := ctor(call)
+		g := &_goNativeValue{baseObject: obj, value: val}
+		obj.val.self = g
+		obj.val.__wrapped = g.value
+		return obj.val
+	}, unistring.String(className), classProto, 1)
+
+	classFunc.self._putProp("name", asciiString(className), true, false, true)
+	for _, prop := range funcProps {
+		classFunc.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
+	}
+
+	return NativeClass{
+		classProto: classProto,
+		className:  className,
+		classProps: classProps,
+		funcProps:  funcProps,
+		Function:   classFunc,
+		runtime:    r,
+	}
 }
 
 type _goNativeValue struct {

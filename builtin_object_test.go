@@ -342,6 +342,11 @@ func TestObject_defineSetterError(t *testing.T) {
 func TestObject_toString(t *testing.T) {
 	vm := New()
 
+	myClass := vm.CreateNativeClass("MyClass", func(call FunctionCall) interface{} {
+		return nil
+	}, nil, nil)
+	vm.Set("MyClass", myClass.Function)
+
 	for _, tc := range []struct {
 		desc     string
 		src      string
@@ -403,6 +408,25 @@ func TestObject_toString(t *testing.T) {
 				Object.prototype.toString.call(myFunc);
 			`,
 			"[object Function]",
+		},
+		{
+			"with arguments",
+			`
+				(function(){
+					return arguments
+				})()
+			`,
+			"[object Arguments]",
+		},
+		{
+			"with an error",
+			"Object.prototype.toString.call(new Error);",
+			"[object Error]",
+		},
+		{
+			"with a native class",
+			"Object.prototype.toString.call(new MyClass);",
+			"[object MyClass]",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
