@@ -338,3 +338,81 @@ func TestObject_defineSetterError(t *testing.T) {
 		})
 	}
 }
+
+func TestObject_toString(t *testing.T) {
+	vm := New()
+
+	for _, tc := range []struct {
+		desc     string
+		src      string
+		expected string
+	}{
+		{
+			"with a Date",
+			"Object.prototype.toString.call(new Date);",
+			"[object Date]",
+		},
+		{
+			"with a String",
+			"Object.prototype.toString.call(new String);",
+			"[object String]",
+		},
+		{
+			"with Math",
+			"Object.prototype.toString.call(Math);",
+			"[object Math]",
+		},
+		{
+			"with undefined",
+			"Object.prototype.toString.call(undefined);",
+			"[object Undefined]",
+		},
+		{
+			"with null",
+			"Object.prototype.toString.call(null);",
+			"[object Null]",
+		},
+		{
+			"with an object",
+			"Object.prototype.toString.call({});",
+			"[object Object]",
+		},
+		{
+			"with a number",
+			"Object.prototype.toString.call(3);",
+			"[object Number]",
+		},
+		{
+			"with an array",
+			"Object.prototype.toString.call([1]);",
+			"[object Array]",
+		},
+		{
+			"with a toStringTag property",
+			`
+				var myDate = new Date();
+				myDate[Symbol.toStringTag] = 'myDate';
+				Object.prototype.toString.call(myDate);
+			`,
+			"[object myDate]",
+		},
+		{
+			"with a named function",
+			`
+				var myFunc = function hello(){};
+				Object.prototype.toString.call(myFunc);
+			`,
+			"[object Function]",
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			actual, err := vm.RunString(tc.src)
+			if err != nil {
+				t.Fatal("Unexpected error: ", err)
+			}
+			if failed := gocmp.Diff(actual.String(), tc.expected); failed != "" {
+				t.Fatal(failed)
+			}
+		})
+	}
+}

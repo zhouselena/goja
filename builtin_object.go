@@ -466,10 +466,6 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 		if obj == nil {
 			return newStringValue("[object Object]")
 		}
-		name := obj.self.getStr("name", nil)
-		if name != UndefinedValue() && name != nil && name.string() != "" {
-			return newStringValue(fmt.Sprintf("[object %s]", obj.self.getStr("name", nil)))
-		}
 		var clsName string
 		if isArray(obj) {
 			clsName = classArray
