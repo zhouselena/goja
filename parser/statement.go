@@ -3,14 +3,15 @@ package parser
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/dop251/goja/ast"
-	"github.com/dop251/goja/file"
-	"github.com/dop251/goja/token"
-	"github.com/go-sourcemap/sourcemap"
 	"io/ioutil"
 	"net/url"
 	"path"
 	"strings"
+
+	"github.com/dop251/goja/ast"
+	"github.com/dop251/goja/file"
+	"github.com/dop251/goja/token"
+	"github.com/go-sourcemap/sourcemap"
 )
 
 func (self *_parser) parseBlockStatement() *ast.BlockStatement {
@@ -607,9 +608,12 @@ func extractSourceMapLine(str string) string {
 	return ""
 }
 
-func (self *_parser) parseSourceMap() *sourcemap.Consumer {
+func (self *_parser) parseSourceMap() file.SourceMapConsumer {
 	if self.opts.disableSourceMaps {
 		return nil
+	}
+	if self.opts.sourceMapConsumer != nil {
+		return self.opts.sourceMapConsumer
 	}
 	if smLine := extractSourceMapLine(self.str); smLine != "" {
 		urlIndex := strings.Index(smLine, "=")
