@@ -55,6 +55,7 @@ const (
 type options struct {
 	disableSourceMaps bool
 	sourceMapLoader   func(path string) ([]byte, error)
+	sourceMapConsumer file.SourceMapConsumer
 }
 
 // Option represents one of the options for the parser to use in the Parse methods. Currently supported are:
@@ -75,6 +76,12 @@ func WithDisableSourceMaps(opts *options) {
 func WithSourceMapLoader(loader func(path string) ([]byte, error)) Option {
 	return func(opts *options) {
 		opts.sourceMapLoader = loader
+	}
+}
+
+func WithSourceMapConsumer(sm file.SourceMapConsumer) Option {
+	return func(opts *options) {
+		opts.sourceMapConsumer = sm
 	}
 }
 

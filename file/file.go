@@ -7,14 +7,16 @@ import (
 	"path"
 	"sort"
 	"sync"
-
-	"github.com/go-sourcemap/sourcemap"
 )
 
 // Idx is a compact encoding of a source position within a file set.
 // It can be converted into a Position for a more convenient, but much
 // larger, representation.
 type Idx int
+
+type SourceMapConsumer interface {
+	Source(genLine, genCol int) (source, name string, line, col int, ok bool)
+}
 
 // Position describes an arbitrary source position
 // including the filename, line, and column location.
@@ -106,7 +108,7 @@ type File struct {
 	name              string
 	src               string
 	base              int // This will always be 1 or greater
-	sourceMap         *sourcemap.Consumer
+	sourceMap         SourceMapConsumer
 	lineOffsets       []int
 	lastScannedOffset int
 }
@@ -131,7 +133,7 @@ func (fl *File) Base() int {
 	return fl.base
 }
 
-func (fl *File) SetSourceMap(m *sourcemap.Consumer) {
+func (fl *File) SetSourceMap(m SourceMapConsumer) {
 	fl.sourceMap = m
 }
 
