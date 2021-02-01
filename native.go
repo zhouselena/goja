@@ -43,6 +43,11 @@ func (r *Runtime) MakeCustomError(name, msg string) *Object {
 	return e
 }
 
+// CreateNativeErrorClass creates a native class of the given name that inherits from type Error.
+// Required is a constructor that will be called upon calling the function (with or without 'new'),
+// and getter/setter functions for the stacktrace.
+// Optional arguments are the properties that should exist on the class and function
+// respectively.
 func (r *Runtime) CreateNativeErrorClass(
 	className string,
 	ctor func(call FunctionCall) error,
@@ -52,15 +57,12 @@ func (r *Runtime) CreateNativeErrorClass(
 	funcProps []Property,
 ) NativeClass {
 	classProto := r.builtin_new(r.global.Error, []Value{})
-	o := classProto.self
-	o._putProp("name", asciiString(className), true, false, true)
-
+	proto := classProto.self
 	for _, prop := range classProps {
-		o._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
+		proto._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
 	}
 
-	var errMsg valueString
-	v := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+	classFunc := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
 		obj := r.newBaseObject(proto, className)
 		call := FunctionCall{
 			ctx:       r.vm.ctx,
@@ -69,29 +71,30 @@ func (r *Runtime) CreateNativeErrorClass(
 		}
 
 		err := ctor(call)
-		ex := &Exception{
-			val:        r.newError(r.global.ReferenceError, err.Error()),
-			traceLimit: r.stackTraceLimit,
-		}
-		stackTrace := bytes.NewBuffer(nil)
-		ex.writeShortStack(stackTrace)
-		initStacktrace(err, stackTrace.String())
-		errMsg = newStringValue(err.Error())
+		errMsg := newStringValue(err.Error())
 		obj._putProp("message", errMsg, true, false, true)
+		obj._putProp("name", asciiString(className), true, false, true)
 
 		g := &_goNativeValue{baseObject: obj, value: err}
 		obj.val.self = g
 		obj.val.__wrapped = g.value
 
+		ex := &Exception{
+			val:        obj.val,
+			traceLimit: r.stackTraceLimit,
+		}
+		stackTrace := bytes.NewBuffer(nil)
+		ex.writeShortStack(stackTrace)
+		initStacktrace(err, stackTrace.String())
+
 		return obj.val
 	}, unistring.String(className), classProto, 1)
 
 	for _, prop := range funcProps {
-		v.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
+		classFunc.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
 	}
-	v.runtime = r
 
-	return NativeClass{Object: v, runtime: r, classProto: classProto, className: className, Function: v, getStacktrace: getStacktrace, initStacktrace: initStacktrace}
+	return NativeClass{Object: classFunc, runtime: r, classProto: classProto, className: className, Function: classFunc, getStacktrace: getStacktrace, initStacktrace: initStacktrace}
 }
 
 func (r *Runtime) CreateNativeError(name string) (Value, func(err error) Value) {
@@ -120,7 +123,6 @@ func (r *Runtime) CreateNativeClass(
 
 	classFunc := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
 		obj := r.newBaseObject(proto, className)
-		obj.class = className
 
 		call := FunctionCall{
 			This:      obj.val,
@@ -160,7 +162,6 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 	classProto := n.classProto
 	obj, err := r.New(r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
 		obj := r.newBaseObject(proto, className)
-		obj.class = n.className
 		g := &_goNativeValue{baseObject: obj, value: val}
 		obj.val.self = g
 		obj.val.__wrapped = g.value
@@ -169,12 +170,19 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 	if err != nil {
 		panic(err)
 	}
+
+	obj.self._putProp("name", asciiString(n.className), true, false, true)
+	for _, prop := range n.funcProps {
+		obj.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
+	}
+
 	if err, ok := val.(error); ok {
+		obj.self._putProp("message", newStringValue(err.Error()), true, false, true)
 		if n.getStacktrace != nil {
 			stackTrace := n.getStacktrace(err)
 			if len(stackTrace) == 0 {
 				ex := &Exception{
-					val:        r.newError(r.global.ReferenceError, err.Error()),
+					val:        obj,
 					traceLimit: r.stackTraceLimit,
 				}
 				ex.stack = r.vm.captureStack(ex.stack, 0)
@@ -183,11 +191,6 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 			}
 			n.initStacktrace(err, stackTrace)
 		}
-		obj.self._putProp("message", newStringValue(err.Error()), true, false, true)
-	}
-	obj.self._putProp("name", asciiString(n.className), true, false, true)
-	for _, prop := range n.funcProps {
-		obj.self._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
 	}
 	return obj
 }

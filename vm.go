@@ -336,32 +336,36 @@ func (vm *vm) run() {
 	for !vm.halt {
 		vm.r.waitOneTick(ticks)
 		if interrupted = atomic.LoadUint32(&vm.interrupted) != 0; interrupted {
-			if f, ok := vm.interruptVal.(func()); ok {
-				defer func() {
-					if x := recover(); x != nil {
-						vm.interruptLock.Lock()
-						atomic.StoreUint32(&vm.interrupted, 1)
-						vm.interruptVal = nil
-						vm.interruptLock.Unlock()
-						vm.halt = true
-						vm.clearStack()
-						// if this is a go error, just panic this up the stack
-						if err, ok := x.(error); ok {
-							panic(err)
-						}
-
-						v := &InterruptedError{
-							iface: x,
-						}
-						v.traceLimit = vm.r.stackTraceLimit
-						panic(v)
-					}
-				}()
-				f()
-				atomic.StoreUint32(&vm.interrupted, 0)
-			} else {
+			vm.interruptLock.Lock()
+			interruptFunc, ok := vm.interruptVal.(func())
+			vm.interruptLock.Unlock()
+			if !ok {
 				break
 			}
+
+			defer func() {
+				if x := recover(); x != nil {
+					vm.interruptLock.Lock()
+					atomic.StoreUint32(&vm.interrupted, 1)
+					vm.interruptVal = nil
+					vm.interruptLock.Unlock()
+					vm.halt = true
+					vm.clearStack()
+					// if this is a go error, just panic this up the stack
+					if err, ok := x.(error); ok {
+						panic(err)
+					}
+
+					v := &InterruptedError{
+						iface: x,
+					}
+					v.traceLimit = vm.r.stackTraceLimit
+					panic(v)
+				}
+			}()
+			interruptFunc()
+			atomic.StoreUint32(&vm.interrupted, 0)
+
 		} else {
 			vm.prg.code[vm.pc].exec(vm)
 		}
