@@ -1574,7 +1574,7 @@ func (r *Runtime) ToValue(i interface{}) Value {
 	case int32:
 		return intToValue(int64(i))
 	case int64:
-		return intToValue(i)
+		return int64toValue(i)
 	case uint:
 		if uint64(i) <= math.MaxInt64 {
 			return intToValue(int64(i))

@@ -171,6 +171,15 @@ func intToValue(i int64) Value {
 	}
 	return valueFloat(i)
 }
+func int64toValue(i int64) Value {
+	if i >= -maxInt && i <= maxInt {
+		if i >= -128 && i <= 127 {
+			return intCache[i+128]
+		}
+		return valueInt64(i)
+	}
+	return valueFloat(i)
+}
 
 func floatToInt(f float64) (result int64, ok bool) {
 	if (f != 0 || !math.Signbit(f)) && !math.IsInf(f, 0) && f == math.Trunc(f) && f >= -maxInt && f <= maxInt {
