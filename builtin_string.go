@@ -127,6 +127,11 @@ func (r *Runtime) string_fromcodepoint(call FunctionCall) Value {
 				panic(r.newError(r.global.RangeError, "Invalid code point %d", numInt))
 			}
 			c = rune(numInt)
+		} else if numInt, ok := num.(valueInt64); ok {
+			if numInt < 0 || numInt > utf8.MaxRune {
+				panic(r.newError(r.global.RangeError, "Invalid code point %d", numInt))
+			}
+			c = rune(numInt)
 		} else {
 			panic(r.newError(r.global.RangeError, "Invalid code point %s", num))
 		}

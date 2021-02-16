@@ -55,6 +55,7 @@ var (
 )
 
 var intCache [256]Value
+var int64Cache [256]Value
 
 func FalseValue() Value {
 	return valueFalse
@@ -210,7 +211,7 @@ func (i valueInt) assertInt32() (int32, bool) {
 	return 0, false
 }
 func (i valueInt) assertInt64() (int64, bool) {
-	return 0, false
+	return int64(i), true
 }
 
 func (i valueInt) assertFloat() (float64, bool) {
@@ -285,6 +286,8 @@ func (i valueInt) Equals(other Value) bool {
 	switch o := other.(type) {
 	case valueInt:
 		return i == o
+	case valueInt64:
+		return i == valueInt(o)
 	case valueFloat:
 		return float64(i) == float64(o)
 	case valueString:
@@ -302,6 +305,8 @@ func (i valueInt) StrictEquals(other Value) bool {
 	switch o := other.(type) {
 	case valueInt:
 		return i == o
+	case valueInt64:
+		return i == valueInt(o)
 	case valueFloat:
 		return float64(i) == float64(o)
 	}
@@ -943,6 +948,13 @@ func (f valueFloat) SameAs(other Value) bool {
 			ret = !math.Signbit(this)
 		}
 		return ret
+	case valueInt64:
+		this := float64(f)
+		ret := this == float64(o)
+		if ret && this == 0 {
+			ret = !math.Signbit(this)
+		}
+		return ret
 	}
 
 	return false
@@ -953,6 +965,8 @@ func (f valueFloat) Equals(other Value) bool {
 	case valueFloat:
 		return f == o
 	case valueInt:
+		return float64(f) == float64(o)
+	case valueInt64:
 		return float64(f) == float64(o)
 	case valueString, valueBool:
 		return float64(f) == o.ToFloat()
@@ -968,6 +982,8 @@ func (f valueFloat) StrictEquals(other Value) bool {
 	case valueFloat:
 		return f == o
 	case valueInt:
+		return float64(f) == float64(o)
+	case valueInt64:
 		return float64(f) == float64(o)
 	}
 
@@ -1048,7 +1064,7 @@ func (o *Object) Equals(other Value) bool {
 	}
 
 	switch o1 := other.(type) {
-	case valueInt, valueFloat, valueString:
+	case valueInt, valueFloat, valueString, valueInt64:
 		return o.toPrimitive().Equals(other)
 	case valueBool:
 		return o.Equals(o1.ToNumber())
@@ -1556,6 +1572,9 @@ func (s *Symbol) descriptiveString() valueString {
 func init() {
 	for i := 0; i < 256; i++ {
 		intCache[i] = valueInt(i - 128)
+	}
+	for i := 0; i < 256; i++ {
+		int64Cache[i] = valueInt64(i - 128)
 	}
 	_positiveZero = intToValue(0)
 }

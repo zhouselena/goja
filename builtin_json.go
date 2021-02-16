@@ -192,7 +192,7 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value {
 				var name string
 				value := replacer.self.getIdx(valueInt(int64(index)), nil)
 				switch v := value.(type) {
-				case valueFloat, valueInt, valueString:
+				case valueFloat, valueInt, valueString, valueInt64:
 					name = value.String()
 				case *Object:
 					switch v.self.className() {
@@ -224,6 +224,9 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value {
 		isNum := false
 		var num int64
 		if i, ok := spaceValue.(valueInt); ok {
+			num = int64(i)
+			isNum = true
+		} else if i, ok := spaceValue.(valueInt64); ok {
 			num = int64(i)
 			isNum = true
 		} else if f, ok := spaceValue.(valueFloat); ok {
@@ -330,6 +333,8 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 	case valueString:
 		ctx.quote(value1)
 	case valueInt:
+		ctx.buf.WriteString(value.String())
+	case valueInt64:
 		ctx.buf.WriteString(value.String())
 	case valueFloat:
 		if !math.IsNaN(float64(value1)) && !math.IsInf(float64(value1), 0) {

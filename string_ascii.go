@@ -197,6 +197,12 @@ func (s asciiString) Equals(other Value) bool {
 		}
 		return false
 	}
+	if o, ok := other.(valueInt64); ok {
+		if o1, e := s._toInt(); e == nil {
+			return o1 == int64(o)
+		}
+		return false
+	}
 
 	if o, ok := other.(valueFloat); ok {
 		return s.ToFloat() == float64(o)

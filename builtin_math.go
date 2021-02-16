@@ -192,6 +192,20 @@ func (r *Runtime) math_pow(call FunctionCall) Value {
 			}
 		}
 	}
+	if x, ok := x.(valueInt64); ok {
+		if y, ok := y.(valueInt64); ok && y >= 0 && y < 64 {
+			if y == 0 {
+				return int64ToValue(1)
+			}
+			if x == 0 {
+				return int64ToValue(0)
+			}
+			ip := ipow(int64(x), int64(y))
+			if ip != 0 {
+				return int64ToValue(ip)
+			}
+		}
+	}
 
 	return floatToValue(math.Pow(x.ToFloat(), y.ToFloat()))
 }
@@ -260,6 +274,9 @@ func (r *Runtime) math_tanh(call FunctionCall) Value {
 func (r *Runtime) math_trunc(call FunctionCall) Value {
 	arg := call.Argument(0)
 	if i, ok := arg.(valueInt); ok {
+		return i
+	}
+	if i, ok := arg.(valueInt64); ok {
 		return i
 	}
 	return floatToValue(math.Trunc(arg.ToFloat()))

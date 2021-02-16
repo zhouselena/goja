@@ -281,8 +281,10 @@ func (o *objectGoReflect) hasOwnPropertyStr(name unistring.String) bool {
 
 func (o *objectGoReflect) _toNumber() Value {
 	switch o.value.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
 		return intToValue(o.value.Int())
+	case reflect.Int64:
+		return int64ToValue(o.value.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return intToValue(int64(o.value.Uint()))
 	case reflect.Bool:

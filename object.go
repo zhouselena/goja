@@ -1293,6 +1293,8 @@ func (o *Object) get(p Value, receiver Value) Value {
 	switch p := p.(type) {
 	case valueInt:
 		return o.self.getIdx(p, receiver)
+	case valueInt64:
+		return o.self.getIdx(valueInt(p), receiver)
 	case *Symbol:
 		return o.self.getSym(p, receiver)
 	default:
@@ -1304,6 +1306,8 @@ func (o *Object) getOwnProp(p Value) Value {
 	switch p := p.(type) {
 	case valueInt:
 		return o.self.getOwnPropIdx(p)
+	case valueInt64:
+		return o.self.getOwnPropIdx(valueInt(p))
 	case *Symbol:
 		return o.self.getOwnPropSym(p)
 	default:
@@ -1315,6 +1319,8 @@ func (o *Object) hasOwnProperty(p Value) bool {
 	switch p := p.(type) {
 	case valueInt:
 		return o.self.hasOwnPropertyIdx(p)
+	case valueInt64:
+		return o.self.hasOwnPropertyIdx(valueInt(p))
 	case *Symbol:
 		return o.self.hasOwnPropertySym(p)
 	default:
@@ -1326,6 +1332,8 @@ func (o *Object) hasProperty(p Value) bool {
 	switch p := p.(type) {
 	case valueInt:
 		return o.self.hasPropertyIdx(p)
+	case valueInt64:
+		return o.self.hasPropertyIdx(valueInt(p))
 	case *Symbol:
 		return o.self.hasPropertySym(p)
 	default:
@@ -1374,6 +1382,8 @@ func (o *Object) set(name Value, val, receiver Value, throw bool) bool {
 	switch name := name.(type) {
 	case valueInt:
 		return o.setIdx(name, val, receiver, throw)
+	case valueInt64:
+		return o.setIdx(valueInt(name), val, receiver, throw)
 	case *Symbol:
 		return o.setSym(name, val, receiver, throw)
 	default:
@@ -1470,6 +1480,8 @@ func (o *Object) delete(n Value, throw bool) bool {
 	switch n := n.(type) {
 	case valueInt:
 		return o.self.deleteIdx(n, throw)
+	case valueInt64:
+		return o.self.deleteIdx(valueInt(n), throw)
 	case *Symbol:
 		return o.self.deleteSym(n, throw)
 	default:
@@ -1481,6 +1493,8 @@ func (o *Object) defineOwnProperty(n Value, desc PropertyDescriptor, throw bool)
 	switch n := n.(type) {
 	case valueInt:
 		return o.self.defineOwnPropertyIdx(n, desc, throw)
+	case valueInt64:
+		return o.self.defineOwnPropertyIdx(valueInt(n), desc, throw)
 	case *Symbol:
 		return o.self.defineOwnPropertySym(n, desc, throw)
 	default:

@@ -36,7 +36,7 @@ func (r *Runtime) numberproto_valueOf(call FunctionCall) Value {
 		}
 	}
 	switch t := this.(type) {
-	case valueInt, valueFloat:
+	case valueInt, valueFloat, valueInt64:
 		return this
 	case *Object:
 		if v, ok := t.self.(*primitiveValueObject); ok {
@@ -169,6 +169,8 @@ func (r *Runtime) number_isFinite(call FunctionCall) Value {
 	switch arg := call.Argument(0).(type) {
 	case valueInt:
 		return valueTrue
+	case valueInt64:
+		return valueTrue
 	case valueFloat:
 		f := float64(arg)
 		return r.toBoolean(!math.IsInf(f, 0) && !math.IsNaN(f))
@@ -180,6 +182,8 @@ func (r *Runtime) number_isFinite(call FunctionCall) Value {
 func (r *Runtime) number_isInteger(call FunctionCall) Value {
 	switch arg := call.Argument(0).(type) {
 	case valueInt:
+		return valueTrue
+	case valueInt64:
 		return valueTrue
 	case valueFloat:
 		f := float64(arg)
@@ -198,6 +202,9 @@ func (r *Runtime) number_isNaN(call FunctionCall) Value {
 
 func (r *Runtime) number_isSafeInteger(call FunctionCall) Value {
 	if i, ok := call.Argument(0).(valueInt); ok && i >= -(maxInt-1) && i <= maxInt-1 {
+		return valueTrue
+	}
+	if i, ok := call.Argument(0).(valueInt64); ok && i >= -(maxInt-1) && i <= maxInt-1 {
 		return valueTrue
 	}
 	return valueFalse
