@@ -1552,8 +1552,10 @@ func (c *compiler) compileNumberLiteral(v *ast.NumberLiteral) compiledExpr {
 	}
 	var val Value
 	switch num := v.Value.(type) {
+	case int:
+		val = intToValue(int64(num))
 	case int64:
-		val = intToValue(num)
+		val = int64ToValue(num)
 	case float64:
 		val = floatToValue(num)
 	default:
