@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"math"
 	"time"
 )
 
@@ -15,13 +14,13 @@ const (
 	dateLayout_en_GB     = "01/02/2006"
 	timeLayout_en_GB     = "15:04:05"
 
-	maxTime   = 8.64e15
-	timeUnset = math.MinInt64
+	maxTime = 8.64e15
 )
 
 type dateObject struct {
 	baseObject
-	msec int64
+	msec    int64
+	invalid bool
 }
 
 var (
@@ -83,7 +82,7 @@ func (r *Runtime) newDateObject(t time.Time, isSet bool, proto *Object) *Object 
 	if isSet {
 		d.msec = timeToMsec(t)
 	} else {
-		d.msec = timeUnset
+		d.invalid = true
 	}
 	return v
 }
@@ -108,7 +107,8 @@ func (d *dateObject) toPrimitive() Value {
 
 func (d *dateObject) export(*objectExportCtx) interface{} {
 	if d.isSet() {
-		return d.time()
+		t := d.time()
+		return t
 	}
 	return nil
 }
@@ -116,6 +116,7 @@ func (d *dateObject) export(*objectExportCtx) interface{} {
 func (d *dateObject) setTimeMs(ms int64) Value {
 	if ms >= 0 && ms <= maxTime || ms < 0 && ms >= -maxTime {
 		d.msec = ms
+		d.invalid = false
 		return intToValue(ms)
 	}
 
@@ -124,11 +125,11 @@ func (d *dateObject) setTimeMs(ms int64) Value {
 }
 
 func (d *dateObject) isSet() bool {
-	return d.msec != timeUnset
+	return !d.invalid
 }
 
 func (d *dateObject) unset() {
-	d.msec = timeUnset
+	d.invalid = true
 }
 
 func (d *dateObject) time() time.Time {

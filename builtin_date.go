@@ -473,6 +473,7 @@ func (r *Runtime) dateproto_setTime(call FunctionCall) Value {
 			d.unset()
 			return _NaN
 		}
+
 		return d.setTimeMs(n.ToInteger())
 	}
 	panic(r.NewTypeError("Method Date.prototype.setTime is called on incompatible receiver"))
