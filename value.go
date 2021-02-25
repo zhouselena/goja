@@ -1179,10 +1179,11 @@ func (o *Object) GetSymbol(sym *Symbol) Value {
 }
 
 func (o *Object) Keys() (keys []string) {
-	names := o.self.ownKeys(false, nil)
-	keys = make([]string, 0, len(names))
-	for _, name := range names {
-		keys = append(keys, name.String())
+	iter := &enumerableIter{
+		wrapped: o.self.enumerateOwnKeys(),
+	}
+	for item, next := iter.next(); next != nil; item, next = next() {
+		keys = append(keys, item.name.String())
 	}
 
 	return
@@ -1270,6 +1271,20 @@ func (o *Object) Delete(name string) error {
 func (o *Object) DeleteSymbol(name *Symbol) error {
 	return o.runtime.tryFunc(func() {
 		o.self.deleteSym(name, true)
+	})
+}
+
+// Prototype returns the Object's prototype, same as Object.getPrototypeOf(). If the prototype is null
+// returns nil.
+func (o *Object) Prototype() *Object {
+	return o.self.proto()
+}
+
+// SetPrototype sets the Object's prototype, same as Object.setPrototypeOf(). Setting proto to nil
+// is an equivalent of Object.setPrototypeOf(null).
+func (o *Object) SetPrototype(proto *Object) error {
+	return o.runtime.tryFunc(func() {
+		o.self.setProto(proto, true)
 	})
 }
 
@@ -1453,6 +1468,7 @@ func (s *Symbol) ToUInt32() uint32 {
 func (s *Symbol) ToInt64() int64 {
 	panic(typeError("Cannot convert a Symbol value to a number"))
 }
+
 func (s *Symbol) assertFloat() (float64, bool) {
 	return 0, false
 }

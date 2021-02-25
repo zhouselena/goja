@@ -426,6 +426,7 @@ func (r *Runtime) typedArrayProto_copyWithin(call FunctionCall) Value {
 		offset := ta.offset
 		elemSize := ta.elemSize
 		if final > from {
+			ta.viewedArrayBuf.ensureNotDetached()
 			copy(data[(offset+to)*elemSize:], data[(offset+from)*elemSize:(offset+final)*elemSize])
 		}
 		return call.This
@@ -855,7 +856,7 @@ func (r *Runtime) typedArrayProto_reverse(call FunctionCall) Value {
 
 func (r *Runtime) typedArrayProto_set(call FunctionCall) Value {
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok {
-		srcObj := r.toObject(call.Argument(0))
+		srcObj := call.Argument(0).ToObject(r)
 		targetOffset := toIntStrict(call.Argument(1).ToInteger())
 		if targetOffset < 0 {
 			panic(r.newError(r.global.RangeError, "offset should be >= 0"))
@@ -991,8 +992,8 @@ func (r *Runtime) typedArrayProto_sort(call FunctionCall) Value {
 		ta.viewedArrayBuf.ensureNotDetached()
 		var compareFn func(FunctionCall) Value
 
-		if arg, ok := call.Argument(0).(*Object); ok {
-			compareFn, _ = arg.self.assertCallable()
+		if arg := call.Argument(0); arg != _undefined {
+			compareFn = r.toCallable(arg)
 		}
 
 		ctx := typedArraySortCtx{
@@ -1000,7 +1001,7 @@ func (r *Runtime) typedArrayProto_sort(call FunctionCall) Value {
 			compare: compareFn,
 		}
 
-		sort.Sort(&ctx)
+		sort.Stable(&ctx)
 		return call.This
 	}
 	panic(r.NewTypeError("Method TypedArray.prototype.sort called on incompatible receiver %s", call.This.String()))

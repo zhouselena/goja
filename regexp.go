@@ -18,6 +18,7 @@ type regexp2MatchCache struct {
 	posMap []int
 }
 
+// Not goroutine-safe. Use regexp2Wrapper.clone()
 type regexp2Wrapper struct {
 	rx    *regexp2.Regexp
 	cache *regexp2MatchCache
@@ -57,6 +58,7 @@ func (rd *arrayRuneReader) ReadRune() (r rune, size int, err error) {
 	return
 }
 
+// Not goroutine-safe. Use regexpPattern.clone()
 type regexpPattern struct {
 	src string
 
@@ -164,6 +166,25 @@ func (p *regexpPattern) findAllSubmatchIndex(s valueString, start int, limit int
 
 	p.createRegexp2()
 	return p.regexp2Wrapper.findAllSubmatchIndex(s, start, limit, sticky, p.unicode)
+}
+
+// clone creates a copy of the regexpPattern which can be used concurrently.
+func (p *regexpPattern) clone() *regexpPattern {
+	ret := &regexpPattern{
+		src:        p.src,
+		global:     p.global,
+		ignoreCase: p.ignoreCase,
+		multiline:  p.multiline,
+		sticky:     p.sticky,
+		unicode:    p.unicode,
+	}
+	if p.regexpWrapper != nil {
+		ret.regexpWrapper = p.regexpWrapper.clone()
+	}
+	if p.regexp2Wrapper != nil {
+		ret.regexp2Wrapper = p.regexp2Wrapper.clone()
+	}
+	return ret
 }
 
 type regexpObject struct {
@@ -429,6 +450,12 @@ func (r *regexp2Wrapper) findAllSubmatchIndex(s valueString, start, limit int, s
 	}
 }
 
+func (r *regexp2Wrapper) clone() *regexp2Wrapper {
+	return &regexp2Wrapper{
+		rx: r.rx,
+	}
+}
+
 func (r *regexpWrapper) findAllSubmatchIndex(s string, limit int, sticky bool) (results [][]int) {
 	wrapped := (*regexp.Regexp)(r)
 	results = wrapped.FindAllStringSubmatchIndex(s, limit)
@@ -475,6 +502,10 @@ func (r *regexpWrapper) findSubmatchIndexUnicode(s unicodeString, fullUnicode bo
 		return res
 	}
 	return wrapped.FindReaderSubmatchIndex(s.utf16Reader(0))
+}
+
+func (r *regexpWrapper) clone() *regexpWrapper {
+	return r
 }
 
 func (r *regexpObject) execResultToArray(target valueString, result []int) Value {
@@ -546,12 +577,12 @@ func (r *regexpObject) test(target valueString) bool {
 	return match
 }
 
-func (r *regexpObject) clone() *Object {
+func (r *regexpObject) clone() *regexpObject {
 	r1 := r.val.runtime.newRegexpObject(r.prototype)
 	r1.source = r.source
 	r1.pattern = r.pattern
 
-	return r1.val
+	return r1
 }
 
 func (r *regexpObject) init() {
@@ -576,6 +607,17 @@ func (r *regexpObject) defineOwnPropertyStr(name unistring.String, desc Property
 	return res
 }
 
+func (r *regexpObject) defineOwnPropertySym(name *Symbol, desc PropertyDescriptor, throw bool) bool {
+	res := r.baseObject.defineOwnPropertySym(name, desc, throw)
+	if res && r.standard {
+		switch name {
+		case SymMatch, SymMatchAll, SymSearch, SymSplit, SymReplace:
+			r.standard = false
+		}
+	}
+	return res
+}
+
 func (r *regexpObject) deleteStr(name unistring.String, throw bool) bool {
 	res := r.baseObject.deleteStr(name, throw)
 	if res {
@@ -585,14 +627,20 @@ func (r *regexpObject) deleteStr(name unistring.String, throw bool) bool {
 }
 
 func (r *regexpObject) setOwnStr(name unistring.String, value Value, throw bool) bool {
-	if r.standard {
-		if name == "exec" {
-			res := r.baseObject.setOwnStr(name, value, throw)
-			if res {
-				r.standard = false
-			}
-			return res
+	res := r.baseObject.setOwnStr(name, value, throw)
+	if res && r.standard && name == "exec" {
+		r.standard = false
+	}
+	return res
+}
+
+func (r *regexpObject) setOwnSym(name *Symbol, value Value, throw bool) bool {
+	res := r.baseObject.setOwnSym(name, value, throw)
+	if res && r.standard {
+		switch name {
+		case SymMatch, SymMatchAll, SymSearch, SymSplit, SymReplace:
+			r.standard = false
 		}
 	}
-	return r.baseObject.setOwnStr(name, value, throw)
+	return res
 }
