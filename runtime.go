@@ -384,7 +384,8 @@ func (r *Runtime) init() {
 	r.globalObject = r.NewObject()
 
 	r.vm = &vm{
-		r: r,
+		r:   r,
+		ctx: r.ctx,
 	}
 	r.vm.init()
 
