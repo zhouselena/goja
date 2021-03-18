@@ -242,16 +242,23 @@ func compileRegexp(patternStr, flags string) (p *regexpPattern, err error) {
 		if ignoreCase {
 			re2flags += "i"
 		}
+
 		if len(re2flags) > 0 {
 			re2Str = fmt.Sprintf("(?%s:%s)", re2flags, re2Str)
 		}
 
-		pattern, err1 := regexp.Compile(re2Str)
-		if err1 != nil {
-			err = fmt.Errorf("Invalid regular expression (re2): %s (%v)", re2Str, err1)
-			return
+		pattern, errRegExpCompile := regexp.Compile(re2Str)
+		if errRegExpCompile != nil {
+			// might be a valid PCRE expression
+			wrapper2, err = compileRegexp2(patternStr, multiline, ignoreCase)
+			if err != nil {
+				// use original (re2) error here
+				err = fmt.Errorf("Invalid regular expression (re2): %s (%v)", patternStr, errRegExpCompile)
+				return
+			}
+		} else {
+			wrapper = (*regexpWrapper)(pattern)
 		}
-		wrapper = (*regexpWrapper)(pattern)
 	} else {
 		if _, incompat := err1.(parser.RegexpErrorIncompatible); !incompat {
 			err = err1
