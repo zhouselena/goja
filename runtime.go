@@ -1753,6 +1753,10 @@ func (r *Runtime) ToValue(i interface{}) Value {
 	return obj
 }
 
+func (r *Runtime) ToDirectJSString(s string) Value {
+	return asciiString(s)
+}
+
 func (r *Runtime) wrapReflectFunc(value reflect.Value) func(FunctionCall) Value {
 	return func(call FunctionCall) Value {
 		typ := value.Type()
