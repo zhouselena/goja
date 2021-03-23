@@ -1576,7 +1576,9 @@ func (r *Runtime) ToValue(i interface{}) Value {
 	case Value:
 		return i
 	case string:
-		return newStringValue(i)
+		// for baas purposes, we only need the string representation of the value which is why we force the asciiString type here
+		// the Export / String was obfuscating the return value of BSON hex values
+		return asciiString(i)
 	case bool:
 		if i {
 			return valueTrue
