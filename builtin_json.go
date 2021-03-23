@@ -334,7 +334,15 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 			ctx.buf.WriteString("false")
 		}
 	case valueString:
-		ctx.quote(value1)
+		if ascii, ok := value1.(asciiString); ok {
+			j, err := json.Marshal(ascii)
+			if err != nil {
+				panic(err)
+			}
+			ctx.buf.Write(j)
+		} else {
+			ctx.quote(value1)
+		}
 	case valueInt:
 		ctx.buf.WriteString(value.String())
 	case valueInt64:
