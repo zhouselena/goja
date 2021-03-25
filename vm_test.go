@@ -1,8 +1,10 @@
 package goja
 
 import (
-	"github.com/dop251/goja/parser"
+	"math"
 	"testing"
+
+	"github.com/dop251/goja/parser"
 )
 
 func TestVM1(t *testing.T) {
@@ -351,6 +353,27 @@ func BenchmarkAssertInt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if i, ok := v.(valueInt); !ok || int64(i) != 42 {
 			b.Fatal()
+		}
+	}
+}
+
+func TestInt64ToValue(t *testing.T) {
+	for _, tc := range []struct {
+		i        int64
+		expected Value
+	}{
+		{
+			9223372036854775807,
+			valueInt64(9223372036854775807),
+		},
+		{
+			math.MaxInt64,
+			valueInt64(math.MaxInt64),
+		},
+	} {
+		actual := int64ToValue(tc.i)
+		if tc.expected != actual {
+			t.Fatalf("%v is not equal to %v", actual, tc.expected)
 		}
 	}
 }
