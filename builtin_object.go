@@ -503,7 +503,7 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 
 func (r *Runtime) objectproto_toLocaleString(call FunctionCall) Value {
 	toString := toMethod(r.getVStr(call.This, "toString"))
-	return toString(FunctionCall{ctx: r.vm.ctx, This: call.This})
+	return toString(FunctionCall{ctx: call.ctx, This: call.This})
 }
 
 func (r *Runtime) objectproto_getProto(call FunctionCall) Value {

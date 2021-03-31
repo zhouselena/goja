@@ -130,7 +130,7 @@ func (r *Runtime) boundCallable(ctx context.Context, target func(FunctionCall) V
 	return func(call FunctionCall) Value {
 		a := append(args, call.Arguments...)
 		return target(FunctionCall{
-			ctx:       ctx,
+			ctx:       call.ctx,
 			This:      this,
 			Arguments: a,
 		})

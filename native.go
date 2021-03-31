@@ -125,8 +125,8 @@ func (r *Runtime) CreateNativeClass(
 		obj := r.newBaseObject(proto, className)
 
 		call := FunctionCall{
-			This:      obj.val,
 			ctx:       r.vm.ctx,
+			This:      obj.val,
 			Arguments: args,
 		}
 		val := ctor(call)

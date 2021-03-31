@@ -91,7 +91,7 @@ func (r *Runtime) setProto_forEach(call FunctionCall) Value {
 		if entry == nil {
 			break
 		}
-		callbackFn(FunctionCall{ctx: r.vm.ctx, This: t, Arguments: []Value{entry.key, entry.key, thisObj}})
+		callbackFn(FunctionCall{ctx: call.ctx, This: t, Arguments: []Value{entry.key, entry.key, thisObj}})
 	}
 
 	return _undefined

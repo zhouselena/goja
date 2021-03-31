@@ -1065,11 +1065,11 @@ func (r *Runtime) arrayproto_flat(call FunctionCall) Value {
 		depthNum = call.Argument(0).ToInteger()
 	}
 	a := arraySpeciesCreate(o, 0)
-	r.flattenIntoArray(a, o, l, 0, depthNum, nil, nil)
+	r.flattenIntoArray(call.ctx, a, o, l, 0, depthNum, nil, nil)
 	return a
 }
 
-func (r *Runtime) flattenIntoArray(target, source *Object, sourceLen, start, depth int64, mapperFunction func(FunctionCall) Value, thisArg Value) int64 {
+func (r *Runtime) flattenIntoArray(ctx context.Context, target, source *Object, sourceLen, start, depth int64, mapperFunction func(FunctionCall) Value, thisArg Value) int64 {
 	targetIndex, sourceIndex := start, int64(0)
 	for sourceIndex < sourceLen {
 		p := intToValue(sourceIndex)
@@ -1077,6 +1077,7 @@ func (r *Runtime) flattenIntoArray(target, source *Object, sourceLen, start, dep
 			element := source.get(p, source)
 			if mapperFunction != nil {
 				element = mapperFunction(FunctionCall{
+					ctx:       ctx,
 					This:      thisArg,
 					Arguments: []Value{element, p, source},
 				})
@@ -1089,7 +1090,7 @@ func (r *Runtime) flattenIntoArray(target, source *Object, sourceLen, start, dep
 			}
 			if elementArray != nil {
 				elementLen := toLength(elementArray.self.getStr("length", nil))
-				targetIndex = r.flattenIntoArray(target, elementArray, elementLen, targetIndex, depth-1, nil, nil)
+				targetIndex = r.flattenIntoArray(ctx, target, elementArray, elementLen, targetIndex, depth-1, nil, nil)
 			} else {
 				if targetIndex >= maxInt-1 {
 					panic(r.NewTypeError("Invalid array length"))
@@ -1112,7 +1113,7 @@ func (r *Runtime) arrayproto_flatMap(call FunctionCall) Value {
 		thisArg = call.Argument(1)
 	}
 	a := arraySpeciesCreate(o, 0)
-	r.flattenIntoArray(a, o, l, 0, 1, callbackFn, thisArg)
+	r.flattenIntoArray(call.ctx, a, o, l, 0, 1, callbackFn, thisArg)
 	return a
 }
 

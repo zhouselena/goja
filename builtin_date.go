@@ -154,7 +154,7 @@ func (r *Runtime) dateproto_toJSON(call FunctionCall) Value {
 	if toISO, ok := obj.self.getStr("toISOString", nil).(*Object); ok {
 		if toISO, ok := toISO.self.assertCallable(); ok {
 			return toISO(FunctionCall{
-				ctx:  r.vm.ctx,
+				ctx:  call.ctx,
 				This: obj,
 			})
 		}
