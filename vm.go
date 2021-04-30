@@ -360,7 +360,7 @@ func (vm *vm) run() {
 			defer func() {
 				if x := recover(); x != nil {
 					vm.interruptLock.Lock()
-					atomic.StoreUint32(&vm.interrupted, 1)
+					atomic.StoreUint32(&vm.interrupted, 0)
 					vm.interruptVal = nil
 					vm.interruptLock.Unlock()
 					vm.halt = true
