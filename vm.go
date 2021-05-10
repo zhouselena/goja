@@ -474,7 +474,7 @@ func (vm *vm) try(ctx1 context.Context, f func()) (ex *Exception) {
 				ex = &Exception{
 					val: x1,
 				}
-				if x1.ExportType().Kind() == reflect.String {
+				if x1.ExportType() != nil && x1.ExportType().Kind() == reflect.String {
 					ex.ignoreStack = true
 				}
 				v := x1.baseObject(vm.r)
