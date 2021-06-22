@@ -8,11 +8,10 @@ import (
 type _scope struct {
 	outer           *_scope
 	allowIn         bool
-	allowLet        bool
 	inIteration     bool
 	inSwitch        bool
 	inFunction      bool
-	declarationList []*ast.VariableDeclaration
+	declarationList []ast.Declaration
 
 	labels []unistring.String
 }
@@ -28,7 +27,7 @@ func (self *_parser) closeScope() {
 	self.scope = self.scope.outer
 }
 
-func (self *_scope) declare(declaration *ast.VariableDeclaration) {
+func (self *_scope) declare(declaration ast.Declaration) {
 	self.declarationList = append(self.declarationList, declaration)
 }
 

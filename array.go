@@ -486,18 +486,9 @@ func (a *arrayObject) export(ctx *objectExportCtx) interface{} {
 	}
 	arr := make([]interface{}, a.length)
 	ctx.put(a, arr)
-	if a.propValueCount == 0 && a.length == uint32(len(a.values)) && uint32(a.objCount) == a.length {
-		for i, v := range a.values {
-			if v != nil {
-				arr[i] = exportValue(v, ctx)
-			}
-		}
-	} else {
-		for i := uint32(0); i < a.length; i++ {
-			v := a.getIdx(valueInt(i), nil)
-			if v != nil {
-				arr[i] = exportValue(v, ctx)
-			}
+	for i, v := range a.values {
+		if v != nil {
+			arr[i] = exportValue(v, ctx)
 		}
 	}
 	return arr

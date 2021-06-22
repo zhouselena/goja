@@ -339,19 +339,19 @@ func TestMemCheck(t *testing.T) {
 				SizeNumber +
 				SizeEmpty + SizeEmpty, // base object + prototype
 		},
-		// {
-		// 	"stash",
-		// 	`checkMem();
-		// 	try {
-		// 		throw new Error("abc");
-		// 	} catch(e) {
-		// 		checkMem();
-		// 	}
-		// 	`,
-		// 	7 + 3 + // Error "message" field + len("abc")
-		// 		4 + 5 + // Error "name" field + len("Error")
-		// 		SizeEmpty + SizeEmpty, // base object + prototype
-		// },
+		{
+			"stash",
+			`checkMem();
+			try {
+				throw new Error("abc");
+			} catch(e) {
+				checkMem();
+			}
+			`,
+			7 + 3 + // Error "message" field + len("abc")
+				4 + 5 + // Error "name" field + len("Error")
+				SizeEmpty + SizeEmpty, // base object + prototype
+		},
 		{
 			"Native value",
 			`checkMem();

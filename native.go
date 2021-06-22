@@ -208,5 +208,31 @@ func (r *Runtime) CreateNativeFunction(name, file string, call func(FunctionCall
 
 func (r *Runtime) Eval(name, src string, direct, strict bool) (Value, error) {
 	this := r.NewObject()
-	return r.common_eval(name, src, direct, strict, this), nil
+
+	p, err := r.compile(name, src, strict, true)
+	if err != nil {
+		panic(err)
+	}
+
+	vm := r.vm
+
+	vm.pushCtx()
+	vm.prg = p
+	vm.pc = 0
+	if !direct {
+		vm.stash = nil
+	}
+	vm.sb = vm.sp
+	vm.push(this)
+	if strict {
+		vm.push(valueTrue)
+	} else {
+		vm.push(valueFalse)
+	}
+	vm.run()
+	vm.popCtx()
+	vm.halt = false
+	retval := vm.stack[vm.sp-1]
+	vm.sp -= 2
+	return retval, nil
 }

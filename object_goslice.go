@@ -9,15 +9,16 @@ import (
 
 type objectGoSlice struct {
 	baseObject
-	data       *[]interface{}
-	lengthProp valueProperty
+	data            *[]interface{}
+	lengthProp      valueProperty
+	sliceExtensible bool
 }
 
 func (o *objectGoSlice) init() {
 	o.baseObject.init()
 	o.class = classArray
 	o.prototype = o.val.runtime.global.ArrayPrototype
-	o.lengthProp.writable = true
+	o.lengthProp.writable = o.sliceExtensible
 	o.extensible = true
 	o.updateLen()
 	o.baseObject._put("length", &o.lengthProp)
@@ -110,6 +111,10 @@ func (o *objectGoSlice) shrink(size int) {
 
 func (o *objectGoSlice) putIdx(idx int, v Value, throw bool) {
 	if idx >= len(*o.data) {
+		if !o.sliceExtensible {
+			o.val.runtime.typeErrorResult(throw, "Cannot extend Go slice")
+			return
+		}
 		o.grow(idx + 1)
 	}
 	(*o.data)[idx] = v.Export()
@@ -119,8 +124,16 @@ func (o *objectGoSlice) putLength(v Value, throw bool) bool {
 	newLen := toIntStrict(toLength(v))
 	curLen := len(*o.data)
 	if newLen > curLen {
+		if !o.sliceExtensible {
+			o.val.runtime.typeErrorResult(throw, "Cannot extend Go slice")
+			return false
+		}
 		o.grow(newLen)
 	} else if newLen < curLen {
+		if !o.sliceExtensible {
+			o.val.runtime.typeErrorResult(throw, "Cannot shrink Go slice")
+			return false
+		}
 		o.shrink(newLen)
 	}
 	return true
@@ -240,15 +253,12 @@ func (o *objectGoSlice) toPrimitive() Value {
 	return o.toPrimitiveString()
 }
 
-func (o *objectGoSlice) _deleteIdx(idx int64) {
-	if idx < int64(len(*o.data)) {
-		(*o.data)[idx] = nil
-	}
-}
-
 func (o *objectGoSlice) deleteStr(name unistring.String, throw bool) bool {
 	if idx := strToIdx64(name); idx >= 0 {
-		o._deleteIdx(idx)
+		if idx < int64(len(*o.data)) {
+			o.val.runtime.typeErrorResult(throw, "Can't delete from Go slice")
+			return false
+		}
 		return true
 	}
 	return o.baseObject.deleteStr(name, throw)
@@ -257,7 +267,10 @@ func (o *objectGoSlice) deleteStr(name unistring.String, throw bool) bool {
 func (o *objectGoSlice) deleteIdx(i valueInt, throw bool) bool {
 	idx := int64(i)
 	if idx >= 0 {
-		o._deleteIdx(idx)
+		if idx < int64(len(*o.data)) {
+			o.val.runtime.typeErrorResult(throw, "Can't delete from Go slice")
+			return false
+		}
 	}
 	return true
 }

@@ -271,6 +271,8 @@ func TestParserErr(t *testing.T) {
 
 		test("try {}", "(anonymous): Line 1:1 Missing catch or finally after try")
 
+		test("try {} catch {}", "(anonymous): Line 1:14 Unexpected token {")
+
 		test("try {} catch () {}", "(anonymous): Line 1:15 Unexpected token )")
 
 		test("\u203f = 1", "(anonymous): Line 1:1 Unexpected token ILLEGAL")
@@ -412,9 +414,9 @@ func TestParserErr(t *testing.T) {
 			test("abc.class = 1", nil)
 			test("var class;", "(anonymous): Line 1:5 Unexpected reserved word")
 
-			test("const", "(anonymous): Line 1:6 Unexpected end of input")
+			test("const", "(anonymous): Line 1:1 Unexpected reserved word")
 			test("abc.const = 1", nil)
-			test("var const;", "(anonymous): Line 1:5 Unexpected token const")
+			test("var const;", "(anonymous): Line 1:5 Unexpected reserved word")
 
 			test("enum", "(anonymous): Line 1:1 Unexpected reserved word")
 			test("abc.enum = 1", nil)
@@ -603,8 +605,6 @@ func TestParser(t *testing.T) {
         `, nil)
 
 		test(`try {} catch (abc) {} finally {}`, nil)
-
-		test("try {} catch {}", nil)
 
 		test(`
             do {

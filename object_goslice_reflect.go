@@ -9,19 +9,16 @@ import (
 
 type objectGoSliceReflect struct {
 	objectGoReflect
-	lengthProp valueProperty
+	lengthProp      valueProperty
+	sliceExtensible bool
 }
 
 func (o *objectGoSliceReflect) init() {
 	o.objectGoReflect.init()
 	o.class = classArray
 	o.prototype = o.val.runtime.global.ArrayPrototype
-	if !o.value.CanSet() {
-		value := reflect.Indirect(reflect.New(o.value.Type()))
-		value.Set(o.value)
-		o.value = value
-	}
-	o.lengthProp.writable = true
+	o.sliceExtensible = o.value.CanSet()
+	o.lengthProp.writable = o.sliceExtensible
 	o.updateLen()
 	o.baseObject._put("length", &o.lengthProp)
 }
@@ -101,6 +98,10 @@ func (o *objectGoSliceReflect) getOwnPropIdx(idx valueInt) Value {
 
 func (o *objectGoSliceReflect) putIdx(idx int, v Value, throw bool) bool {
 	if idx >= o.value.Len() {
+		if !o.sliceExtensible {
+			o.val.runtime.typeErrorResult(throw, "Cannot extend a Go unaddressable reflect slice")
+			return false
+		}
 		o.grow(idx + 1)
 	}
 	err := o.val.runtime.toReflectValue(v, o.value.Index(idx), &objectExportCtx{})
@@ -142,8 +143,16 @@ func (o *objectGoSliceReflect) putLength(v Value, throw bool) bool {
 	newLen := toIntStrict(toLength(v))
 	curLen := o.value.Len()
 	if newLen > curLen {
+		if !o.sliceExtensible {
+			o.val.runtime.typeErrorResult(throw, "Cannot extend Go slice")
+			return false
+		}
 		o.grow(newLen)
 	} else if newLen < curLen {
+		if !o.sliceExtensible {
+			o.val.runtime.typeErrorResult(throw, "Cannot shrink Go slice")
+			return false
+		}
 		o.shrink(newLen)
 	}
 	return true
@@ -257,15 +266,12 @@ func (o *objectGoSliceReflect) toPrimitive() Value {
 	return o.toPrimitiveString()
 }
 
-func (o *objectGoSliceReflect) _deleteIdx(idx int) {
-	if idx < o.value.Len() {
-		o.value.Index(idx).Set(reflect.Zero(o.value.Type().Elem()))
-	}
-}
-
 func (o *objectGoSliceReflect) deleteStr(name unistring.String, throw bool) bool {
-	if idx := strToGoIdx(name); idx >= 0 {
-		o._deleteIdx(idx)
+	if idx := strToIdx64(name); idx >= 0 {
+		if idx < int64(o.value.Len()) {
+			o.val.runtime.typeErrorResult(throw, "Can't delete from Go slice")
+			return false
+		}
 		return true
 	}
 
@@ -273,9 +279,12 @@ func (o *objectGoSliceReflect) deleteStr(name unistring.String, throw bool) bool
 }
 
 func (o *objectGoSliceReflect) deleteIdx(i valueInt, throw bool) bool {
-	idx := toIntStrict(int64(i))
+	idx := int64(i)
 	if idx >= 0 {
-		o._deleteIdx(idx)
+		if idx < int64(o.value.Len()) {
+			o.val.runtime.typeErrorResult(throw, "Can't delete from Go slice")
+			return false
+		}
 	}
 	return true
 }

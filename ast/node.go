@@ -91,10 +91,10 @@ type (
 		Function      file.Idx
 		Name          *Identifier
 		ParameterList *ParameterList
-		Body          *BlockStatement
+		Body          Statement
 		Source        string
 
-		DeclarationList []*VariableDeclaration
+		DeclarationList []Declaration
 	}
 
 	Identifier struct {
@@ -241,7 +241,7 @@ type (
 	CatchStatement struct {
 		Catch     file.Idx
 		Parameter *Identifier
-		Body      *BlockStatement
+		Body      Statement
 	}
 
 	DebuggerStatement struct {
@@ -264,21 +264,21 @@ type (
 
 	ForInStatement struct {
 		For    file.Idx
-		Into   ForInto
+		Into   Expression
 		Source Expression
 		Body   Statement
 	}
 
 	ForOfStatement struct {
 		For    file.Idx
-		Into   ForInto
+		Into   Expression
 		Source Expression
 		Body   Statement
 	}
 
 	ForStatement struct {
 		For         file.Idx
-		Initializer ForLoopInitializer
+		Initializer Expression
 		Update      Expression
 		Test        Expression
 		Body        Statement
@@ -316,20 +316,14 @@ type (
 
 	TryStatement struct {
 		Try     file.Idx
-		Body    *BlockStatement
+		Body    Statement
 		Catch   *CatchStatement
-		Finally *BlockStatement
+		Finally Statement
 	}
 
 	VariableStatement struct {
 		Var  file.Idx
-		List []*VariableExpression
-	}
-
-	LexicalDeclaration struct {
-		Idx   file.Idx
-		Token token.Token
-		List  []*VariableExpression
+		List []Expression
 	}
 
 	WhileStatement struct {
@@ -342,10 +336,6 @@ type (
 		With   file.Idx
 		Object Expression
 		Body   Statement
-	}
-
-	FunctionDeclaration struct {
-		Function *FunctionLiteral
 	}
 )
 
@@ -372,75 +362,31 @@ func (*TryStatement) _statementNode()        {}
 func (*VariableStatement) _statementNode()   {}
 func (*WhileStatement) _statementNode()      {}
 func (*WithStatement) _statementNode()       {}
-func (*LexicalDeclaration) _statementNode()  {}
-func (*FunctionDeclaration) _statementNode() {}
 
 // =========== //
 // Declaration //
 // =========== //
 
 type (
+	// All declaration nodes implement the Declaration interface.
+	Declaration interface {
+		_declarationNode()
+	}
+
+	FunctionDeclaration struct {
+		Function *FunctionLiteral
+	}
+
 	VariableDeclaration struct {
 		Var  file.Idx
 		List []*VariableExpression
 	}
 )
 
-type (
-	ForLoopInitializer interface {
-		_forLoopInitializer()
-	}
+// _declarationNode
 
-	ForLoopInitializerExpression struct {
-		Expression Expression
-	}
-
-	ForLoopInitializerVarDeclList struct {
-		Var  file.Idx
-		List []*VariableExpression
-	}
-
-	ForLoopInitializerLexicalDecl struct {
-		LexicalDeclaration LexicalDeclaration
-	}
-
-	ForInto interface {
-		_forInto()
-	}
-
-	ForIntoVar struct {
-		Binding *VariableExpression
-	}
-
-	ForBinding interface {
-		_forBinding()
-	}
-
-	BindingIdentifier struct {
-		Idx  file.Idx
-		Name unistring.String
-	}
-
-	ForDeclaration struct {
-		Idx     file.Idx
-		IsConst bool
-		Binding ForBinding
-	}
-
-	ForIntoExpression struct {
-		Expression Expression
-	}
-)
-
-func (*ForLoopInitializerExpression) _forLoopInitializer()  {}
-func (*ForLoopInitializerVarDeclList) _forLoopInitializer() {}
-func (*ForLoopInitializerLexicalDecl) _forLoopInitializer() {}
-
-func (*ForIntoVar) _forInto()        {}
-func (*ForDeclaration) _forInto()    {}
-func (*ForIntoExpression) _forInto() {}
-
-func (*BindingIdentifier) _forBinding() {}
+func (*FunctionDeclaration) _declarationNode() {}
+func (*VariableDeclaration) _declarationNode() {}
 
 // ==== //
 // Node //
@@ -449,7 +395,7 @@ func (*BindingIdentifier) _forBinding() {}
 type Program struct {
 	Body []Statement
 
-	DeclarationList []*VariableDeclaration
+	DeclarationList []Declaration
 
 	File *file.File
 }
@@ -503,10 +449,6 @@ func (self *TryStatement) Idx0() file.Idx        { return self.Try }
 func (self *VariableStatement) Idx0() file.Idx   { return self.Var }
 func (self *WhileStatement) Idx0() file.Idx      { return self.While }
 func (self *WithStatement) Idx0() file.Idx       { return self.With }
-func (self *LexicalDeclaration) Idx0() file.Idx  { return self.Idx }
-func (self *FunctionDeclaration) Idx0() file.Idx { return self.Function.Idx0() }
-
-func (self *ForLoopInitializerVarDeclList) Idx0() file.Idx { return self.List[0].Idx0() }
 
 // ==== //
 // Idx1 //
@@ -565,16 +507,12 @@ func (self *IfStatement) Idx1() file.Idx {
 	}
 	return self.Consequent.Idx1()
 }
-func (self *LabelledStatement) Idx1() file.Idx   { return self.Colon + 1 }
-func (self *Program) Idx1() file.Idx             { return self.Body[len(self.Body)-1].Idx1() }
-func (self *ReturnStatement) Idx1() file.Idx     { return self.Return }
-func (self *SwitchStatement) Idx1() file.Idx     { return self.Body[len(self.Body)-1].Idx1() }
-func (self *ThrowStatement) Idx1() file.Idx      { return self.Throw }
-func (self *TryStatement) Idx1() file.Idx        { return self.Try }
-func (self *VariableStatement) Idx1() file.Idx   { return self.List[len(self.List)-1].Idx1() }
-func (self *WhileStatement) Idx1() file.Idx      { return self.Body.Idx1() }
-func (self *WithStatement) Idx1() file.Idx       { return self.Body.Idx1() }
-func (self *LexicalDeclaration) Idx1() file.Idx  { return self.List[len(self.List)-1].Idx1() }
-func (self *FunctionDeclaration) Idx1() file.Idx { return self.Function.Idx1() }
-
-func (self *ForLoopInitializerVarDeclList) Idx1() file.Idx { return self.List[len(self.List)-1].Idx1() }
+func (self *LabelledStatement) Idx1() file.Idx { return self.Colon + 1 }
+func (self *Program) Idx1() file.Idx           { return self.Body[len(self.Body)-1].Idx1() }
+func (self *ReturnStatement) Idx1() file.Idx   { return self.Return }
+func (self *SwitchStatement) Idx1() file.Idx   { return self.Body[len(self.Body)-1].Idx1() }
+func (self *ThrowStatement) Idx1() file.Idx    { return self.Throw }
+func (self *TryStatement) Idx1() file.Idx      { return self.Try }
+func (self *VariableStatement) Idx1() file.Idx { return self.List[len(self.List)-1].Idx1() }
+func (self *WhileStatement) Idx1() file.Idx    { return self.Body.Idx1() }
+func (self *WithStatement) Idx1() file.Idx     { return self.Body.Idx1() }

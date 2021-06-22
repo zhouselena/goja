@@ -18,15 +18,7 @@ func (a *argumentsObject) getStr(name unistring.String, receiver Value) Value {
 
 func (a *argumentsObject) getOwnPropStr(name unistring.String) Value {
 	if mapped, ok := a.values[name].(*mappedProperty); ok {
-		if mapped.writable && mapped.enumerable && mapped.configurable {
-			return *mapped.v
-		}
-		return &valueProperty{
-			value:        *mapped.v,
-			writable:     mapped.writable,
-			configurable: mapped.configurable,
-			enumerable:   mapped.enumerable,
-		}
+		return *mapped.v
 	}
 
 	return a.baseObject.getOwnPropStr(name)
@@ -52,6 +44,18 @@ func (a *argumentsObject) setOwnStr(name unistring.String, val Value, throw bool
 func (a *argumentsObject) setForeignStr(name unistring.String, val, receiver Value, throw bool) (bool, bool) {
 	return a._setForeignStr(name, a.getOwnPropStr(name), val, receiver, throw)
 }
+
+/*func (a *argumentsObject) putStr(name string, val Value, throw bool) {
+	if prop, ok := a.values[name].(*mappedProperty); ok {
+		if !prop.writable {
+			a.val.runtime.typeErrorResult(throw, "Property is not writable: %s", name)
+			return
+		}
+		*prop.v = val
+		return
+	}
+	a.baseObject.putStr(name, val, throw)
+}*/
 
 func (a *argumentsObject) deleteStr(name unistring.String, throw bool) bool {
 	if prop, ok := a.values[name].(*mappedProperty); ok {
@@ -93,7 +97,7 @@ func (a *argumentsObject) defineOwnPropertyStr(name unistring.String, descr Prop
 			configurable: mapped.configurable,
 			writable:     true,
 			enumerable:   mapped.enumerable,
-			value:        *mapped.v,
+			value:        mapped.get(a.val),
 		}
 
 		val, ok := a.baseObject._defineOwnProperty(name, existing, descr, throw)
