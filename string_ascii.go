@@ -243,6 +243,11 @@ func (s asciiString) hash(hash *maphash.Hash) uint64 {
 }
 
 func (s asciiString) charAt(idx int) rune {
+	for i, r := range s {
+		if i == idx {
+			return r
+		}
+	}
 	return rune(s[idx])
 }
 
