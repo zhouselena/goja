@@ -25,6 +25,7 @@ func (muc TestNativeMemUsageChecker) NativeMemUsage(value interface{}) (uint64, 
 func TestMemCheck(t *testing.T) {
 	// This is the sum of property names allocated at each new (empty) scope
 	var emptyFunctionScopeOverhead uint64 = 8
+	var functionStackOverhead uint64 = 30
 
 	for _, tc := range []struct {
 		description      string
@@ -95,7 +96,8 @@ func TestMemCheck(t *testing.T) {
 			SizeEmpty + SizeEmpty + // outer object + reference to its prototype
 				(1 + SizeNumber) + // "a" and number
 				(1 + 4) + // "b" and string
-				(1 + SizeEmpty + SizeEmpty), //  "c" (object + prototype reference)
+				(1 + SizeEmpty + SizeEmpty) + //  "c" (object + prototype reference)
+				SizeEmpty, // stack difference from popping null(8) and then adding outer obj(8) + "c" obj (8)
 		},
 		{
 			"array of numbers",
@@ -117,7 +119,9 @@ func TestMemCheck(t *testing.T) {
 			(function(){
 				checkMem();
 			})();`, // over
-			emptyFunctionScopeOverhead,
+			emptyFunctionScopeOverhead +
+				functionStackOverhead + // anonymous function on stack
+				SizeEmpty, // undefined return on stack
 		},
 		{
 			"previous function scopes should not affect the current memory",
@@ -125,7 +129,8 @@ func TestMemCheck(t *testing.T) {
 			(function(){
 			})();
 			checkMem();`,
-			0,
+			0 +
+				SizeEmpty, // undefined return value on stack
 		},
 		{
 			"overhead of each scope is equivalent regardless of depth",
@@ -143,17 +148,21 @@ func TestMemCheck(t *testing.T) {
 					})();
 				})();
 			})();`,
-			emptyFunctionScopeOverhead * 6,
+			(6 * functionStackOverhead) + // anonymous functions on stack
+				(6 * SizeEmpty) + // undefined return value for each function on stack
+				(6 * emptyFunctionScopeOverhead),
 		},
-		{"values attached to lexical scope in a function",
+		{
+			"values attached to lexical scope in a function",
 			`checkMem();
 			(function(){
 				var zzzx = 10;
 				checkMem();
 			})();`,
 			// function overhead plus the number value of the "zzzx" property and its string name
-			// functionOverhead + SizeNumber + 4,
-			emptyFunctionScopeOverhead + SizeNumber,
+			emptyFunctionScopeOverhead + SizeNumber + functionStackOverhead +
+				SizeEmpty + // undefined return value on stack
+				SizeNumber, // number 10 on stack
 		},
 		{
 			"cyclical data structure",
@@ -169,22 +178,23 @@ func TestMemCheck(t *testing.T) {
 			2 + SizeEmpty + SizeEmpty, // "x" and "y" property names + references to each object
 		},
 		{
-			"sparse array (arrayObject)",
+			"sparse array with arrayObject",
 			`x = []
 			x[1] = "abcd";
 			checkMem()
 			x[10] = "abc";
 			checkMem()`,
-			3,
+			2, // 3 -> "abc" added to global memory | -1 difference on stack betwen "abc" and  "abcd"
 		},
 		{
-			"sparse array (sparseArrayObject)",
+			"sparse array with sparseArrayObject",
 			`x = []
 			x[5000] = "abcd";
 			checkMem()
 			x[5001] = "abc";
 			checkMem()`,
-			SizeInt32 + 3,
+			SizeInt32 +
+				2, // 3 -> "abc" added to global memory | -1 difference on stack betwen "abc" and  "abcd"
 		},
 		{
 			"array with non-numeric keys",
@@ -251,7 +261,8 @@ func TestMemCheck(t *testing.T) {
 			3 + // "abc"
 				SizeEmpty + SizeEmpty + // outer object + reference to its prototype
 				(1 + SizeNumber) + // "a" and number
-				(1 + 4), // "b" and string
+				(1 + 4) + // "b" and "1234" string
+				6, // stack difference
 		},
 		{
 			"Proxy",
@@ -259,14 +270,14 @@ func TestMemCheck(t *testing.T) {
 				message1: "hello",
 				message2: "everyone"
 			};
-			
+
 			var handler = {
 				get: function(target, prop, receiver) {
 					return "world";
 				}
 			};
 			var proxy1 = new Proxy(target, handler);
-			
+
 			checkMem();
 			proxy2 = new Proxy(target, handler);
 			checkMem();
@@ -294,14 +305,15 @@ func TestMemCheck(t *testing.T) {
 			"Typed array",
 			`var ta = new Uint8Array(1);
 			checkMem();
-			ta2 = new Uint8Array([1, 2, 3, 4]),
+			ta2 = new Uint8Array([1, 2, 3, 4]);
 			checkMem();
 			`,
 			3 + // "ta2"
 				SizeEmpty + // typed array overhead
 				SizeEmpty + SizeEmpty + // base object + prototype
 				4 + SizeEmpty + SizeEmpty + // array buffer data +  base object + prototype
-				SizeEmpty, // default constructor
+				SizeEmpty + // default constructor
+				3*SizeInt, // 2, 3, 4 on stack
 		},
 		{
 			"ArrayBuffer",

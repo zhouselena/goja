@@ -310,6 +310,7 @@ func TestProxy_native_proxy_getOwnPropertyDescriptor(t *testing.T) {
 
 	if c, ok := val.(*Object).self.assertCallable(); ok {
 		val := c(FunctionCall{
+			ctx:       runtime.vm.ctx,
 			This:      val,
 			Arguments: []Value{runtime.ToValue(constructor)},
 		})
