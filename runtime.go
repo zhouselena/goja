@@ -188,8 +188,9 @@ type Runtime struct {
 	stackDepthLimit int
 	stackTraceLimit int
 
-	Limiter *rate.Limiter
-	ticks   uint64
+	limiter          *rate.Limiter
+	limiterTicksLeft int
+	ticks            uint64
 }
 
 func (self *Runtime) Ticks() uint64 {

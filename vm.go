@@ -436,7 +436,7 @@ func (vm *vm) run() {
 	interrupted := false
 	ticks := 0
 	for !vm.halt {
-		vm.r.waitOneTick(ticks)
+		vm.r.waitOneTick()
 		if interrupted = atomic.LoadUint32(&vm.interrupted) != 0; interrupted {
 			vm.interruptLock.Lock()
 			interruptFunc, ok := vm.interruptVal.(func())
