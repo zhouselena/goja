@@ -1415,9 +1415,9 @@ func (o valueUnresolved) hash(*maphash.Hash) uint64 {
 }
 
 func (o valueUnresolved) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	o.throw()
-	return 0, nil
+	return uint64(len(o.ref)), nil
 }
+
 func (o valueUnresolved) ToInt() int {
 	o.throw()
 	return 0
