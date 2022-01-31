@@ -649,6 +649,27 @@ func TestRuntime_ExportToStructAnonymous(t *testing.T) {
 
 }
 
+func TestRuntime_ExportToStructFromPtr(t *testing.T) {
+	vm := New()
+	v := vm.ToValue(&testGoReflectMethod_O{
+		field: "5",
+		Test:  "12",
+	})
+
+	var o testGoReflectMethod_O
+	err := vm.ExportTo(v, &o)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if o.Test != "12" {
+		t.Fatalf("Unexpected value: '%s'", o.Test)
+	}
+	if o.field != "5" {
+		t.Fatalf("Unexpected value for field: '%s'", o.field)
+	}
+}
+
 func TestRuntime_ExportToStructWithPtrValues(t *testing.T) {
 	type BaseTestStruct struct {
 		A int64
@@ -2038,6 +2059,33 @@ func TestAbandonedEnumerate(t *testing.T) {
 	res;
 	`
 	testScript1(SCRIPT, asciiString("baz-foo foo-foo bar-foo "), t)
+}
+
+func TestIterCloseThrows(t *testing.T) {
+	const SCRIPT = `
+	var returnCount = 0;
+	var iterable = {};
+	var iterator = {
+	  next: function() {
+		return { value: true };
+	  },
+	  return: function() {
+		returnCount += 1;
+		throw new Error();
+	  }
+	};
+	iterable[Symbol.iterator] = function() {
+	  return iterator;
+	};
+
+	try {
+		for (var i of iterable) {
+				break;
+		}
+	} catch (e) {};
+	returnCount;
+	`
+	testScript1(SCRIPT, valueInt(1), t)
 }
 
 func TestDeclareGlobalFunc(t *testing.T) {

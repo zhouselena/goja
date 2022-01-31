@@ -12,7 +12,7 @@ type baseFuncObject struct {
 
 	baseObject
 
-	nameProp, lenProp valueProperty
+	lenProp valueProperty
 }
 
 type funcObject struct {
@@ -190,9 +190,7 @@ func (f *baseFuncObject) init(name unistring.String, length int) {
 	f.baseObject.init()
 
 	if name != "" {
-		f.nameProp.configurable = true
-		f.nameProp.value = stringValueFromRaw(name)
-		f._put("name", &f.nameProp)
+		f._putProp("name", stringValueFromRaw(name), false, false, true)
 	}
 
 	f.lenProp.configurable = true
@@ -255,7 +253,7 @@ func (f *nativeFuncObject) Call(call FunctionCall) Value {
 	prevFuncName := vm.funcName
 	// This is done to display the correct function name in the stack trace when executing a
 	// native function with Function.prototype.apply/call
-	vm.funcName = f.nameProp.get(nil).string()
+	vm.funcName = f.getStr("name", nil).string()
 	rv := f.f(call)
 	vm.funcName = prevFuncName
 	return rv

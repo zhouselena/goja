@@ -313,7 +313,7 @@ func TestMemCheck(t *testing.T) {
 				SizeEmpty + SizeEmpty + // base object + prototype
 				4 + SizeEmpty + SizeEmpty + // array buffer data +  base object + prototype
 				SizeEmpty + // default constructor
-				3*SizeInt, // 2, 3, 4 on stack
+				SizeInt, // last element (4) on stack
 		},
 		{
 			"ArrayBuffer",

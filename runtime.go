@@ -871,7 +871,16 @@ func (r *Runtime) builtin_thrower(FunctionCall) Value {
 
 func (r *Runtime) common_eval(name, src string, direct, strict bool, this Value) Value {
 	vm := r.vm
-	p, err := r.compile(name, src, strict, true, !direct || vm.stash == &r.global.stash)
+	inGlobal := true
+	if direct {
+		for s := vm.stash; s != nil; s = s.outer {
+			if s.variable {
+				inGlobal = false
+				break
+			}
+		}
+	}
+	p, err := r.compile("<eval>", src, strict, true, inGlobal)
 	if err != nil {
 		panic(err)
 	}
@@ -1972,13 +1981,23 @@ func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCt
 			dst.Set(reflect.Zero(typ))
 			return nil
 		}
-		if et.AssignableTo(typ) {
-			dst.Set(reflect.ValueOf(exportValue(v, ctx)))
-			return nil
-		} else if et.ConvertibleTo(typ) {
-			dst.Set(reflect.ValueOf(exportValue(v, ctx)).Convert(typ))
-			return nil
+
+		for i := 0; ; i++ {
+			if et.ConvertibleTo(typ) {
+				ev := reflect.ValueOf(exportValue(v, ctx))
+				for ; i > 0; i-- {
+					ev = ev.Elem()
+				}
+				dst.Set(ev.Convert(typ))
+				return nil
+			}
+			if et.Kind() == reflect.Ptr {
+				et = et.Elem()
+			} else {
+				break
+			}
 		}
+
 		if typ == typeTime {
 			if obj, ok := v.(*Object); ok {
 				if d, ok := obj.self.(*dateObject); ok {
