@@ -129,17 +129,11 @@ func (self *_parser) parseTryStatement() ast.Statement {
 	if self.token == token.CATCH {
 		catch := self.idx
 		self.next()
-		var parameter *ast.Identifier
+		var parameter ast.BindingTarget
 		if self.token == token.LEFT_PARENTHESIS {
 			self.next()
-			if self.token != token.IDENTIFIER {
-				self.expect(token.IDENTIFIER)
-				self.nextStatement()
-				return &ast.BadStatement{From: catch, To: self.idx}
-			} else {
-				parameter = self.parseIdentifier()
-				self.expect(token.RIGHT_PARENTHESIS)
-			}
+			parameter = self.parseBindingTarget()
+			self.expect(token.RIGHT_PARENTHESIS)
 		}
 		node.Catch = &ast.CatchStatement{
 			Catch:     catch,
@@ -201,24 +195,32 @@ func (self *_parser) parseFunction(declaration bool) *ast.FunctionLiteral {
 	}
 	node.Name = name
 	node.ParameterList = self.parseFunctionParameterList()
-	self.parseFunctionBlock(node)
+	node.Body, node.DeclarationList = self.parseFunctionBlock()
 	node.Source = self.slice(node.Idx0(), node.Idx1())
 
 	return node
 }
 
-func (self *_parser) parseFunctionBlock(node *ast.FunctionLiteral) {
-	{
-		self.openScope()
-		inFunction := self.scope.inFunction
-		self.scope.inFunction = true
-		defer func() {
-			self.scope.inFunction = inFunction
-			self.closeScope()
-		}()
-		node.Body = self.parseBlockStatement()
-		node.DeclarationList = self.scope.declarationList
+func (self *_parser) parseFunctionBlock() (body *ast.BlockStatement, declarationList []*ast.VariableDeclaration) {
+	self.openScope()
+	inFunction := self.scope.inFunction
+	self.scope.inFunction = true
+	defer func() {
+		self.scope.inFunction = inFunction
+		self.closeScope()
+	}()
+	body = self.parseBlockStatement()
+	declarationList = self.scope.declarationList
+	return
+}
+
+func (self *_parser) parseArrowFunctionBody() (ast.ConciseBody, []*ast.VariableDeclaration) {
+	if self.token == token.LEFT_BRACE {
+		return self.parseFunctionBlock()
 	}
+	return &ast.ExpressionBody{
+		Expression: self.parseAssignmentExpression(),
+	}, nil
 }
 
 func (self *_parser) parseDebuggerStatement() ast.Statement {

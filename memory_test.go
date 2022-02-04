@@ -25,7 +25,7 @@ func (muc TestNativeMemUsageChecker) NativeMemUsage(value interface{}) (uint64, 
 func TestMemCheck(t *testing.T) {
 	// This is the sum of property names allocated at each new (empty) scope
 	var emptyFunctionScopeOverhead uint64 = 8
-	var functionStackOverhead uint64 = 30
+	var functionStackOverhead uint64 = 34
 
 	for _, tc := range []struct {
 		description      string

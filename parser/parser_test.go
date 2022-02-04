@@ -486,6 +486,7 @@ func TestParserErr(t *testing.T) {
 			test(`var yield;`, nil)
 		}
 		test(`0, { get a(param = null) {} };`, "(anonymous): Line 1:11 Getter must not have any formal parameters.")
+		test(`let{f(`, "(anonymous): Line 1:7 Unexpected end of input")
 	})
 }
 
@@ -880,6 +881,10 @@ func TestParser(t *testing.T) {
 
 		test(`[a, b] = [1, 2]`, nil)
 		test(`({"a b": {}} = {})`, nil)
+
+		test(`ref = (a, b = 39,) => {
+		};`, nil)
+		test(`(a,) => {}`, nil)
 	})
 }
 
