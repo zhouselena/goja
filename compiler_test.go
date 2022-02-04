@@ -1693,6 +1693,23 @@ func TestArgumentsRedeclareInEval(t *testing.T) {
 	testScript1(TESTLIB+SCRIPT, _undefined, t)
 }
 
+func TestArgumentsRedeclareArrow(t *testing.T) {
+	const SCRIPT = `
+	const oldArguments = globalThis.arguments;
+	let count = 0;
+	const f = (p = eval("var arguments = 'param'"), q = () => arguments) => {
+	  var arguments = "local";
+	  assert.sameValue(arguments, "local", "arguments");
+	  assert.sameValue(q(), "param", "q");
+	  count++;
+	}
+	f();
+	assert.sameValue(count, 1);
+	assert.sameValue(globalThis.arguments, oldArguments, "globalThis.arguments unchanged");
+	`
+	testScript1(TESTLIB+SCRIPT, _undefined, t)
+}
+
 func TestEvalParamWithDef(t *testing.T) {
 	const SCRIPT = `
 	function f(param = 0) {
@@ -3589,12 +3606,22 @@ func TestObjectAssignmentPatternEvalOrder(t *testing.T) {
 	
 	function prop1() {
 		trace += "prop1(),"
-		return "a";
+		return {
+			toString: function() {
+				trace += "prop1-to-string(),";
+				return "a";
+			}
+		}
 	}
 	
 	function prop2() {
 		trace += "prop2(),";
-		return "b";
+		return {
+			toString: function() {
+				trace += "prop2-to-string(),";
+				return "b";
+			}
+		}
 	}
 	
 	function target() {
@@ -3610,7 +3637,7 @@ func TestObjectAssignmentPatternEvalOrder(t *testing.T) {
 	}
 	trace;
 	`
-	testScript1(SCRIPT, asciiString("src(),prop1(),target(),get a,prop2(),"), t)
+	testScript1(SCRIPT, asciiString("src(),prop1(),prop1-to-string(),target(),get a,prop2(),prop2-to-string(),"), t)
 }
 
 func TestArrayAssignmentPatternEvalOrder(t *testing.T) {
@@ -3732,6 +3759,32 @@ func TestObjLiteralComputedKeys(t *testing.T) {
 	}
 	`
 	testScript1(SCRIPT, _undefined, t)
+}
+
+func TestObjLiteralComputedKeysEvalOrder(t *testing.T) {
+	const SCRIPT = `
+	let trace = [];
+	function key() {
+		trace.push("key");
+		return {
+			toString: function() {
+				trace.push("key-toString");
+				return "key";
+			}
+		}
+	}
+	function val() {
+		trace.push("val");
+		return "val";
+	}
+	
+	const _ = {
+		[key()]: val(),
+	}
+	
+	trace.join(",");
+	`
+	testScript1(SCRIPT, asciiString("key,key-toString,val"), t)
 }
 
 func TestArrayAssignPattern(t *testing.T) {
@@ -3890,6 +3943,41 @@ func TestFuncParamRestStashSimple(t *testing.T) {
 	testScript1(SCRIPT, asciiString("2,3"), t)
 }
 
+func TestRestArgsNotInStash(t *testing.T) {
+	const SCRIPT = `
+	function f(...rest) {
+		() => rest;
+		return rest.length;
+	}
+	f(1,2);
+	`
+	testScript1(SCRIPT, valueInt(2), t)
+}
+
+func TestRestArgsInStash(t *testing.T) {
+	const SCRIPT = `
+	function f(first, ...rest) {
+		() => first;
+		() => rest;
+		return rest.length;
+	}
+	f(1,2);
+	`
+	testScript1(SCRIPT, valueInt(1), t)
+}
+
+func TestRestArgsInStashFwdRef(t *testing.T) {
+	const SCRIPT = `
+	function f(first = eval(), ...rest) {
+		() => first;
+		() => rest;
+		return rest.length === 1 && rest[0] === 2;
+	}
+	f(1,2);
+	`
+	testScript1(SCRIPT, valueTrue, t)
+}
+
 func TestFuncParamRestPattern(t *testing.T) {
 	const SCRIPT = `
 	function f(arg1, ...{0: rest1, 1: rest2}) {
@@ -3986,17 +4074,6 @@ func TestFuncParamScope(t *testing.T) {
 	testScript1(SCRIPT, asciiString("inside inside"), t)
 }
 
-func TestParameterOverride(t *testing.T) {
-	const SCRIPT = `
-	function f(arg) {
-		var arg = arg || "default"
-		return arg
-	}
-	f()
-	`
-	testScript1(SCRIPT, asciiString("default"), t)
-}
-
 func TestDuplicateGlobalFunc(t *testing.T) {
 	const SCRIPT = `
 	function a(){}
@@ -4057,6 +4134,57 @@ func TestVariadicNew(t *testing.T) {
 	c.res;
 	`
 	testScript1(SCRIPT, asciiString("1,a,2"), t)
+}
+
+func TestVariadicUseStackVars(t *testing.T) {
+	const SCRIPT = `
+	function A(message) { return message; }
+	function B(...args){
+			return A(...args);
+	}
+	B("C");
+	`
+	testScript1(SCRIPT, asciiString("C"), t)
+}
+
+func TestCatchParamPattern(t *testing.T) {
+	const SCRIPT = `
+	function f() {
+		let x = 3;
+		try {
+			throw {a: 1, b: 2};
+		} catch ({a, b, c = x}) {
+			let x = 99;
+			return ""+a+" "+b+" "+c;
+		}
+	}
+	f();
+	`
+	testScript1(SCRIPT, asciiString("1 2 3"), t)
+}
+
+func TestArrowUseStrict(t *testing.T) {
+	// simple parameter list -- ok
+	_, err := Compile("", "(a) => {'use strict';}", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// non-simple parameter list -- syntax error
+	_, err = Compile("", "(a=0) => {'use strict';}", false)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestParameterOverride(t *testing.T) {
+	const SCRIPT = `
+	function f(arg) {
+		var arg = arg || "default"
+		return arg
+	}
+	f()
+	`
+	testScript1(SCRIPT, asciiString("default"), t)
 }
 
 /*

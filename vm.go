@@ -1366,6 +1366,14 @@ func (j jump) exec(vm *vm) {
 	vm.pc += int(j)
 }
 
+type _toPropertyKey struct{}
+
+func (_toPropertyKey) exec(vm *vm) {
+	p := vm.sp - 1
+	vm.stack[p] = toPropertyKey(vm.stack[p])
+	vm.pc++
+}
+
 type _getElemRef struct{}
 
 var getElemRef _getElemRef
@@ -1419,7 +1427,7 @@ var setElem1 _setElem1
 
 func (_setElem1) exec(vm *vm) {
 	obj := vm.stack[vm.sp-3].ToObject(vm.r)
-	propName := toPropertyKey(vm.stack[vm.sp-2])
+	propName := vm.stack[vm.sp-2]
 	val := vm.stack[vm.sp-1]
 
 	obj.setOwn(propName, val, true)
@@ -1434,10 +1442,10 @@ var setElem1Named _setElem1Named
 
 func (_setElem1Named) exec(vm *vm) {
 	obj := vm.stack[vm.sp-3].ToObject(vm.r)
-	propName := toPropertyKey(vm.stack[vm.sp-2])
+	propName := vm.stack[vm.sp-2]
 	val := vm.stack[vm.sp-1]
 	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor{
-		Value:        propName,
+		Value:        funcName("", propName),
 		Configurable: FLAG_TRUE,
 	}, true)
 	obj.setOwn(propName, val, true)
@@ -1634,7 +1642,7 @@ func (s setPropGetter) exec(vm *vm) {
 	obj := vm.r.toObject(vm.stack[vm.sp-2])
 	val := vm.stack[vm.sp-1]
 	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor{
-		Value:        asciiString("get ").concat(stringValueFromRaw(val.string())),
+		Value:        asciiString("get ").concat(stringValueFromRaw(unistring.String(s))),
 		Configurable: FLAG_TRUE,
 	}, true)
 
@@ -1657,7 +1665,7 @@ func (s setPropSetter) exec(vm *vm) {
 	val := vm.stack[vm.sp-1]
 
 	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor{
-		Value:        asciiString("set ").concat(stringValueFromRaw(val.string())),
+		Value:        asciiString("set ").concat(stringValueFromRaw(unistring.String(s))),
 		Configurable: FLAG_TRUE,
 	}, true)
 
@@ -1679,10 +1687,10 @@ var setPropGetter1 _setPropGetter1
 
 func (s _setPropGetter1) exec(vm *vm) {
 	obj := vm.r.toObject(vm.stack[vm.sp-3])
-	propName := toPropertyKey(vm.stack[vm.sp-2])
+	propName := vm.stack[vm.sp-2]
 	val := vm.stack[vm.sp-1]
 	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor{
-		Value:        asciiString("get ").concat(stringValueFromRaw(val.string())),
+		Value:        funcName("get ", propName),
 		Configurable: FLAG_TRUE,
 	}, true)
 
@@ -1704,11 +1712,11 @@ var setPropSetter1 _setPropSetter1
 
 func (s _setPropSetter1) exec(vm *vm) {
 	obj := vm.r.toObject(vm.stack[vm.sp-3])
-	propName := toPropertyKey(vm.stack[vm.sp-2])
+	propName := vm.stack[vm.sp-2]
 	val := vm.stack[vm.sp-1]
 
 	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor{
-		Value:        asciiString("set ").concat(stringValueFromRaw(val.string())),
+		Value:        funcName("set ", propName),
 		Configurable: FLAG_TRUE,
 	}, true)
 
@@ -1768,6 +1776,24 @@ func (_getElem) exec(vm *vm) {
 	if obj == nil {
 		// (REALMC-7469) can revert this once otto is gone
 		panic(vm.r.NewTypeError("Cannot access member '%s' of undefined", propName.String()))
+	}
+
+	vm.stack[vm.sp-2] = nilSafe(obj.get(propName, v))
+
+	vm.sp--
+	vm.pc++
+}
+
+type _getKey struct{}
+
+var getKey _getKey
+
+func (_getKey) exec(vm *vm) {
+	v := vm.stack[vm.sp-2]
+	obj := v.baseObject(vm.r)
+	propName := vm.stack[vm.sp-1]
+	if obj == nil {
+		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
 	}
 
 	vm.stack[vm.sp-2] = nilSafe(obj.get(propName, v))
@@ -2634,7 +2660,7 @@ type _callEvalVariadic struct{}
 var callEvalVariadic _callEvalVariadic
 
 func (_callEvalVariadic) exec(vm *vm) {
-	vm.callEval(vm.sp-vm.sb-2, false)
+	vm.callEval(vm.countVariadicArgs()-2, false)
 }
 
 type _callEvalVariadicStrict struct{}
@@ -2642,7 +2668,7 @@ type _callEvalVariadicStrict struct{}
 var callEvalVariadicStrict _callEvalVariadicStrict
 
 func (_callEvalVariadicStrict) exec(vm *vm) {
-	vm.callEval(vm.sp-vm.sb-2, true)
+	vm.callEval(vm.countVariadicArgs()-2, true)
 }
 
 type _boxThis struct{}
@@ -2659,13 +2685,14 @@ func (_boxThis) exec(vm *vm) {
 	vm.pc++
 }
 
+var variadicMarker Value = newSymbol(asciiString("[variadic marker]"))
+
 type _startVariadic struct{}
 
 var startVariadic _startVariadic
 
 func (_startVariadic) exec(vm *vm) {
-	vm.push(valueInt(vm.sb))
-	vm.sb = vm.sp
+	vm.push(variadicMarker)
 	vm.pc++
 }
 
@@ -2673,8 +2700,19 @@ type _callVariadic struct{}
 
 var callVariadic _callVariadic
 
+func (vm *vm) countVariadicArgs() int {
+	count := 0
+	for i := vm.sp - 1; i >= 0; i-- {
+		if vm.stack[i] == variadicMarker {
+			return count
+		}
+		count++
+	}
+	panic("Variadic marker was not found. Compiler bug.")
+}
+
 func (_callVariadic) exec(vm *vm) {
-	call(vm.sp - vm.sb - 2).exec(vm)
+	call(vm.countVariadicArgs() - 2).exec(vm)
 }
 
 type _endVariadic struct{}
@@ -2683,7 +2721,6 @@ var endVariadic _endVariadic
 
 func (_endVariadic) exec(vm *vm) {
 	vm.sp--
-	vm.sb = int(vm.stack[vm.sp-1].(valueInt))
 	vm.stack[vm.sp-1] = vm.stack[vm.sp]
 	vm.pc++
 }
@@ -2713,6 +2750,16 @@ repeat:
 		vm.stash = f.stash
 		vm.pc = 0
 		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = vm.stack[vm.sp-n-2], vm.stack[vm.sp-n-1]
+		return
+	case *arrowFuncObject:
+		vm.pc++
+		vm.pushCtx()
+		vm.args = n
+		vm.prg = f.prg
+		vm.stash = f.stash
+		vm.pc = 0
+		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = f.this, vm.stack[vm.sp-n-1]
+		vm.newTarget = f.newTarget
 		return
 	case *nativeFuncObject:
 		vm._nativeCall(f, n)
@@ -3060,17 +3107,30 @@ func (e *enterFuncStashless) exec(vm *vm) {
 type newFunc struct {
 	prg    *Program
 	name   unistring.String
+	source string
+
 	length uint32
 	strict bool
-
-	srcStart, srcEnd uint32
 }
 
 func (n *newFunc) exec(vm *vm) {
 	obj := vm.r.newFunc(n.name, int(n.length), n.strict)
 	obj.prg = n.prg
 	obj.stash = vm.stash
-	obj.src = n.prg.src.Source()[n.srcStart:n.srcEnd]
+	obj.src = n.source
+	vm.push(obj.val)
+	vm.pc++
+}
+
+type newArrowFunc struct {
+	newFunc
+}
+
+func (n *newArrowFunc) exec(vm *vm) {
+	obj := vm.r.newArrowFunc(n.name, int(n.length), n.strict)
+	obj.prg = n.prg
+	obj.stash = vm.stash
+	obj.src = n.source
 	vm.push(obj.val)
 	vm.pc++
 }
@@ -3632,7 +3692,7 @@ type _newVariadic struct{}
 var newVariadic _newVariadic
 
 func (_newVariadic) exec(vm *vm) {
-	_new(vm.sp - vm.sb - 1).exec(vm)
+	_new(vm.countVariadicArgs() - 1).exec(vm)
 }
 
 type _new uint32
@@ -3688,7 +3748,7 @@ func (_typeof) exec(vm *vm) {
 			break
 		}
 		switch s := v.self.(type) {
-		case *funcObject, *nativeFuncObject, *boundFuncObject:
+		case *funcObject, *nativeFuncObject, *boundFuncObject, *arrowFuncObject:
 			r = stringFunction
 		case *lazyObject:
 			v.self = s.create(v)
@@ -3945,18 +4005,9 @@ func (r *Runtime) copyDataProperties(target, source Value) {
 		return
 	}
 	sourceObj := source.ToObject(r)
-	iter := &enumerableIter{
-		wrapped: sourceObj.self.enumerateOwnKeys(),
-	}
-
-	for item, next := iter.next(); next != nil; item, next = next() {
-		v := nilSafe(sourceObj.self.getStr(item.name, nil))
-		createDataPropertyOrThrow(targetObj, stringValueFromRaw(item.name), v)
-	}
-
-	for _, sym := range sourceObj.self.ownSymbols(false, nil) {
-		v := nilSafe(sourceObj.self.getSym(sym.(*Symbol), nil))
-		createDataPropertyOrThrow(targetObj, sym, v)
+	for _, key := range sourceObj.self.ownPropertyKeys(false, nil) {
+		v := nilSafe(sourceObj.get(key, nil))
+		createDataPropertyOrThrow(targetObj, key, v)
 	}
 }
 
