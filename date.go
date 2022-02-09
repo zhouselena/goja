@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"reflect"
 	"time"
 )
 
@@ -132,6 +133,10 @@ func timeToMsec(t time.Time) int64 {
 
 func (d *dateObject) toPrimitive() Value {
 	return d.toPrimitiveString()
+}
+
+func (d *dateObject) exportType() reflect.Type {
+	return typeTime
 }
 
 func (d *dateObject) export(*objectExportCtx) interface{} {

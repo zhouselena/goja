@@ -45,7 +45,7 @@ var (
 	reflectTypeInt64  = reflect.TypeOf(int64(0))
 	reflectTypeInt32  = reflect.TypeOf(int32(0))
 	reflectTypeUInt32 = reflect.TypeOf(uint32(0))
-	reflectTypeInt    = reflect.TypeOf(0)
+	reflectTypeInt    = reflect.TypeOf(int64(0))
 	reflectTypeBool   = reflect.TypeOf(false)
 	reflectTypeNil    = reflect.TypeOf(nil)
 	reflectTypeFloat  = reflect.TypeOf(float64(0))

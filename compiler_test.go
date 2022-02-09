@@ -4176,6 +4176,19 @@ func TestArrowUseStrict(t *testing.T) {
 	}
 }
 
+func TestArrowBoxedThis(t *testing.T) {
+	const SCRIPT = `
+	var context;
+	fn = function() {
+		return (arg) => { var local; context = this; };
+	};
+	
+	fn()();
+	context === this;
+	`
+
+	testScript1(SCRIPT, valueTrue, t)
+}
 func TestParameterOverride(t *testing.T) {
 	const SCRIPT = `
 	function f(arg) {
@@ -4185,6 +4198,65 @@ func TestParameterOverride(t *testing.T) {
 	f()
 	`
 	testScript1(SCRIPT, asciiString("default"), t)
+}
+
+func TestEvalInIterScope(t *testing.T) {
+	const SCRIPT = `
+	for (let a = 0; a < 1; a++) {
+		eval("a");
+	}
+	`
+
+	testScript1(SCRIPT, valueInt(0), t)
+}
+
+func TestTemplateLiterals(t *testing.T) {
+	vm := New()
+	_, err := vm.RunString("const a = 1, b = 'b';")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := func(t *testing.T, template, expected string) {
+		res, err := vm.RunString(template)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if actual := res.Export(); actual != expected {
+			t.Fatalf("Expected: %q, actual: %q", expected, actual)
+		}
+	}
+	t.Run("empty", func(t *testing.T) {
+		f(t, "``", "")
+	})
+	t.Run("noSub", func(t *testing.T) {
+		f(t, "`test`", "test")
+	})
+	t.Run("emptyTail", func(t *testing.T) {
+		f(t, "`a=${a},b=${b}`", "a=1,b=b")
+	})
+	t.Run("emptyHead", func(t *testing.T) {
+		f(t, "`${a},b=${b}$`", "1,b=b$")
+	})
+	t.Run("headAndTail", func(t *testing.T) {
+		f(t, "`a=${a},b=${b}$`", "a=1,b=b$")
+	})
+}
+
+func TestTaggedTemplate(t *testing.T) {
+	const SCRIPT = `
+		let res;
+		const o = {
+			tmpl() {
+				res = this;
+				return () => {};
+			}
+		}
+		` +
+		"o.tmpl()`test`;" + `
+		res === o;
+		`
+
+	testScript1(SCRIPT, valueTrue, t)
 }
 
 /*
