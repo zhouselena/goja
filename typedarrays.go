@@ -122,10 +122,11 @@ func (r *Runtime) NewArrayBuffer(data []byte) ArrayBuffer {
 
 // DIVERSION: NewUint8Array converts a byte slice to a Uint8Array
 // javascript object in order to bypass a Buffer.from call in js-land
-func (r *Runtime) NewUint8Array(data []byte) *typedArrayObject {
+func (r *Runtime) NewUint8Array(data []byte) *Object {
 	buf := r._newArrayBuffer(r.global.ArrayBufferPrototype, nil)
 	buf.data = data
-	return r.newUint8ArrayObject(buf, 0, len(buf.data), r.global.Uint8Array)
+	a := r.newUint8ArrayObject(buf, 0, len(buf.data), r.global.Uint8Array)
+	return a.val
 }
 
 func (a *uint8Array) get(idx int) Value {
