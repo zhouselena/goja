@@ -575,7 +575,11 @@ func (vm *vm) captureStackWithLogs(stack []StackFrame, ctxOffset int) string {
 			if len(frameSrc) > 250 {
 				frameSrc = frameSrc[:250] + "...[truncated]"
 			}
-			logs = logs + fmt.Sprintf("\nsrc at pos:      %v\nwith name:       %v\nwith prg.values: %v\nwith source:     %v\n", i, frame.funcName, frame.prg.values, frameSrc)
+			var frameValues []Value
+			if frame.prg != nil {
+				frameValues = frame.prg.values
+			}
+			logs = logs + fmt.Sprintf("\nsrc at pos:      %v\nwith name:       %v\nwith prg.values: %v\nwith source:     %v\n", i, frame.funcName, frameValues, frameSrc)
 		}
 	}
 	return logs
