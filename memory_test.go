@@ -351,6 +351,7 @@ func TestMemCheck(t *testing.T) {
 				SizeNumber +
 				SizeEmpty + SizeEmpty, // base object + prototype
 		},
+		// TODO(REALMC-10739) add a test that calls Error.captureStackTrace when it is implemented)
 		{
 			"stash",
 			`checkMem();
@@ -362,6 +363,8 @@ func TestMemCheck(t *testing.T) {
 			`,
 			7 + 3 + // Error "message" field + len("abc")
 				4 + 5 + // Error "name" field + len("Error")
+				5 + // Error "stack" field + len("") since stack is currently always set to an empty string
+				17 + 17 + functionStackOverhead + //  length of the captureStackTrace name + name of associated func and overhead
 				SizeEmpty + SizeEmpty, // base object + prototype
 		},
 		{

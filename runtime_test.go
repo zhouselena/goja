@@ -2645,3 +2645,11 @@ func TestExceptionWithinAppliedObjectFunc(t *testing.T) {
 		t.Fatalf("Expected: \n%s\n but got \n%s", expected, ex.String())
 	}
 }
+
+// TODO(REALMC-10739) return the actual stack trace
+func TestErrorCaptureStackTrace(t *testing.T) {
+	const SCRIPT = `
+		new Error("oh no!").captureStackTrace();
+	`
+	testScript1(SCRIPT, newStringValue(""), t)
+}

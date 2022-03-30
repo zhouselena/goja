@@ -1812,7 +1812,12 @@ func (g getPropCallee) exec(vm *vm) {
 	}
 	prop := obj.self.getStr(n, v)
 	if prop == nil {
-		prop = memberUnresolved{valueUnresolved{r: vm.r, ref: n}}
+		// TODO(REALMC-10739) remove this and ensure the captureStackTrace can be implicitly called from another dependency
+		if g == "captureStackTrace" {
+			prop = vm.r.newNativeFunc(vm.r.error_captureStackTrace, nil, "captureStackTrace", nil, 0)
+		} else {
+			prop = memberUnresolved{valueUnresolved{r: vm.r, ref: n}}
+		}
 	}
 	vm.stack[vm.sp-1] = prop
 
