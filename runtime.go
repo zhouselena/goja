@@ -885,7 +885,6 @@ func (r *Runtime) builtin_Error(args []Value, proto *Object) *Object {
 	if len(args) > 0 && args[0] != _undefined {
 		obj._putProp("message", args[0], true, true, true)
 	}
-	obj._putProp("captureStackTrace", r.newNativeFunc(r.error_captureStackTrace, nil, "captureStackTrace", nil, 0), true, true, true)
 	obj._putProp("stack", newStringValue(""), true, false, true)
 	obj._putProp("name", proto.Get("name"), true, true, true)
 	return obj.val
