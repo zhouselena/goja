@@ -452,32 +452,33 @@ func (vm *vm) run() {
 				break
 			}
 
-			defer func() {
-				if x := recover(); x != nil {
-					vm.interruptLock.Lock()
-					atomic.StoreUint32(&vm.interrupted, 0)
-					vm.interruptVal = nil
-					vm.interruptLock.Unlock()
-					vm.halt = true
-					vm.clearStack()
-					// if this is a go error, just panic this up the stack
-					if err, ok := x.(error); ok {
-						panic(err)
-					}
+			func() {
+				defer func() {
+					if x := recover(); x != nil {
+						vm.interruptLock.Lock()
+						atomic.StoreUint32(&vm.interrupted, 0)
+						vm.interruptVal = nil
+						vm.interruptLock.Unlock()
+						vm.halt = true
+						vm.clearStack()
+						// if this is a go error, just panic this up the stack
+						if err, ok := x.(error); ok {
+							panic(err)
+						}
 
-					v := &InterruptedError{
-						iface: x,
+						v := &InterruptedError{
+							iface: x,
+						}
+						v.traceLimit = vm.r.stackTraceLimit
+						panic(&uncatchableException{
+							stack: &v.stack,
+							err:   v,
+						})
 					}
-					v.traceLimit = vm.r.stackTraceLimit
-					panic(&uncatchableException{
-						stack: &v.stack,
-						err:   v,
-					})
-				}
+				}()
+				interruptFunc()
+				atomic.StoreUint32(&vm.interrupted, 0)
 			}()
-			interruptFunc()
-			atomic.StoreUint32(&vm.interrupted, 0)
-
 		} else {
 			vm.prg.code[vm.pc].exec(vm)
 		}
