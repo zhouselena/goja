@@ -1472,23 +1472,6 @@ func (r *Runtime) CaptureCallStack(depth int, stack []StackFrame) []StackFrame {
 	return r.vm.captureStack(stack, offset)
 }
 
-// TODO(REALMC-12007): remove this temporary logs that were added to debug a prod panic
-func (r *Runtime) CaptureCallStackWithLogs(depth int, stack []StackFrame) string {
-	l := len(r.vm.callStack)
-	var offset int
-	if depth > 0 {
-		offset = l - depth + 1
-		if offset < 0 {
-			offset = 0
-		}
-	}
-	if stack == nil {
-		stack = make([]StackFrame, 0, l-offset+1)
-	}
-
-	return r.vm.captureStackWithLogs(stack, offset)
-}
-
 // Interrupt a running JavaScript. The corresponding Go call will return an *InterruptedError containing v.
 // Note, it only works while in JavaScript code, it does not interrupt native Go functions (which includes all built-ins).
 // If the runtime is currently not running, it will be immediately interrupted on the next Run*() call.
