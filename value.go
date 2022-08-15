@@ -285,7 +285,7 @@ func (i valueInt) ToNumber() Value {
 }
 
 func (i valueInt) SameAs(other Value) bool {
-	return i == other
+	return i.StrictEquals(other)
 }
 
 func (i valueInt) Equals(other Value) bool {

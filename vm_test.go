@@ -382,22 +382,26 @@ func TestInt64ToValue(t *testing.T) {
 func TestFloatToValue(t *testing.T) {
 	for _, tc := range []struct {
 		f             float64
-		expectedSign  bool
 		expectedValue Value
 	}{
 		{
 			0.0,
-			false,
 			valueFloat(0),
 		},
 		{
 			-0.0,
-			true,
 			valueFloat(-0),
 		},
 		{
+			2.0000,
+			valueFloat(2),
+		},
+		{
+			2.001,
+			valueFloat(2.001),
+		},
+		{
 			1.234000,
-			false,
 			valueFloat(1.234),
 		},
 	} {
