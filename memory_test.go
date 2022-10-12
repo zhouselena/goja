@@ -459,3 +459,114 @@ func TestMemMaxDepth(t *testing.T) {
 		})
 	}
 }
+
+func TestMemArraysWithLenThreshold(t *testing.T) {
+	for _, tc := range []struct {
+		description      string
+		script           string
+		threshold        int
+		expectedSizeDiff uint64
+	}{
+		{
+			"array of numbers under threshold",
+			`y = []
+			var i = 0;
+			y.push([]);
+			checkMem();
+			for(i=0;i<20;i++){
+				y[0].push(i);
+			};
+			checkMem()`,
+			100,
+			// Array overhead,
+			// size of property values,
+			SizeEmpty + 20*SizeNumber,
+		},
+		{
+			"array of numbers over threshold",
+			`y = []
+			var j = 0;
+			y.push([]);
+			checkMem();
+			for(i=0;i<200;i++){
+				y[0].push(j);
+			};
+			checkMem()`,
+			100,
+			// len("j") + value 0 + Array overhead + estimate of property values
+			1 + SizeNumber + SizeEmpty + 200*SizeNumber,
+		},
+		{
+			"mixed array under threshold",
+			`y = []
+			y.push([]);
+			checkMem();
+			for(i=0;i<100;i++){
+				y[0].push(i<50?0:true);
+			};
+			checkMem()`,
+			200,
+			// Array overhead, size of property values
+			2 + SizeEmpty + SizeNumber + (50 * SizeNumber) + (50 * SizeBool),
+		},
+		{
+			"mixed array over threshold",
+			`y = []
+			y.push([]);
+			checkMem();
+			for(i=0;i<100;i++){
+				y[0].push(i<50?0:true);
+			};
+			checkMem()`,
+			50,
+			// Array overhead, size of property values
+			2 + SizeEmpty + SizeNumber + (50 * SizeNumber) + (50 * SizeBool),
+		},
+		{
+			"mixed scattered array over threshold wcs",
+			`y = []
+			y.push([]);
+			checkMem();
+			for(i=0;i < 100;i++){
+				y[0].push(i%10==0?0:true);
+			};
+			checkMem()`,
+			50,
+			// Array overhead, size of property values
+			2 + SizeEmpty + SizeNumber + (100 * SizeNumber),
+		},
+	} {
+		t.Run(fmt.Sprintf(tc.description), func(t *testing.T) {
+			arrayLenThreshold = tc.threshold
+			memChecks := []uint64{}
+			vm := New()
+			vm.Set("checkMem", func(call FunctionCall) Value {
+				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, TestNativeMemUsageChecker{}))
+				if err != nil {
+					t.Fatal(err)
+				}
+				memChecks = append(memChecks, mem)
+				return UndefinedValue()
+			})
+
+			nc := vm.CreateNativeClass("MyNativeVal", func(call FunctionCall) interface{} {
+				return TestNativeValue{}
+			}, nil, nil)
+
+			vm.Set("MyNativeVal", nc.Function)
+
+			_, err := vm.RunString(tc.script)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(memChecks) < 2 {
+				t.Fatalf("expected at least two entries in mem check function, but got %d", len(memChecks))
+			}
+
+			memDiff := memChecks[len(memChecks)-1] - memChecks[0]
+			if memDiff != tc.expectedSizeDiff {
+				t.Fatalf("expected memory change to equal %d but got %d instead", tc.expectedSizeDiff, memDiff)
+			}
+		})
+	}
+}

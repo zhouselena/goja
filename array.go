@@ -522,6 +522,38 @@ func toIdx(v valueInt) uint32 {
 	return math.MaxUint32
 }
 
+// array length threshold above which we should estimate mem usage
+var arrayLenThreshold = 1_000
+
+// for very large arrays calculating mem usage for each item becomes
+// expensive both in terms of memory used by the host to compute it
+// and timeout. With this function we grab a sample of 10% items
+// determine their average mem usage and use that to estimate mem
+// usage of the whole array
+func estimateMemUsage(ctx *MemUsageContext, values []Value) (uint64, error) {
+	var total, samplesVisited uint64
+	var averageMemUsage float32
+	sampleSize := len(values) / 10
+
+	// grabbing one sample every "sampleSize" to provide consistent
+	// memory usage across function executions
+	for i := 0; i < len(values); i += sampleSize {
+		if values[i] == nil {
+			continue
+		}
+
+		inc, err := values[i].MemUsage(ctx)
+		samplesVisited += 1
+		total += inc
+		averageMemUsage = float32(total) / float32(samplesVisited)
+		if err != nil {
+			return uint64(averageMemUsage * float32(len(values))), err
+		}
+	}
+
+	return uint64(averageMemUsage * float32(len(values))), nil
+}
+
 func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 	if a == nil || ctx.IsObjVisited(a) {
 		return SizeEmpty, nil
@@ -537,6 +569,17 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 
 	if err := ctx.Descend(); err != nil {
 		return total, err
+	}
+
+	if len(a.values) > arrayLenThreshold {
+		inc, err := estimateMemUsage(ctx, a.values)
+		total += inc
+		if err != nil {
+			return total, err
+		}
+
+		ctx.Ascend()
+		return total, nil
 	}
 
 	for _, v := range a.values {
