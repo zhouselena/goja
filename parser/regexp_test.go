@@ -117,7 +117,7 @@ func TestRegExp(t *testing.T) {
 
 			test("\\04", "\\x04")
 
-			test(`(.)^`, "("+Re2Dot+")^")
+			test(`(.)^`, "([^\\r\\n])^")
 
 			test(`\$`, `\$`)
 
@@ -131,7 +131,7 @@ func TestRegExp(t *testing.T) {
 
 			test(`😊`, `😊`)
 
-			test(`^.*`, `^`+Re2Dot+`*`)
+			test(`^.*`, `^[^\r\n]*`)
 
 			test(`(\n)`, `(\n)`)
 

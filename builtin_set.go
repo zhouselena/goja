@@ -140,7 +140,7 @@ func (r *Runtime) builtin_newSet(args []Value, newTarget *Object) *Object {
 			adder := so.getStr("add", nil)
 			iter := r.getIterator(arg, nil)
 			if adder == r.global.setAdder {
-				iter.iterate(func(item Value) {
+				r.iterate(iter, func(item Value) {
 					so.m.set(item, nil)
 				})
 			} else {
@@ -148,7 +148,7 @@ func (r *Runtime) builtin_newSet(args []Value, newTarget *Object) *Object {
 				if adderFn == nil {
 					panic(r.NewTypeError("Set.add in missing"))
 				}
-				iter.iterate(func(item Value) {
+				r.iterate(iter, func(item Value) {
 					adderFn(FunctionCall{ctx: r.vm.ctx, This: o, Arguments: []Value{item}})
 				})
 			}

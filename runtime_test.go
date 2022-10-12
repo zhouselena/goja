@@ -163,14 +163,6 @@ func TestNumberFormatRounding(t *testing.T) {
 	testScript1(TESTLIB+SCRIPT, _undefined, t)
 }
 
-func TestBinOctalNumbers(t *testing.T) {
-	const SCRIPT = `
-	0b111;
-	`
-
-	testScript1(SCRIPT, valueInt(7), t)
-}
-
 func TestSetFunc(t *testing.T) {
 	const SCRIPT = `
 	sum(40, 2);
@@ -1576,6 +1568,26 @@ func TestProtoGetter(t *testing.T) {
 	testScript1(SCRIPT, valueTrue, t)
 }
 
+func TestFuncProto(t *testing.T) {
+	const SCRIPT = `
+	"use strict";
+	function A() {}
+	A.__proto__ = Object;
+	A.prototype = {};
+
+	function B() {}
+	B.__proto__ = Object.create(null);
+	var thrown = false;
+	try {
+		delete B.prototype;
+	} catch (e) {
+		thrown = e instanceof TypeError;
+	}
+	thrown;
+	`
+	testScript1(SCRIPT, valueTrue, t)
+}
+
 func TestSymbol1(t *testing.T) {
 	const SCRIPT = `
 		Symbol.toPrimitive[Symbol.toPrimitive]() === Symbol.toPrimitive;
@@ -2158,10 +2170,6 @@ func TestStacktraceLocationThrowFromGo(t *testing.T) {
 	vm.Set("f", f)
 	_, err := vm.RunString(`
 	function main() {
-		(function noop() {})();
-		return callee();
-	}
-	function callee() {
 		return f();
 	}
 	main();
@@ -2170,20 +2178,17 @@ func TestStacktraceLocationThrowFromGo(t *testing.T) {
 		t.Fatal("Expected error")
 	}
 	stack := err.(*Exception).stack
-	if len(stack) != 4 {
+	if len(stack) != 3 {
 		t.Fatalf("Unexpected stack len: %v", stack)
 	}
 	if frame := stack[0]; !strings.HasSuffix(frame.funcName.String(), "TestStacktraceLocationThrowFromGo.func1") {
 		t.Fatalf("Unexpected stack frame 0: %#v", frame)
 	}
-	if frame := stack[1]; frame.funcName != "callee" || frame.pc != 1 {
+	if frame := stack[1]; frame.funcName != "main" || frame.pc != 1 {
 		t.Fatalf("Unexpected stack frame 1: %#v", frame)
 	}
-	if frame := stack[2]; frame.funcName != "main" || frame.pc != 6 {
+	if frame := stack[2]; frame.funcName != "" || frame.pc != 3 {
 		t.Fatalf("Unexpected stack frame 2: %#v", frame)
-	}
-	if frame := stack[3]; frame.funcName != "" || frame.pc != 4 {
-		t.Fatalf("Unexpected stack frame 3: %#v", frame)
 	}
 }
 

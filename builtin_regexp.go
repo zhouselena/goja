@@ -509,10 +509,9 @@ func (r *Runtime) regexpproto_getSource(call FunctionCall) Value {
 			return sb.String()
 		}
 		return this.source
-	} else if call.This == r.global.RegExpPrototype {
-		return asciiString("(?:)")
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.source getter called on incompatible receiver"))
+		r.typeErrorResult(true, "Method RegExp.prototype.source getter called on incompatible receiver")
+		return nil
 	}
 }
 
@@ -523,10 +522,9 @@ func (r *Runtime) regexpproto_getGlobal(call FunctionCall) Value {
 		} else {
 			return valueFalse
 		}
-	} else if call.This == r.global.RegExpPrototype {
-		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.global getter called on incompatible receiver %s", call.This.toString()))
+		r.typeErrorResult(true, "Method RegExp.prototype.global getter called on incompatible receiver %s", call.This.toString())
+		return nil
 	}
 }
 
@@ -537,10 +535,9 @@ func (r *Runtime) regexpproto_getMultiline(call FunctionCall) Value {
 		} else {
 			return valueFalse
 		}
-	} else if call.This == r.global.RegExpPrototype {
-		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.multiline getter called on incompatible receiver %s", call.This.toString()))
+		r.typeErrorResult(true, "Method RegExp.prototype.multiline getter called on incompatible receiver %s", call.This.toString())
+		return nil
 	}
 }
 
@@ -551,10 +548,9 @@ func (r *Runtime) regexpproto_getIgnoreCase(call FunctionCall) Value {
 		} else {
 			return valueFalse
 		}
-	} else if call.This == r.global.RegExpPrototype {
-		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.ignoreCase getter called on incompatible receiver %s", call.This.toString()))
+		r.typeErrorResult(true, "Method RegExp.prototype.ignoreCase getter called on incompatible receiver %s", call.This.toString())
+		return nil
 	}
 }
 
@@ -565,10 +561,9 @@ func (r *Runtime) regexpproto_getUnicode(call FunctionCall) Value {
 		} else {
 			return valueFalse
 		}
-	} else if call.This == r.global.RegExpPrototype {
-		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.unicode getter called on incompatible receiver %s", call.This.toString()))
+		r.typeErrorResult(true, "Method RegExp.prototype.unicode getter called on incompatible receiver %s", call.This.toString())
+		return nil
 	}
 }
 
@@ -579,10 +574,9 @@ func (r *Runtime) regexpproto_getSticky(call FunctionCall) Value {
 		} else {
 			return valueFalse
 		}
-	} else if call.This == r.global.RegExpPrototype {
-		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.sticky getter called on incompatible receiver %s", call.This.toString()))
+		r.typeErrorResult(true, "Method RegExp.prototype.sticky getter called on incompatible receiver %s", call.This.toString())
+		return nil
 	}
 }
 
