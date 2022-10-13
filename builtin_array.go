@@ -1225,7 +1225,7 @@ func (r *Runtime) array_from(call FunctionCall) Value {
 		if mapFn == nil {
 			if a := r.checkStdArrayObj(arr); a != nil {
 				var values []Value
-				r.iterate(iter, func(val Value) {
+				iter.iterate(func(val Value) {
 					values = append(values, val)
 				})
 				setArrayValues(a, values)
@@ -1233,7 +1233,7 @@ func (r *Runtime) array_from(call FunctionCall) Value {
 			}
 		}
 		k := int64(0)
-		r.iterate(iter, func(val Value) {
+		iter.iterate(func(val Value) {
 			if mapFn != nil {
 				val = mapFn(FunctionCall{ctx: call.ctx, This: t, Arguments: []Value{val, intToValue(k)}})
 			}

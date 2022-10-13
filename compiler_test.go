@@ -567,7 +567,7 @@ func TestTryBreakFinallyContinueWithResult(t *testing.T) {
 	  }
 	}
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript1(SCRIPT, _undefined, t)
 }
 
 func TestTryBreakFinallyContinueWithResult1(t *testing.T) {
@@ -582,7 +582,7 @@ func TestTryBreakFinallyContinueWithResult1(t *testing.T) {
 	  }
 	}
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript1(SCRIPT, _undefined, t)
 }
 
 func TestTryBreakFinallyContinueWithResultNested(t *testing.T) {
@@ -791,6 +791,14 @@ func TestTryReturnFromCatch(t *testing.T) {
 	`
 
 	testScript1(SCRIPT, valueInt(42), t)
+}
+
+func TestTryCompletionResult(t *testing.T) {
+	const SCRIPT = `
+	99; do { -99; try { 39 } catch (e) { -1 } finally { break; -2 }; } while (false);
+	`
+
+	testScript1(SCRIPT, _undefined, t)
 }
 
 func TestIfElse(t *testing.T) {
@@ -1897,7 +1905,7 @@ func TestFunctionToString(t *testing.T) {
 	Function("arg1", "arg2", "return 42").toString();
 	`
 
-	testScript1(SCRIPT, asciiString("function anonymous(arg1,arg2){return 42}"), t)
+	testScript1(SCRIPT, asciiString("function anonymous(arg1,arg2\n) {\nreturn 42\n}"), t)
 }
 
 func TestObjectLiteral(t *testing.T) {
@@ -3023,6 +3031,31 @@ func TestEscapedObjectPropertyKeys(t *testing.T) {
 	};
 	`
 
+	_, err := Compile("", SCRIPT, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEscapedKeywords(t *testing.T) {
+	const SCRIPT = `r\u0065turn;`
+	_, err := Compile("", SCRIPT, false)
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestEscapedLet(t *testing.T) {
+	const SCRIPT = `
+this.let = 0;
+
+l\u0065t // ASI
+a;
+
+// If the parser treated the previous escaped "let" as a lexical declaration,
+// this variable declaration will result an early syntax error.
+var a;
+`
 	_, err := Compile("", SCRIPT, false)
 	if err != nil {
 		t.Fatal(err)
