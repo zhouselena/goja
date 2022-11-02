@@ -5,7 +5,11 @@ import (
 	"testing"
 )
 
-const testNativeValueMemUsage = 100
+const (
+	testNativeValueMemUsage = 100
+	memUsageLimit           = uint64(10000)
+	arrLenThreshold         = 1_000
+)
 
 type TestNativeValue struct {
 }
@@ -378,7 +382,7 @@ func TestMemCheck(t *testing.T) {
 			memChecks := []uint64{}
 			vm := New()
 			vm.Set("checkMem", func(call FunctionCall) Value {
-				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, TestNativeMemUsageChecker{}))
+				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, memUsageLimit, arrLenThreshold, TestNativeMemUsageChecker{}))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -447,12 +451,12 @@ func TestMemMaxDepth(t *testing.T) {
 
 			// All global variables are contained in the Runtime's globalObject field, which causes
 			// them to be one level deeper
-			_, err = vm.MemUsage(NewMemUsageContext(vm, tc.expectedDepth, TestNativeMemUsageChecker{}))
+			_, err = vm.MemUsage(NewMemUsageContext(vm, tc.expectedDepth, memUsageLimit, arrLenThreshold, TestNativeMemUsageChecker{}))
 			if err != ErrMaxDepth {
 				t.Fatalf("expected mem check to hit depth limit error, but got nil %v", err)
 			}
 
-			_, err = vm.MemUsage(NewMemUsageContext(vm, tc.expectedDepth+1, TestNativeMemUsageChecker{}))
+			_, err = vm.MemUsage(NewMemUsageContext(vm, tc.expectedDepth+1, memUsageLimit, arrLenThreshold, TestNativeMemUsageChecker{}))
 			if err != nil {
 				t.Fatalf("expected to NOT hit mem check hit depth limit error, but got %v", err)
 			}
@@ -465,6 +469,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 		description      string
 		script           string
 		threshold        int
+		memLimit         uint64
 		expectedSizeDiff uint64
 	}{
 		{
@@ -478,6 +483,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			};
 			checkMem()`,
 			100,
+			memUsageLimit,
 			// Array overhead,
 			// size of property values,
 			SizeEmpty + 20*SizeNumber,
@@ -493,6 +499,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			};
 			checkMem()`,
 			100,
+			memUsageLimit,
 			// len("j") + value 0 + Array overhead + estimate of property values
 			1 + SizeNumber + SizeEmpty + 200*SizeNumber,
 		},
@@ -506,8 +513,23 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			};
 			checkMem()`,
 			200,
+			memUsageLimit,
 			// Array overhead, size of property values
 			2 + SizeEmpty + SizeNumber + (50 * SizeNumber) + (50 * SizeBool),
+		},
+		{
+			"mixed array under threshold but over limit",
+			`y = []
+			y.push([]);
+			checkMem();
+			for(i=0;i<10;i++){
+				y[0].push(true);
+			};
+			checkMem()`,
+			200,
+			40,
+			// Array overhead, size of property values, only 3 values before we hit the mem limit
+			2 + SizeEmpty + (3 * SizeBool),
 		},
 		{
 			"mixed array over threshold",
@@ -519,6 +541,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			};
 			checkMem()`,
 			50,
+			memUsageLimit,
 			// Array overhead, size of property values
 			2 + SizeEmpty + SizeNumber + (50 * SizeNumber) + (50 * SizeBool),
 		},
@@ -532,16 +555,16 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			};
 			checkMem()`,
 			50,
+			memUsageLimit,
 			// Array overhead, size of property values
 			2 + SizeEmpty + SizeNumber + (100 * SizeNumber),
 		},
 	} {
 		t.Run(fmt.Sprintf(tc.description), func(t *testing.T) {
-			arrayLenThreshold = tc.threshold
 			memChecks := []uint64{}
 			vm := New()
 			vm.Set("checkMem", func(call FunctionCall) Value {
-				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, TestNativeMemUsageChecker{}))
+				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, tc.threshold, TestNativeMemUsageChecker{}))
 				if err != nil {
 					t.Fatal(err)
 				}

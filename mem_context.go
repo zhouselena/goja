@@ -91,13 +91,23 @@ type MemUsageContext struct {
 	visitTracker
 	*depthTracker
 	NativeMemUsageChecker
+	MemUsageExceedsLimit     func(memUsage uint64) bool
+	ArrayLenExceedsThreshold func(arrayLen int) bool
 }
 
-func NewMemUsageContext(vm *Runtime, maxDepth int, nativeChecker NativeMemUsageChecker) *MemUsageContext {
+func NewMemUsageContext(vm *Runtime, maxDepth int, memLimit uint64, arrayLenThreshold int, nativeChecker NativeMemUsageChecker) *MemUsageContext {
 	return &MemUsageContext{
 		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, stashesVisited: map[*stash]bool{}},
 		depthTracker:          &depthTracker{curDepth: 0, maxDepth: maxDepth},
 		NativeMemUsageChecker: nativeChecker,
+		MemUsageExceedsLimit: func(memUsage uint64) bool {
+			// memory usage limit above which we should stop mem usage computations
+			return memUsage > memLimit
+		},
+		ArrayLenExceedsThreshold: func(arrayLen int) bool {
+			// array length threshold above which we should estimate mem usage
+			return arrayLen > arrayLenThreshold
+		},
 	}
 }
 

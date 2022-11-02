@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"errors"
 	"math"
 	"math/bits"
 	"reflect"
@@ -521,17 +522,18 @@ func toIdx(v valueInt) uint32 {
 	return math.MaxUint32
 }
 
-// array length threshold above which we should estimate mem usage
-var arrayLenThreshold = 1_000
+var (
+	errMemUsageExceedsLimitNil = errors.New("error checking mem usage limit")
+	errArrayLenExceedsThresholdNil = errors.New("error checking array len threshold")
+)
 
-// for very large arrays calculating mem usage for each item becomes
-// expensive both in terms of memory used by the host to compute it
-// and timeout. With this function we grab a sample of 10% items
+// For very large arrays calculating mem usage for each item becomes
+// expensive for mem/cpu which eventually can lead to timeouts.
+// With this function we sample 10% of the array values,
 // determine their average mem usage and use that to estimate mem
 // usage of the whole array
 func estimateMemUsage(ctx *MemUsageContext, values []Value) (uint64, error) {
-	var total, samplesVisited uint64
-	var averageMemUsage float32
+	var total, samplesVisited, runningEstimate uint64
 	sampleSize := len(values) / 10
 
 	// grabbing one sample every "sampleSize" to provide consistent
@@ -544,13 +546,20 @@ func estimateMemUsage(ctx *MemUsageContext, values []Value) (uint64, error) {
 		inc, err := values[i].MemUsage(ctx)
 		samplesVisited += 1
 		total += inc
-		averageMemUsage = float32(total) / float32(samplesVisited)
+		// average * number of values
+		runningEstimate = uint64((float32(total) / float32(samplesVisited)) * float32(len(values)))
 		if err != nil {
-			return uint64(averageMemUsage * float32(len(values))), err
+			return runningEstimate, err
+		}
+		if ctx.MemUsageExceedsLimit == nil {
+			return runningEstimate, errMemUsageExceedsLimitNil
+		}
+		if ctx.MemUsageExceedsLimit(total) {
+			return runningEstimate, nil
 		}
 	}
 
-	return uint64(averageMemUsage * float32(len(values))), nil
+	return runningEstimate, nil
 }
 
 func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
@@ -570,7 +579,10 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 		return total, err
 	}
 
-	if len(a.values) > arrayLenThreshold {
+	if ctx.ArrayLenExceedsThreshold == nil {
+		return total, errArrayLenExceedsThresholdNil
+	}
+	if ctx.ArrayLenExceedsThreshold(len(a.values)) {
 		inc, err := estimateMemUsage(ctx, a.values)
 		total += inc
 		if err != nil {
@@ -590,6 +602,14 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 		total += inc
 		if err != nil {
 			return total, err
+		}
+		if ctx.MemUsageExceedsLimit == nil {
+			return total, errMemUsageExceedsLimitNil
+		}
+		// This is an early exit in case we reach the mem usage
+		// limit before we get to scan the whole array.
+		if ctx.MemUsageExceedsLimit(total) {
+			return total, nil
 		}
 	}
 
