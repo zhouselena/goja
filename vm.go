@@ -202,6 +202,7 @@ type vm struct {
 	r            *Runtime
 	prg          *Program
 	funcName     unistring.String // only valid when prg == nil
+	funcNameLock sync.RWMutex
 	pc           int
 	stack        valueStack
 	sp, sb, args int
@@ -225,6 +226,19 @@ type vm struct {
 
 type instruction interface {
 	exec(*vm)
+}
+
+func (vm *vm) getFuncName() unistring.String {
+	vm.funcNameLock.RLock()
+	s := vm.funcName
+	vm.funcNameLock.RUnlock()
+	return s
+}
+
+func (vm *vm) setFuncName(s unistring.String) {
+	vm.funcNameLock.Lock()
+	vm.funcName = s
+	vm.funcNameLock.Unlock()
 }
 
 func intToValue(i int64) Value {
@@ -559,7 +573,7 @@ func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame {
 		if vm.prg != nil {
 			funcName = vm.prg.funcName
 		} else {
-			funcName = vm.funcName
+			funcName = vm.getFuncName()
 		}
 		stack = append(stack, StackFrame{prg: vm.prg, pc: vm.pc, funcName: funcName})
 	}
@@ -695,8 +709,8 @@ func (vm *vm) peek() Value {
 func (vm *vm) saveCtx(ctx *vmContext) {
 	ctx.prg, ctx.stash, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args =
 		vm.prg, vm.stash, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args
-	if vm.funcName != "" {
-		ctx.funcName = vm.funcName
+	if vm.getFuncName() != "" {
+		ctx.funcName = vm.getFuncName()
 	} else if ctx.prg != nil && ctx.prg.funcName != "" {
 		ctx.funcName = ctx.prg.funcName
 	}
@@ -717,9 +731,11 @@ func (vm *vm) pushCtx() {
 }
 
 func (vm *vm) restoreCtx(ctx *vmContext) {
-	vm.prg, vm.funcName, vm.stash, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args =
-		ctx.prg, ctx.funcName, ctx.stash, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args
+	vm.prg, vm.stash, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args =
+		ctx.prg, ctx.stash, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args
+
 	vm.ctx = ctx.ctx
+	vm.setFuncName(ctx.funcName)
 }
 
 func (vm *vm) popCtx() {
@@ -2862,7 +2878,7 @@ repeat:
 	case *proxyObject:
 		vm.pushCtx()
 		vm.prg = nil
-		vm.funcName = "proxy"
+		vm.setFuncName("proxy")
 		ret := f.apply(FunctionCall{ctx: vm.ctx, This: vm.stack[vm.sp-n-2], Arguments: vm.stack[vm.sp-n : vm.sp]})
 		if ret == nil {
 			ret = _undefined
@@ -2883,7 +2899,7 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) {
 	if f.f != nil {
 		vm.pushCtx()
 		vm.prg = nil
-		vm.funcName = nilSafe(f.getStr("name", nil)).string()
+		vm.setFuncName(nilSafe(f.getStr("name", nil)).string())
 		ret := f.f(FunctionCall{
 			ctx:       vm.ctx,
 			Arguments: vm.stack[vm.sp-n : vm.sp],

@@ -288,12 +288,12 @@ func (f *nativeFuncObject) assertCallable() (func(FunctionCall) Value, bool) {
 
 func (f *nativeFuncObject) Call(call FunctionCall) Value {
 	vm := f.val.runtime.vm
-	prevFuncName := vm.funcName
+	prevFuncName := vm.getFuncName()
 	// This is done to display the correct function name in the stack trace when executing a
 	// native function with Function.prototype.apply/call
-	vm.funcName = f.getStr("name", nil).string()
+	vm.setFuncName(f.getStr("name", nil).string())
 	rv := f.f(call)
-	vm.funcName = prevFuncName
+	vm.setFuncName(prevFuncName)
 	return rv
 }
 
