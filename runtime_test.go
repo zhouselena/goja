@@ -2096,16 +2096,42 @@ func TestDeclareGlobalFunc(t *testing.T) {
 	testScript1(TESTLIB+SCRIPT, _undefined, t)
 }
 
-func TestStackOverflowError(t *testing.T) {
+func TestStackOverflowCausesRangeError(t *testing.T) {
 	vm := New()
-	vm.SetMaxCallStackSize(3)
+	vm.SetMaxCallStackSize(10)
 	_, err := vm.RunString(`
-	function f() {
-		f();
-	}
-	f();
+	    function f() {
+                f();
+	    }
+	    f();
 	`)
-	if _, ok := err.(*StackOverflowError); !ok {
+	if err == nil {
+		t.Fatal("Expected RangeError, but received nil.")
+	}
+	if err.Error() != "RangeError: Maximum call stack size exceeded" {
+		t.Fatal(err)
+	}
+}
+
+func TestStackOverflowRangeErrorCanBeCaught(t *testing.T) {
+	vm := New()
+	vm.SetMaxCallStackSize(10)
+	v, err := vm.RunString(`
+            let callStackSize = 0;
+	    function f() {
+                callStackSize++;
+		f();
+	    }
+            try {
+	        f();
+            } catch (e) {}
+            callStackSize;
+	`)
+	if callStackSize := v.ToInteger(); callStackSize != 11 {
+		t.Fatal(fmt.Sprintf("Didn't reach a callstack size of 11. Instead reached %d", callStackSize))
+	}
+
+	if err != nil {
 		t.Fatal(err)
 	}
 }
