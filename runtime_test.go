@@ -18,7 +18,7 @@ func TestGlobalObjectProto(t *testing.T) {
 	this instanceof Object
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestUnicodeString(t *testing.T) {
@@ -28,7 +28,7 @@ func TestUnicodeString(t *testing.T) {
 
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func Test2TierHierarchyProp(t *testing.T) {
@@ -47,7 +47,7 @@ func Test2TierHierarchyProp(t *testing.T) {
 
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestConstStringIter(t *testing.T) {
@@ -64,7 +64,7 @@ func TestConstStringIter(t *testing.T) {
 	count;
 	`
 
-	testScript1(SCRIPT, intToValue(28), t)
+	testScript(SCRIPT, intToValue(28), t)
 }
 
 func TestUnicodeConcat(t *testing.T) {
@@ -79,7 +79,7 @@ func TestUnicodeConcat(t *testing.T) {
 
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestIndexOf(t *testing.T) {
@@ -88,7 +88,7 @@ func TestIndexOf(t *testing.T) {
 	"abc".indexOf("", 4)
 	`
 
-	testScript1(SCRIPT, intToValue(3), t)
+	testScript(SCRIPT, intToValue(3), t)
 }
 
 func TestUnicodeIndexOf(t *testing.T) {
@@ -96,7 +96,7 @@ func TestUnicodeIndexOf(t *testing.T) {
 	"абвгд".indexOf("вг", 1) === 2 && '中国'.indexOf('国') === 1
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestLastIndexOf(t *testing.T) {
@@ -105,7 +105,7 @@ func TestLastIndexOf(t *testing.T) {
 	"abcabab".lastIndexOf("ab", 3)
 	`
 
-	testScript1(SCRIPT, intToValue(3), t)
+	testScript(SCRIPT, intToValue(3), t)
 }
 
 func TestUnicodeLastIndexOf(t *testing.T) {
@@ -113,7 +113,7 @@ func TestUnicodeLastIndexOf(t *testing.T) {
 	"абвабаб".lastIndexOf("аб", 3)
 	`
 
-	testScript1(SCRIPT, intToValue(3), t)
+	testScript(SCRIPT, intToValue(3), t)
 }
 
 func TestUnicodeLastIndexOf1(t *testing.T) {
@@ -121,7 +121,7 @@ func TestUnicodeLastIndexOf1(t *testing.T) {
 	"abꞐcde".lastIndexOf("cd");
 	`
 
-	testScript1(SCRIPT, intToValue(3), t)
+	testScript(SCRIPT, intToValue(3), t)
 }
 
 func TestNumber(t *testing.T) {
@@ -129,7 +129,7 @@ func TestNumber(t *testing.T) {
 	(new Number(100111122133144155)).toString()
 	`
 
-	testScript1(SCRIPT, asciiString("100111122133144160"), t)
+	testScript(SCRIPT, asciiString("100111122133144160"), t)
 }
 
 func TestFractionalNumberToStringRadix(t *testing.T) {
@@ -137,7 +137,7 @@ func TestFractionalNumberToStringRadix(t *testing.T) {
 	(new Number(123.456)).toString(36)
 	`
 
-	testScript1(SCRIPT, asciiString("3f.gez4w97ry"), t)
+	testScript(SCRIPT, asciiString("3f.gez4w97ry"), t)
 }
 
 func TestNumberFormatRounding(t *testing.T) {
@@ -160,7 +160,7 @@ func TestNumberFormatRounding(t *testing.T) {
 	assert.sameValue((99.9).toFixed(0), "100");
 	assert.sameValue((99.99).toFixed(1), "100.0");
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestBinOctalNumbers(t *testing.T) {
@@ -168,7 +168,7 @@ func TestBinOctalNumbers(t *testing.T) {
 	0b111;
 	`
 
-	testScript1(SCRIPT, valueInt(7), t)
+	testScript(SCRIPT, valueInt(7), t)
 }
 
 func TestSetFunc(t *testing.T) {
@@ -303,6 +303,43 @@ func TestSetGoFunc(t *testing.T) {
 	}
 }
 
+func TestSetFuncVariadic(t *testing.T) {
+	vm := New()
+	vm.Set("f", func(s string, g ...Value) {
+		something := g[0].ToObject(vm).Get(s).ToInteger()
+		if something != 5 {
+			t.Fatal()
+		}
+	})
+	_, err := vm.RunString(`
+           f("something", {something: 5})
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetFuncVariadicFuncArg(t *testing.T) {
+	vm := New()
+	vm.Set("f", func(s string, g ...Value) {
+		if f, ok := AssertFunction(g[0]); ok {
+			v, err := f(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v != valueTrue {
+				t.Fatal(v)
+			}
+		}
+	})
+	_, err := vm.RunString(`
+           f("something", () => true)
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestArgsKeys(t *testing.T) {
 	const SCRIPT = `
 	function testArgs2(x, y, z) {
@@ -313,7 +350,7 @@ func TestArgsKeys(t *testing.T) {
 	testArgs2(1,2).length
 	`
 
-	testScript1(SCRIPT, intToValue(2), t)
+	testScript(SCRIPT, intToValue(2), t)
 }
 
 func TestIPowOverflow(t *testing.T) {
@@ -321,7 +358,7 @@ func TestIPowOverflow(t *testing.T) {
 	Math.pow(65536, 6)
 	`
 
-	testScript1(SCRIPT, floatToValue(7.922816251426434e+28), t)
+	testScript(SCRIPT, floatToValue(7.922816251426434e+28), t)
 }
 
 func TestIPowZero(t *testing.T) {
@@ -329,7 +366,7 @@ func TestIPowZero(t *testing.T) {
 	Math.pow(0, 0)
 	`
 
-	testScript1(SCRIPT, intToValue(1), t)
+	testScript(SCRIPT, intToValue(1), t)
 }
 
 func TestInterrupt(t *testing.T) {
@@ -830,7 +867,7 @@ func ExampleRuntime_ExportTo_func() {
 // 	_, err = fn("")
 
 // 	fmt.Println(err)
-// 	// Output: Error: testing at f (<eval>:3:9(4))
+// 	// Output: Error: testing at f (<eval>:3:9(3))
 // }
 
 func ExampleRuntime_ExportTo_funcVariadic() {
@@ -1046,7 +1083,7 @@ func TestJSONEscape(t *testing.T) {
 	JSON.stringify(a);
 	`
 
-	testScript1(SCRIPT, asciiString(`"\\+1"`), t)
+	testScript(SCRIPT, asciiString(`"\\+1"`), t)
 }
 
 func TestJSONObjectInArray(t *testing.T) {
@@ -1055,7 +1092,7 @@ func TestJSONObjectInArray(t *testing.T) {
 	JSON.stringify(JSON.parse(a)) == a;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestJSONQuirkyNumbers(t *testing.T) {
@@ -1078,7 +1115,7 @@ func TestJSONQuirkyNumbers(t *testing.T) {
 
 	`
 
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestJSONNil(t *testing.T) {
@@ -1136,7 +1173,7 @@ func TestSortComparatorReturnValues(t *testing.T) {
 	}
 	`
 
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestSortComparatorReturnValueFloats(t *testing.T) {
@@ -1155,7 +1192,7 @@ func TestSortComparatorReturnValueFloats(t *testing.T) {
 		}
 	}
 	`
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestSortComparatorReturnValueNegZero(t *testing.T) {
@@ -1168,7 +1205,7 @@ func TestSortComparatorReturnValueNegZero(t *testing.T) {
 		}
 	}
 	`
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestNilApplyArg(t *testing.T) {
@@ -1178,7 +1215,7 @@ func TestNilApplyArg(t *testing.T) {
         }).apply(this, [,1])
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestNilCallArg(t *testing.T) {
@@ -1302,19 +1339,14 @@ func TestReflectCallVariadic(t *testing.T) {
 		throw new Error("test 1 has failed: " + r);
 	}
 
-	r = f("Hello %s, %d", ["test", 42]);
-	if (r !== "Hello test, 42") {
-		throw new Error("test 2 has failed: " + r);
-	}
-
 	r = f("Hello %s, %s", "test");
 	if (r !== "Hello test, %!s(MISSING)") {
-		throw new Error("test 3 has failed: " + r);
+		throw new Error("test 2 has failed: " + r);
 	}
 
 	r = f();
 	if (r !== "") {
-		throw new Error("test 4 has failed: " + r);
+		throw new Error("test 3 has failed: " + r);
 	}
 
 	`
@@ -1566,14 +1598,14 @@ func TestAutoBoxing(t *testing.T) {
 	a.test === undefined && a.test1 === undefined && f();
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestProtoGetter(t *testing.T) {
 	const SCRIPT = `
 	({}).__proto__ === Object.prototype && [].__proto__ === Array.prototype;
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestSymbol1(t *testing.T) {
@@ -1581,7 +1613,7 @@ func TestSymbol1(t *testing.T) {
 		Symbol.toPrimitive[Symbol.toPrimitive]() === Symbol.toPrimitive;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestFreezeSymbol(t *testing.T) {
@@ -1594,7 +1626,7 @@ func TestFreezeSymbol(t *testing.T) {
 		o[s] === 42 && Object.isFrozen(o);
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestToPropertyKey(t *testing.T) {
@@ -1634,7 +1666,7 @@ func TestToPropertyKey(t *testing.T) {
 	assert.sameValue(a[1], a[wrapper1], "a[1] === a[wrapper1]");
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestPrimThisValue(t *testing.T) {
@@ -1658,7 +1690,7 @@ func TestPrimThisValue(t *testing.T) {
 	t();
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestPrimThisValueGetter(t *testing.T) {
@@ -1679,7 +1711,7 @@ func TestPrimThisValueGetter(t *testing.T) {
 	t();
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestObjSetSym(t *testing.T) {
@@ -1701,7 +1733,7 @@ func TestObjSetSym(t *testing.T) {
 	o[sym] = 44;
 	o[sym];
 	`
-	testScript1(SCRIPT, intToValue(44), t)
+	testScript(SCRIPT, intToValue(44), t)
 }
 
 func TestObjSet(t *testing.T) {
@@ -1722,7 +1754,7 @@ func TestObjSet(t *testing.T) {
 	o.test = 44;
 	o.test;
 	`
-	testScript1(SCRIPT, intToValue(44), t)
+	testScript(SCRIPT, intToValue(44), t)
 }
 
 func TestToValueNilValue(t *testing.T) {
@@ -1774,7 +1806,7 @@ func TestNativeCtorNewTarget(t *testing.T) {
 	var o = Reflect.construct(Number, [1], NewTarget);
 	o.__proto__ === NewTarget.prototype && o.toString() === "[object Number]";
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestNativeCtorNonNewCall(t *testing.T) {
@@ -2030,7 +2062,7 @@ func TestNestedEnumerate(t *testing.T) {
 	assert(compareArray(Reflect.ownKeys(o), ["0","1","foo","bar","hidden"]), "keys");
 	res;
 	`
-	testScript1(TESTLIB+SCRIPT, asciiString("baz-foo baz-bar foo-foo foo-bar bar-foo bar-bar "), t)
+	testScriptWithTestLib(SCRIPT, asciiString("baz-foo baz-bar foo-foo foo-bar bar-foo bar-bar "), t)
 }
 
 func TestAbandonedEnumerate(t *testing.T) {
@@ -2046,7 +2078,7 @@ func TestAbandonedEnumerate(t *testing.T) {
 	}
 	res;
 	`
-	testScript1(SCRIPT, asciiString("baz-foo foo-foo bar-foo "), t)
+	testScript(SCRIPT, asciiString("baz-foo foo-foo bar-foo "), t)
 }
 
 func TestIterCloseThrows(t *testing.T) {
@@ -2073,7 +2105,7 @@ func TestIterCloseThrows(t *testing.T) {
 	} catch (e) {};
 	returnCount;
 	`
-	testScript1(SCRIPT, valueInt(1), t)
+	testScript(SCRIPT, valueInt(1), t)
 }
 
 func TestDeclareGlobalFunc(t *testing.T) {
@@ -2093,7 +2125,7 @@ func TestDeclareGlobalFunc(t *testing.T) {
 	assert(!desc.configurable, "configurable");
 	assert.sameValue(initial(), 2222);
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestStackOverflowCausesRangeError(t *testing.T) {
@@ -2300,7 +2332,7 @@ func TestDestructSymbol(t *testing.T) {
 	assert.sameValue(s, true, "S");
 	assert(deepEqual(rest, {test: 1}), "rest");
 	`
-	testScript1(TESTLIBX+SCRIPT, _undefined, t)
+	testScriptWithTestLibX(SCRIPT, _undefined, t)
 }
 
 func TestAccessorFuncName(t *testing.T) {
@@ -2337,7 +2369,7 @@ func TestAccessorFuncName(t *testing.T) {
 	assert.sameValue(prop.get.name, 'get [test262]');
 	assert.sameValue(prop.set.name, 'set [test262]');
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestCoverFuncName(t *testing.T) {
@@ -2360,7 +2392,7 @@ func TestCoverFuncName(t *testing.T) {
 	assert.sameValue(o[anonSym].name, '', 'via anonymous Symbol');
 	assert.sameValue(o[namedSym].name, '[]', 'via Symbol');
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestAnonFuncName(t *testing.T) {
@@ -2368,7 +2400,7 @@ func TestAnonFuncName(t *testing.T) {
 	const d = Object.getOwnPropertyDescriptor((function() {}), 'name');
 	d !== undefined && d.value === '';
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestStringToBytesConversion(t *testing.T) {
@@ -2382,6 +2414,80 @@ func TestStringToBytesConversion(t *testing.T) {
 	if string(b) != "Test" {
 		t.Fatal(b)
 	}
+}
+
+// This is commented out as we have our own Promises
+// func TestPromiseAll(t *testing.T) {
+// 	const SCRIPT = `
+// var p1 = new Promise(function() {});
+// var p2 = new Promise(function() {});
+// var p3 = new Promise(function() {});
+// var callCount = 0;
+// var currentThis = p1;
+// var nextThis = p2;
+// var afterNextThis = p3;
+
+// p1.then = p2.then = p3.then = function(a, b) {
+//   assert.sameValue(typeof a, 'function', 'type of first argument');
+//   assert.sameValue(
+//     a.length,
+//     1,
+//     'ES6 25.4.1.3.2: The length property of a promise resolve function is 1.'
+//   );
+//   assert.sameValue(typeof b, 'function', 'type of second argument');
+//   assert.sameValue(
+//     b.length,
+//     1,
+//     'ES6 25.4.1.3.1: The length property of a promise reject function is 1.'
+//   );
+//   assert.sameValue(arguments.length, 2, '"then"" invoked with two arguments');
+//   assert.sameValue(this, currentThis, '"this" value');
+
+//   currentThis = nextThis;
+//   nextThis = afterNextThis;
+//   afterNextThis = null;
+
+//   callCount += 1;
+// };
+
+// Promise.all([p1, p2, p3]);
+
+// assert.sameValue(callCount, 3, '"then"" invoked once for every iterated value');
+// 	`
+// 	testScript1(TESTLIB+SCRIPT, _undefined, t)
+// }
+
+// func TestPromiseExport(t *testing.T) {
+// 	vm := New()
+// 	p, _, _ := vm.NewPromise()
+// 	pv := vm.ToValue(p)
+// 	if actual := pv.ExportType(); actual != reflect.TypeOf((*Promise)(nil)) {
+// 		t.Fatalf("Export type: %v", actual)
+// 	}
+
+// 	if ev := pv.Export(); ev != p {
+// 		t.Fatalf("Export value: %v", ev)
+// 	}
+// }
+
+func TestErrorStack(t *testing.T) {
+	const SCRIPT = `
+	const err = new Error("test");
+	if (!("stack" in err)) {
+		throw new Error("in");
+	}
+	if (Reflect.ownKeys(err)[0] !== "stack") {
+		throw new Error("property order");
+	}
+	if (err.stack !== "Error\n\tat test.js:2:14(3)\n") {
+		throw new Error(stack);
+	}
+	delete err.stack;
+	if ("stack" in err) {
+		throw new Error("stack still in err after delete");
+	}
+	`
+	testScript(SCRIPT, _undefined, t)
 }
 
 /*
@@ -2403,7 +2509,7 @@ function foo(a,b,c)
 	a3.length === 1500002 && a3[500000] === 1 && a3[1500001] == 2;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 */
 
@@ -2516,7 +2622,7 @@ func TestException(t *testing.T) {
 	}
 
 	expected := `Error: oh no!
-	at myFunc (<eval>:4:10(8))
+	at myFunc (<eval>:4:10(7))
 	at myFunc (<eval>:6:9(13))
 	at myFunc (<eval>:6:9(13))
 `
@@ -2658,7 +2764,8 @@ func TestExceptionWithinAppliedObjectFunc(t *testing.T) {
 	}
 
 	expected := `Error: oh no!
-	at foo (<eval>:4:10(7))
+	at foo (<eval>:4:10(6))
+	at apply (native)
 	at myFunc (<eval>:9:19(5))
 	at <eval>:12:8(4)
 `
@@ -2672,5 +2779,5 @@ func TestErrorCaptureStackTrace(t *testing.T) {
 	const SCRIPT = `
 		new Error("oh no!").captureStackTrace();
 	`
-	testScript1(SCRIPT, newStringValue(""), t)
+	testScript(SCRIPT, newStringValue(""), t)
 }

@@ -1,5 +1,4 @@
 // Package file encapsulates the file abstractions used by the ast & parser.
-//
 package file
 
 import (
@@ -40,7 +39,6 @@ func (self *Position) isValid() bool {
 //	line:column         A valid position without filename
 //	file                An invalid position with filename
 //	-                   An invalid position without filename
-//
 func (self Position) String() string {
 	str := self.Filename
 	if self.isValid() {

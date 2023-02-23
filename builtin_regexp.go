@@ -394,14 +394,14 @@ func (r *Runtime) regexpproto_compile(call FunctionCall) Value {
 		return call.This
 	}
 
-	panic(r.NewTypeError("Method RegExp.prototype.compile called on incompatible receiver %s", call.This.toString()))
+	panic(r.NewTypeError("Method RegExp.prototype.compile called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 }
 
 func (r *Runtime) regexpproto_exec(call FunctionCall) Value {
 	if this, ok := r.toObject(call.This).self.(*regexpObject); ok {
 		return this.exec(call.Argument(0).toString())
 	} else {
-		r.typeErrorResult(true, "Method RegExp.prototype.exec called on incompatible receiver %s", call.This.toString())
+		r.typeErrorResult(true, "Method RegExp.prototype.exec called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This}))
 		return nil
 	}
 }
@@ -414,8 +414,7 @@ func (r *Runtime) regexpproto_test(call FunctionCall) Value {
 			return valueFalse
 		}
 	} else {
-		r.typeErrorResult(true, "Method RegExp.prototype.test called on incompatible receiver %s", call.This.toString())
-		return nil
+		panic(r.NewTypeError("Method RegExp.prototype.test called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 	}
 }
 
@@ -526,7 +525,7 @@ func (r *Runtime) regexpproto_getGlobal(call FunctionCall) Value {
 	} else if call.This == r.global.RegExpPrototype {
 		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.global getter called on incompatible receiver %s", call.This.toString()))
+		panic(r.NewTypeError("Method RegExp.prototype.global getter called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 	}
 }
 
@@ -540,7 +539,7 @@ func (r *Runtime) regexpproto_getMultiline(call FunctionCall) Value {
 	} else if call.This == r.global.RegExpPrototype {
 		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.multiline getter called on incompatible receiver %s", call.This.toString()))
+		panic(r.NewTypeError("Method RegExp.prototype.multiline getter called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 	}
 }
 
@@ -554,7 +553,7 @@ func (r *Runtime) regexpproto_getIgnoreCase(call FunctionCall) Value {
 	} else if call.This == r.global.RegExpPrototype {
 		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.ignoreCase getter called on incompatible receiver %s", call.This.toString()))
+		panic(r.NewTypeError("Method RegExp.prototype.ignoreCase getter called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 	}
 }
 
@@ -568,7 +567,7 @@ func (r *Runtime) regexpproto_getUnicode(call FunctionCall) Value {
 	} else if call.This == r.global.RegExpPrototype {
 		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.unicode getter called on incompatible receiver %s", call.This.toString()))
+		panic(r.NewTypeError("Method RegExp.prototype.unicode getter called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 	}
 }
 
@@ -582,7 +581,7 @@ func (r *Runtime) regexpproto_getSticky(call FunctionCall) Value {
 	} else if call.This == r.global.RegExpPrototype {
 		return _undefined
 	} else {
-		panic(r.NewTypeError("Method RegExp.prototype.sticky getter called on incompatible receiver %s", call.This.toString()))
+		panic(r.NewTypeError("Method RegExp.prototype.sticky getter called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 	}
 }
 
@@ -1216,7 +1215,7 @@ func (r *Runtime) regExpStringIteratorProto_next(call FunctionCall) Value {
 	if iter, ok := thisObj.self.(*regExpStringIterObject); ok {
 		return iter.next()
 	}
-	panic(r.NewTypeError("Method RegExp String Iterator.prototype.next called on incompatible receiver %s", thisObj.String()))
+	panic(r.NewTypeError("Method RegExp String Iterator.prototype.next called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: thisObj})))
 }
 
 func (r *Runtime) createRegExpStringIteratorPrototype(val *Object) objectImpl {

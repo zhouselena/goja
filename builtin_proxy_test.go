@@ -14,7 +14,7 @@ func TestProxy_Object_target_getPrototypeOf(t *testing.T) {
 	assert.sameValue(proto, p);
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_Object_proxy_getPrototypeOf(t *testing.T) {
@@ -31,7 +31,7 @@ func TestProxy_Object_proxy_getPrototypeOf(t *testing.T) {
 	assert.sameValue(proto2, p);
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_Object_native_proxy_getPrototypeOf(t *testing.T) {
@@ -53,10 +53,7 @@ func TestProxy_Object_native_proxy_getPrototypeOf(t *testing.T) {
 	})
 	runtime.Set("proxy", proxy)
 
-	_, err := runtime.RunString(TESTLIB + SCRIPT)
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime.testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_Object_target_setPrototypeOf(t *testing.T) {
@@ -69,7 +66,7 @@ func TestProxy_Object_target_setPrototypeOf(t *testing.T) {
 	assert.sameValue(proto, p);
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_Object_proxy_setPrototypeOf(t *testing.T) {
@@ -88,7 +85,7 @@ func TestProxy_Object_proxy_setPrototypeOf(t *testing.T) {
 	assert.sameValue(proto2, p);
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_Object_target_isExtensible(t *testing.T) {
@@ -99,7 +96,7 @@ func TestProxy_Object_target_isExtensible(t *testing.T) {
 	Object.isExtensible(proxy);
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestProxy_proxy_isExtensible(t *testing.T) {
@@ -114,7 +111,7 @@ func TestProxy_proxy_isExtensible(t *testing.T) {
 	Object.isExtensible(proxy);
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestProxy_native_proxy_isExtensible(t *testing.T) {
@@ -156,7 +153,7 @@ func TestProxy_Object_target_preventExtensions(t *testing.T) {
 	proxy.canEvolve
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestProxy_proxy_preventExtensions(t *testing.T) {
@@ -175,7 +172,7 @@ func TestProxy_proxy_preventExtensions(t *testing.T) {
 	proxy.canEvolve;
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestProxy_native_proxy_preventExtensions(t *testing.T) {
@@ -231,7 +228,7 @@ func TestProxy_Object_target_getOwnPropertyDescriptor(t *testing.T) {
 	desc2.value
 	`
 
-	testScript1(SCRIPT, valueInt(42), t)
+	testScript(SCRIPT, valueInt(42), t)
 }
 
 func TestProxy_proxy_getOwnPropertyDescriptor(t *testing.T) {
@@ -264,7 +261,7 @@ func TestProxy_proxy_getOwnPropertyDescriptor(t *testing.T) {
 	undefined;
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_native_proxy_getOwnPropertyDescriptor(t *testing.T) {
@@ -373,7 +370,7 @@ func TestProxy_native_proxy_getOwnPropertyDescriptorIdx(t *testing.T) {
 	vm.Set("proxy1", proxy1)
 	vm.Set("proxy2", proxy2)
 	vm.Set("proxy3", proxy3)
-	_, err := vm.RunString(TESTLIBX + `
+	vm.testScriptWithTestLibX(`
 	var desc;
 	for (var i = -1; i <= 1; i++) {
 		desc = Object.getOwnPropertyDescriptor(proxy1, i);
@@ -393,10 +390,7 @@ func TestProxy_native_proxy_getOwnPropertyDescriptorIdx(t *testing.T) {
 		desc = Object.getOwnPropertyDescriptor(proxy3, prop);
 		assert(deepEqual(desc, {value: prop, writable: false, enumerable: false, configurable: true}), "3. "+prop);
 	}
-	`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	`, _undefined, t)
 }
 
 func TestProxy_native_proxy_getOwnPropertyDescriptorSym(t *testing.T) {
@@ -421,14 +415,11 @@ func TestProxy_native_proxy_getOwnPropertyDescriptorSym(t *testing.T) {
 	})
 
 	vm.Set("proxy", proxy)
-	_, err := vm.RunString(TESTLIBX + `
+	vm.testScriptWithTestLibX(`
 	var desc = Object.getOwnPropertyDescriptor(proxy, sym);
 	assert(deepEqual(desc, {value: "passed", writable: true, enumerable: false, configurable: true}));
 	assert.sameValue(Object.getOwnPropertyDescriptor(proxy, Symbol.iterator), undefined);
-	`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	`, _undefined, t)
 }
 
 func TestProxy_native_proxy_getOwnPropertyDescriptor_non_existing(t *testing.T) {
@@ -458,7 +449,7 @@ func TestProxy_Object_target_defineProperty(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("test123"), t)
+	testScript(SCRIPT, asciiString("test123"), t)
 }
 
 func TestProxy_proxy_defineProperty(t *testing.T) {
@@ -476,7 +467,7 @@ func TestProxy_proxy_defineProperty(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("321tset"), t)
+	testScript(SCRIPT, asciiString("321tset"), t)
 }
 
 func TestProxy_native_proxy_defineProperty(t *testing.T) {
@@ -515,10 +506,7 @@ func TestProxy_native_proxy_defineProperty(t *testing.T) {
 	})
 	runtime.Set("proxy", proxy)
 
-	_, err := runtime.RunString(TESTLIB + SCRIPT)
-	if err != nil {
-		t.Fatal(err)
-	}
+	runtime.testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_target_has_in(t *testing.T) {
@@ -531,7 +519,7 @@ func TestProxy_target_has_in(t *testing.T) {
 	"secret" in proxy
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestProxy_proxy_has_in(t *testing.T) {
@@ -548,7 +536,7 @@ func TestProxy_proxy_has_in(t *testing.T) {
 	"secret" in proxy
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestProxy_target_has_with(t *testing.T) {
@@ -563,7 +551,7 @@ func TestProxy_target_has_with(t *testing.T) {
 	}
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestProxy_proxy_has_with(t *testing.T) {
@@ -592,7 +580,7 @@ func TestProxy_proxy_has_with(t *testing.T) {
 	thrown;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestProxy_target_get(t *testing.T) {
@@ -605,7 +593,7 @@ func TestProxy_target_get(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("test123"), t)
+	testScript(SCRIPT, asciiString("test123"), t)
 }
 
 func TestProxy_proxy_get(t *testing.T) {
@@ -623,7 +611,7 @@ func TestProxy_proxy_get(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("321tset"), t)
+	testScript(SCRIPT, asciiString("321tset"), t)
 }
 
 func TestProxy_proxy_get_json_stringify(t *testing.T) {
@@ -659,7 +647,7 @@ func TestProxy_proxy_get_json_stringify(t *testing.T) {
 	assert.sameValue(_receiver, proxy);
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxy_native_proxy_get(t *testing.T) {
@@ -817,7 +805,7 @@ func TestProxy_target_set_prop(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("test123"), t)
+	testScript(SCRIPT, asciiString("test123"), t)
 }
 
 func TestProxy_proxy_set_prop(t *testing.T) {
@@ -833,7 +821,7 @@ func TestProxy_proxy_set_prop(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("321tset"), t)
+	testScript(SCRIPT, asciiString("321tset"), t)
 }
 func TestProxy_target_set_associative(t *testing.T) {
 	const SCRIPT = `
@@ -843,7 +831,7 @@ func TestProxy_target_set_associative(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("test123"), t)
+	testScript(SCRIPT, asciiString("test123"), t)
 }
 
 func TestProxy_proxy_set_associative(t *testing.T) {
@@ -859,7 +847,7 @@ func TestProxy_proxy_set_associative(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("321tset"), t)
+	testScript(SCRIPT, asciiString("321tset"), t)
 }
 
 func TestProxy_target_delete(t *testing.T) {
@@ -873,7 +861,7 @@ func TestProxy_target_delete(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestProxy_proxy_delete(t *testing.T) {
@@ -891,7 +879,7 @@ func TestProxy_proxy_delete(t *testing.T) {
 	proxy.foo;
 	`
 
-	testScript1(SCRIPT, asciiString("test"), t)
+	testScript(SCRIPT, asciiString("test"), t)
 }
 
 func TestProxy_native_delete(t *testing.T) {
@@ -995,7 +983,7 @@ func TestProxy_target_keys(t *testing.T) {
 	}
 	`
 
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestProxy_proxy_keys(t *testing.T) {
@@ -1018,7 +1006,7 @@ func TestProxy_proxy_keys(t *testing.T) {
 	}
 	`
 
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestProxy_target_call(t *testing.T) {
@@ -1032,7 +1020,7 @@ func TestProxy_target_call(t *testing.T) {
 	proxy();
 	`
 
-	testScript1(SCRIPT, asciiString("test"), t)
+	testScript(SCRIPT, asciiString("test"), t)
 }
 
 func TestProxy_proxy_call(t *testing.T) {
@@ -1050,7 +1038,7 @@ func TestProxy_proxy_call(t *testing.T) {
 	proxy();
 	`
 
-	testScript1(SCRIPT, asciiString("tset"), t)
+	testScript(SCRIPT, asciiString("tset"), t)
 }
 
 func TestProxy_target_func_apply(t *testing.T) {
@@ -1064,7 +1052,7 @@ func TestProxy_target_func_apply(t *testing.T) {
 	proxy.apply();
 	`
 
-	testScript1(SCRIPT, asciiString("test"), t)
+	testScript(SCRIPT, asciiString("test"), t)
 }
 
 func TestProxy_proxy_func_apply(t *testing.T) {
@@ -1082,7 +1070,7 @@ func TestProxy_proxy_func_apply(t *testing.T) {
 	proxy.apply();
 	`
 
-	testScript1(SCRIPT, asciiString("tset"), t)
+	testScript(SCRIPT, asciiString("tset"), t)
 }
 
 func TestProxy_target_func_call(t *testing.T) {
@@ -1096,7 +1084,7 @@ func TestProxy_target_func_call(t *testing.T) {
 	proxy.call();
 	`
 
-	testScript1(SCRIPT, asciiString("test"), t)
+	testScript(SCRIPT, asciiString("test"), t)
 }
 
 func TestProxy_proxy_func_call(t *testing.T) {
@@ -1114,7 +1102,7 @@ func TestProxy_proxy_func_call(t *testing.T) {
 	proxy.call();
 	`
 
-	testScript1(SCRIPT, asciiString("tset"), t)
+	testScript(SCRIPT, asciiString("tset"), t)
 }
 
 func TestProxy_target_new(t *testing.T) {
@@ -1131,7 +1119,7 @@ func TestProxy_target_new(t *testing.T) {
 	instance.foo();
 	`
 
-	testScript1(SCRIPT, asciiString("test"), t)
+	testScript(SCRIPT, asciiString("test"), t)
 }
 
 func TestProxy_proxy_new(t *testing.T) {
@@ -1157,7 +1145,7 @@ func TestProxy_proxy_new(t *testing.T) {
 	instance.foo();
 	`
 
-	testScript1(SCRIPT, asciiString("caught-test"), t)
+	testScript(SCRIPT, asciiString("caught-test"), t)
 }
 
 func TestProxy_Object_native_proxy_ownKeys(t *testing.T) {
@@ -1237,7 +1225,7 @@ func TestProxy_proxy_forIn(t *testing.T) {
 	forInResult.length === 3 && forInResult[0] === "a" && forInResult[1] === "b" && forInResult[2] === "protoProp";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestProxyExport(t *testing.T) {
@@ -1264,7 +1252,7 @@ func TestProxy_proxy_createTargetNotCallable(t *testing.T) {
 	});
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestProxyEnumerableSymbols(t *testing.T) {
@@ -1284,5 +1272,5 @@ func TestProxyEnumerableSymbols(t *testing.T) {
 	compareArray(getOwnKeys, ownKeysResult);
 	`
 
-	testScript1(TESTLIB+SCRIPT, valueTrue, t)
+	testScriptWithTestLib(SCRIPT, valueTrue, t)
 }

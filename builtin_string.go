@@ -945,7 +945,7 @@ func (r *Runtime) stringIterProto_next(call FunctionCall) Value {
 	if iter, ok := thisObj.self.(*stringIterObject); ok {
 		return iter.next()
 	}
-	panic(r.NewTypeError("Method String Iterator.prototype.next called on incompatible receiver %s", thisObj.String()))
+	panic(r.NewTypeError("Method String Iterator.prototype.next called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: thisObj})))
 }
 
 func (r *Runtime) createStringIterProto(val *Object) objectImpl {

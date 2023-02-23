@@ -38,7 +38,7 @@ func TestArrayCanonicalIndex(t *testing.T) {
 	}
 	`
 
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func BenchmarkArrayGetStr(b *testing.B) {
@@ -122,7 +122,7 @@ func BenchmarkArrayPut(b *testing.B) {
 
 func BenchmarkArraySetEmpty(b *testing.B) {
 	r := New()
-	r.Get("Array").(*Object).Get("prototype").String() // materialise Array.prototype
+	_ = r.Get("Array").(*Object).Get("prototype").String() // materialise Array.prototype
 	a := r.NewArray(0, 0)
 	values := a.self.(*arrayObject).values
 	b.ResetTimer()

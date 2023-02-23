@@ -22,5 +22,5 @@ func TestIsSafeInteger(t *testing.T) {
 	assert.sameValue(Number.isSafeInteger(Math.abs(1.0)), true);
 	assert.sameValue(Number.isSafeInteger(Math.abs(1.1)), false);
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScript(TESTLIB+SCRIPT, _undefined, t)
 }

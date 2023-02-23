@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -12,7 +11,7 @@ func TestRegexp1(t *testing.T) {
 	m !== null && m.length == 3 && m[2] === "test";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexp2(t *testing.T) {
@@ -22,7 +21,7 @@ func TestRegexp2(t *testing.T) {
 	m !== null && m.length == 3 && m[2] === "test";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpLiteral(t *testing.T) {
@@ -32,7 +31,7 @@ func TestRegexpLiteral(t *testing.T) {
 	m !== null && m.length == 3 && m[2] === "test";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpRe2Unicode(t *testing.T) {
@@ -42,7 +41,7 @@ func TestRegexpRe2Unicode(t *testing.T) {
 	m !== null && m.length == 2 && m[1] === "Тест";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpRe2UnicodeTarget(t *testing.T) {
@@ -52,7 +51,7 @@ func TestRegexpRe2UnicodeTarget(t *testing.T) {
 	m !== null && m.length == 3 && m[2] === "Тест";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpRegexp2Unicode(t *testing.T) {
@@ -62,7 +61,7 @@ func TestRegexpRegexp2Unicode(t *testing.T) {
 	m !== null && m.length == 3 && m[2] === "Тест";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpRegexp2UnicodeTarget(t *testing.T) {
@@ -72,7 +71,7 @@ func TestRegexpRegexp2UnicodeTarget(t *testing.T) {
 	m !== null && m.length == 3 && m[2] === "Тест";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpRe2Whitespace(t *testing.T) {
@@ -80,14 +79,14 @@ func TestRegexpRe2Whitespace(t *testing.T) {
 	"\u2000\u2001\u2002\u200b".replace(/\s+/g, "") === "\u200b";
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpRegexp2Whitespace(t *testing.T) {
 	const SCRIPT = `
 	"A\u2000\u2001\u2002A\u200b".replace(/(A)\s+\1/g, "") === "\u200b"
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestEmptyCharClassRe2(t *testing.T) {
@@ -95,7 +94,7 @@ func TestEmptyCharClassRe2(t *testing.T) {
 	/[]/.test("\u0000");
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestNegatedEmptyCharClassRe2(t *testing.T) {
@@ -103,7 +102,7 @@ func TestNegatedEmptyCharClassRe2(t *testing.T) {
 	/[^]/.test("\u0000");
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestEmptyCharClassRegexp2(t *testing.T) {
@@ -111,7 +110,7 @@ func TestEmptyCharClassRegexp2(t *testing.T) {
 	/([])\1/.test("\u0000\u0000");
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestRegexp2Negate(t *testing.T) {
@@ -119,7 +118,7 @@ func TestRegexp2Negate(t *testing.T) {
 	/([\D1])\1/.test("aa");
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestAlternativeRe2(t *testing.T) {
@@ -127,7 +126,7 @@ func TestAlternativeRe2(t *testing.T) {
 	/()|/.exec("") !== null;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpReplaceGlobal(t *testing.T) {
@@ -135,28 +134,28 @@ func TestRegexpReplaceGlobal(t *testing.T) {
 	"QBZPbage\ny_cynprubyqre".replace(/^\s*|\s*$/g, '')
 	`
 
-	testScript1(SCRIPT, asciiString("QBZPbage\ny_cynprubyqre"), t)
+	testScript(SCRIPT, asciiString("QBZPbage\ny_cynprubyqre"), t)
 }
 
 func TestRegexpNumCaptures(t *testing.T) {
 	const SCRIPT = `
 	"Fubpxjnir Synfu 9.0  e115".replace(/([a-zA-Z]|\s)+/, '')
 	`
-	testScript1(SCRIPT, asciiString("9.0  e115"), t)
+	testScript(SCRIPT, asciiString("9.0  e115"), t)
 }
 
 func TestRegexpNumCaptures1(t *testing.T) {
 	const SCRIPT = `
 	"Fubpxjnir Sy\tfu 9.0  e115".replace(/^.*\s+(\S+\s+\S+$)/, '')
 	`
-	testScript1(SCRIPT, asciiString(""), t)
+	testScript(SCRIPT, asciiString(""), t)
 }
 
 func TestRegexpSInClass(t *testing.T) {
 	const SCRIPT = `
 	/[\S]/.test("\u2028");
 	`
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestRegexpDotMatchCR(t *testing.T) {
@@ -164,7 +163,7 @@ func TestRegexpDotMatchCR(t *testing.T) {
 	/./.test("\r");
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestRegexpDotMatchCRInGroup(t *testing.T) {
@@ -172,7 +171,7 @@ func TestRegexpDotMatchCRInGroup(t *testing.T) {
 	/(.)/.test("\r");
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestRegexpDotMatchLF(t *testing.T) {
@@ -180,7 +179,7 @@ func TestRegexpDotMatchLF(t *testing.T) {
 	/./.test("\n");
 	`
 
-	testScript1(SCRIPT, valueFalse, t)
+	testScript(SCRIPT, valueFalse, t)
 }
 
 func TestRegexpSplitWithBackRef(t *testing.T) {
@@ -188,7 +187,7 @@ func TestRegexpSplitWithBackRef(t *testing.T) {
 	"a++b+-c".split(/([+-])\1/).join(" $$ ")
 	`
 
-	testScript1(SCRIPT, asciiString("a $$ + $$ b+-c"), t)
+	testScript(SCRIPT, asciiString("a $$ + $$ b+-c"), t)
 }
 
 func TestEscapeNonASCII(t *testing.T) {
@@ -196,7 +195,7 @@ func TestEscapeNonASCII(t *testing.T) {
 	/\⩓/.test("⩓")
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpUTF16(t *testing.T) {
@@ -229,7 +228,7 @@ func TestRegexpUTF16(t *testing.T) {
 	assert(pattern.test("a\\\uD800"), "#12");
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestRegexpUnicode(t *testing.T) {
@@ -257,7 +256,7 @@ func TestRegexpUnicode(t *testing.T) {
 	}*/
 	`
 
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestConvertRegexpToUnicode(t *testing.T) {
@@ -325,7 +324,7 @@ func TestRegexpAssertion(t *testing.T) {
 	var res = 'aaa'.match(/^a/g);
 	res.length === 1 || res[0] === 'a';
 	`
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestRegexpUnicodeAdvanceStringIndex(t *testing.T) {
@@ -365,14 +364,14 @@ func TestRegexpUnicodeAdvanceStringIndex(t *testing.T) {
 	assert.sameValue(matches[3].index, 4, "#10 index");
 	assert.sameValue(matches[3][0], "", "#10 value");
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestRegexpInit(t *testing.T) {
 	const SCRIPT = `
 	RegExp(".").lastIndex;
 	`
-	testScript1(SCRIPT, intToValue(0), t)
+	testScript(SCRIPT, intToValue(0), t)
 }
 
 func TestRegexpToString(t *testing.T) {
@@ -381,14 +380,14 @@ func TestRegexpToString(t *testing.T) {
 	source: 'foo',
     flags: 'bar'});
 	`
-	testScript1(SCRIPT, asciiString("/foo/bar"), t)
+	testScript(SCRIPT, asciiString("/foo/bar"), t)
 }
 
 func TestRegexpEscapeSource(t *testing.T) {
 	const SCRIPT = `
 	/href="(.+?)(\/.*\/\S+?)\/"/.source;
 	`
-	testScript1(SCRIPT, asciiString(`href="(.+?)(\/.*\/\S+?)\/"`), t)
+	testScript(SCRIPT, asciiString(`href="(.+?)(\/.*\/\S+?)\/"`), t)
 }
 
 func TestRegexpConsecutiveMatchCache(t *testing.T) {
@@ -455,7 +454,9 @@ func TestRegexpConsecutiveMatchCache(t *testing.T) {
 	});
 	`
 	vm := New()
-	v, err := vm.RunString(TESTLIBX + SCRIPT)
+	_, _ = vm.RunProgram(testLib())
+	_, _ = vm.RunProgram(testLibX())
+	v, err := vm.RunString(SCRIPT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +562,9 @@ func TestRegexpMatchAll(t *testing.T) {
 	});
 	`
 	vm := New()
-	v, err := vm.RunString(TESTLIBX + SCRIPT)
+	_, _ = vm.RunProgram(testLib())
+	_, _ = vm.RunProgram(testLibX())
+	v, err := vm.RunString(SCRIPT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -599,7 +602,7 @@ func TestRegexpOverrideSpecies(t *testing.T) {
 		}
 	}
 	`
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestRegexpSymbolMatchAllCallsIsRegexp(t *testing.T) {
@@ -620,7 +623,7 @@ func TestRegexpSymbolMatchAllCallsIsRegexp(t *testing.T) {
 		}
 	}
 	`
-	testScript1(SCRIPT, _undefined, t)
+	testScript(SCRIPT, _undefined, t)
 }
 
 func TestRegexpMatchAllConstructor(t *testing.T) {
@@ -653,15 +656,15 @@ func TestRegexpMatchAllConstructor(t *testing.T) {
 	var second = iter.next()
 	assert.sameValue(second.done, true);
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 // func TestRegexp2InvalidEscape(t *testing.T) {
-// 	testScript1(`/(?=)\x0/.test("x0")`, valueTrue, t)
+// 	testScript(`/(?=)\x0/.test("x0")`, valueTrue, t)
 // }
 
 func TestRegexpUnicodeEmptyMatch(t *testing.T) {
-	testScript1(`/(0)0|/gu.exec("0\xef").length === 2`, valueTrue, t)
+	testScript(`/(0)0|/gu.exec("0\xef").length === 2`, valueTrue, t)
 }
 
 func TestRegexpInvalidGroup(t *testing.T) {
@@ -670,7 +673,7 @@ func TestRegexpInvalidGroup(t *testing.T) {
 		assert.throws(SyntaxError, function() {new RegExp(s)}, s);
 	});
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestRegexpLookbehindAssertion(t *testing.T) {
@@ -682,164 +685,8 @@ func TestRegexpLookbehindAssertion(t *testing.T) {
 	re = /(?<!-)\d+/;
 	assert(re.test("3"), "#3");
 	assert(!re.test("-3"), "#4");
-
-	var match = "JackSprat".match(/(?<=Jack|Tom)Sprat/)
-	assert.sameValue(match.length, 1);
-	assert.sameValue(match[0], "Sprat");
-
-	var matchWithCaptureGroup = "1 turkey costs $30 or £5".match(/(?<=(\$|£))\d+/)
-	assert.sameValue(matchWithCaptureGroup.length, 2);
-	assert.sameValue(matchWithCaptureGroup[0], "30");
-	assert.sameValue(matchWithCaptureGroup[1], "$");
-
-	var matchWithGlobalFlag = "1 turkey costs $30 or £5".match(/(?<=(\$|£))\d+/g)
-	assert.sameValue(matchWithGlobalFlag.length, 2);
-	assert.sameValue(matchWithGlobalFlag[0], "30");
-	assert.sameValue(matchWithGlobalFlag[1], "5");
 	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
-}
-
-func TestRegexpLookaheadAssertion(t *testing.T) {
-	const SCRIPT = `
-	var re = /x(?=y)/;
-	assert.sameValue(re.toString(), "/x(?=y)/");
-
-	var str = "1 turkey costs 30€";
-	var match = str.match(/\d+(?=€)/);
-	assert.sameValue(match.length, 1);
-	assert.sameValue(match[0], "30");
-
-	var matchWithCaptureGroup = str.match(/\d+(?=€)/);
-	assert.sameValue(matchWithCaptureGroup.length, 1);
-	assert.sameValue(matchWithCaptureGroup[0], "30");
-
-	var negativeLookahead = str.match(/\d+\b(?!€)/g); // 1 (the price is not matched)
-	assert.sameValue(negativeLookahead.length, 1);
-	assert.sameValue(negativeLookahead[0], "1");
-
-	var matchWithCaptureGroup = str.match(/\d+(?=(€|kr))/);
-	assert.sameValue(matchWithCaptureGroup.length, 2);
-	assert.sameValue(matchWithCaptureGroup[0], "30");
-	assert.sameValue(matchWithCaptureGroup[1], "€");
-	`
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
-}
-
-func TestRegexpExec(t *testing.T) {
-	for i, tc := range []struct {
-		script string
-	}{
-		{
-			`
-				var abc = /(?:ab|cd)\d?/g;
-				var found = [];
-				do {
-						match = abc.exec("ab  cd2  ab34  cd");
-						if (match !== null) {
-								found.push(match[0]);
-						} else {
-								break;
-						}
-				} while (true);
-				
-				assert(deepEqual(found, ["ab","cd2","ab3","cd"]));
-			`,
-		},
-		{
-			`
-				abc = /./g;
-				def = '123456';
-				count = 0;
-				while (count < 100 && abc.exec(def) !== null) {
-					count += 1;
-				}
-
-				assert.sameValue(count, 6);
-				assert.sameValue(def.length, 6);
-			`,
-		},
-		{
-			`
-				abc = /[abc](\d)?/g;
-				def = 'a0 b c1 d3';
-				count = 0;
-				lastIndex = 0;
-				while (count < 100 && abc.exec(def) !== null) {
-						lastIndex = abc.lastIndex;
-						count += 1;
-
-				}
-
-				assert.sameValue(count, 3);
-				assert.sameValue(lastIndex, 7);
-			`,
-		},
-		{
-			`
-				var abc = /[abc](\d)?/.exec("a0 b c1 d3");
-				assert.sameValue(abc.length, 2);
-				assert.sameValue(abc.input, "a0 b c1 d3");
-				assert.sameValue(abc.index, 0);
-				assert.sameValue(abc[0], "a0");
-				assert.sameValue(abc[1], "0");
-			`,
-		},
-		{
-			`
-				var abc = /\w{3}\d?/.exec("CE\uFFFFL\uFFDDbox127");
-				assert.sameValue(abc.input.length, 11);
-				assert.sameValue(abc.length, 1);
-				assert.sameValue(abc.input, "CE\uFFFFL\uFFDDbox127");
-				assert.sameValue(abc.index, 5);
-				assert.sameValue(abc[0], "box1");
-			`,
-		},
-	} {
-		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-			testScript1(TESTLIBX+tc.script, _undefined, t)
-		})
-	}
-}
-
-func TestRegexpConstructor(t *testing.T) {
-	SCRIPT := `
-		function buildGroups(result, g) {
-			return Object.keys(g).reduce(function (groups, name) {
-				groups[name] = result[g[name]];
-				return groups;
-			}, Object.create(null));
-		}
-
-		function BabelRegExp(re, flags, groups) {
-			var _this = Reflect.construct(RegExp, [re, flags], BabelRegExp);
-			_this._groups = groups;
-			return _this;
-		}
-
-		BabelRegExp.prototype.exec = function (str) {
-			var result = RegExp.prototype.exec.call(this, str);
-			if (result) result.groups = buildGroups(result, this._groups);
-			return result;
-		};
-
-		var re = new BabelRegExp(
-			/First_Name: ([0-9A-Z_a-z]+), Last_Name: ([0-9A-Z_a-z]+)/,
-			undefined,
-			{
-				firstname: 1,
-				lastname: 2
-			})
-		var match = re.exec('First_Name: John, Last_Name: Doe');
-		assert.sameValue(match.length, 3);
-		assert.sameValue(match[0], "First_Name: John, Last_Name: Doe");
-		assert.sameValue(match[1], "John");
-		assert.sameValue(match[2], "Doe");
-		assert.sameValue(match.groups.firstname, "John");
-		assert.sameValue(match.groups.lastname, "Doe");
-	`
-
-	testScript1(TESTLIB+SCRIPT, _undefined, t)
+	testScriptWithTestLib(SCRIPT, _undefined, t)
 }
 
 func TestRegexpInvalidUTF8(t *testing.T) {

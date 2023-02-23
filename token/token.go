@@ -13,7 +13,6 @@ type Token int
 // token string (e.g., for the token PLUS, the String() is
 // "+"). For all other tokens the string corresponds to the token
 // name (e.g. for the token IDENTIFIER, the string is "IDENTIFIER").
-//
 func (tkn Token) String() string {
 	if tkn == 0 {
 		return "UNKNOWN"
@@ -24,7 +23,7 @@ func (tkn Token) String() string {
 	return "token(" + strconv.Itoa(int(tkn)) + ")"
 }
 
-// This is not used for anything
+//lint:ignore U1000 This is not used for anything
 func (tkn Token) precedence(in bool) int {
 
 	switch tkn {
@@ -86,25 +85,24 @@ type _keyword struct {
 //
 // 7.6.1.2 Future Reserved Words:
 //
-//       const
-//       class
-//       enum
-//       export
-//       extends
-//       import
-//       super
+//	const
+//	class
+//	enum
+//	export
+//	extends
+//	import
+//	super
 //
 // 7.6.1.2 Future Reserved Words (strict):
 //
-//       implements
-//       interface
-//       let
-//       package
-//       private
-//       protected
-//       public
-//       static
-//
+//	implements
+//	interface
+//	let
+//	package
+//	private
+//	protected
+//	public
+//	static
 func IsKeyword(literal string) (Token, bool) {
 	if keyword, exists := keywordTable[literal]; exists {
 		if keyword.futureKeyword {
@@ -113,4 +111,8 @@ func IsKeyword(literal string) (Token, bool) {
 		return keyword.token, false
 	}
 	return 0, false
+}
+
+func IsId(tkn Token) bool {
+	return tkn >= IDENTIFIER
 }

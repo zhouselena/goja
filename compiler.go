@@ -2,8 +2,9 @@ package goja
 
 import (
 	"fmt"
-	"github.com/dop251/goja/token"
 	"sort"
+
+	"github.com/dop251/goja/token"
 
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
@@ -21,6 +22,7 @@ const (
 	blockWith
 	blockScope
 	blockIterScope
+	blockOptChain
 )
 
 const (
@@ -401,8 +403,11 @@ func (p *Program) MemUsage(ctx *MemUsageContext) (uint64, error) {
 	return total, nil
 }
 
-func (s *scope) isFunction() bool {
-	return s.outer.isFunction()
+func (p *Program) addSrcMap(srcPos int) {
+	if len(p.srcMap) > 0 && p.srcMap[len(p.srcMap)-1].srcPos == srcPos {
+		return
+	}
+	p.srcMap = append(p.srcMap, srcMapItem{pc: len(p.code), srcPos: srcPos})
 }
 
 func (s *scope) lookupName(name unistring.String) (binding *binding, noDynamics bool) {

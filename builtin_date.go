@@ -480,6 +480,7 @@ func (r *Runtime) dateproto_setTime(call FunctionCall) Value {
 }
 
 // _norm returns nhi, nlo such that
+//
 //	hi * base + lo == nhi * base + nlo
 //	0 <= nlo < base
 func _norm(hi, lo, base int64) (nhi, nlo int64, ok bool) {
@@ -686,20 +687,20 @@ func _dateSetMilliseconds(year, mon, day, hours, min, sec int64, t time.Time, ca
 func (r *Runtime) dateproto_setMilliseconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		n := call.Argument(0).ToNumber()
+		if IsNaN(n) {
+			d.unset()
+			return _NaN
+		}
+		msec := n.ToInteger()
+		sec := d.msec / 1e3
+		var ok bool
+		sec, msec, ok = _norm(sec, msec, 1e3)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			n := call.Argument(0).ToNumber()
-			if IsNaN(n) {
-				d.unset()
-				return _NaN
-			}
-			msec := n.ToInteger()
-			sec := d.msec / 1e3
-			var ok bool
-			sec, msec, ok = _norm(sec, msec, 1e3)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(sec*1e3 + msec)
 		} else {
 			return _NaN
@@ -711,20 +712,20 @@ func (r *Runtime) dateproto_setMilliseconds(call FunctionCall) Value {
 func (r *Runtime) dateproto_setUTCMilliseconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		n := call.Argument(0).ToNumber()
+		if IsNaN(n) {
+			d.unset()
+			return _NaN
+		}
+		msec := n.ToInteger()
+		sec := d.msec / 1e3
+		var ok bool
+		sec, msec, ok = _norm(sec, msec, 1e3)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			n := call.Argument(0).ToNumber()
-			if IsNaN(n) {
-				d.unset()
-				return _NaN
-			}
-			msec := n.ToInteger()
-			sec := d.msec / 1e3
-			var ok bool
-			sec, msec, ok = _norm(sec, msec, 1e3)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(sec*1e3 + msec)
 		} else {
 			return _NaN
@@ -736,12 +737,12 @@ func (r *Runtime) dateproto_setUTCMilliseconds(call FunctionCall) Value {
 func (r *Runtime) dateproto_setSeconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.time(), call, -5, false)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.time(), call, -5, false)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -753,12 +754,12 @@ func (r *Runtime) dateproto_setSeconds(call FunctionCall) Value {
 func (r *Runtime) dateproto_setUTCSeconds(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.timeUTC(), call, -5, true)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.timeUTC(), call, -5, true)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -770,12 +771,12 @@ func (r *Runtime) dateproto_setUTCSeconds(call FunctionCall) Value {
 func (r *Runtime) dateproto_setMinutes(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.time(), call, -4, false)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.time(), call, -4, false)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -787,12 +788,12 @@ func (r *Runtime) dateproto_setMinutes(call FunctionCall) Value {
 func (r *Runtime) dateproto_setUTCMinutes(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.timeUTC(), call, -4, true)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.timeUTC(), call, -4, true)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -804,12 +805,12 @@ func (r *Runtime) dateproto_setUTCMinutes(call FunctionCall) Value {
 func (r *Runtime) dateproto_setHours(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.time(), call, -3, false)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.time(), call, -3, false)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -821,12 +822,12 @@ func (r *Runtime) dateproto_setHours(call FunctionCall) Value {
 func (r *Runtime) dateproto_setUTCHours(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.timeUTC(), call, -3, true)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.timeUTC(), call, -3, true)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -838,12 +839,12 @@ func (r *Runtime) dateproto_setUTCHours(call FunctionCall) Value {
 func (r *Runtime) dateproto_setDate(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 1), -2, false)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 1), -2, false)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -855,12 +856,12 @@ func (r *Runtime) dateproto_setDate(call FunctionCall) Value {
 func (r *Runtime) dateproto_setUTCDate(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 1), -2, true)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 1), -2, true)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -872,12 +873,12 @@ func (r *Runtime) dateproto_setUTCDate(call FunctionCall) Value {
 func (r *Runtime) dateproto_setMonth(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 2), -1, false)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 2), -1, false)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN
@@ -889,12 +890,12 @@ func (r *Runtime) dateproto_setMonth(call FunctionCall) Value {
 func (r *Runtime) dateproto_setUTCMonth(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok {
+		t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 2), -1, true)
+		if !ok {
+			d.unset()
+			return _NaN
+		}
 		if d.isSet() {
-			t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 2), -1, true)
-			if !ok {
-				d.unset()
-				return _NaN
-			}
 			return d.setTimeMs(timeToMsec(t))
 		} else {
 			return _NaN

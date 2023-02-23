@@ -367,7 +367,6 @@ func TestMemCheck(t *testing.T) {
 			`,
 			7 + 3 + // Error "message" field + len("abc")
 				4 + 5 + // Error "name" field + len("Error")
-				5 + // Error "stack" field + len("") since stack is currently always set to an empty string
 				SizeEmpty + SizeEmpty, // base object + prototype
 		},
 		{
