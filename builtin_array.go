@@ -597,7 +597,7 @@ func (r *Runtime) arrayproto_includes(call FunctionCall) Value {
 
 	if arr := r.checkStdArrayObj(o); arr != nil {
 		for _, val := range arr.values[n:] {
-			if searchElement.SameAs(val) {
+			if searchElement.StrictEquals(val) {
 				return valueTrue
 			}
 		}
@@ -607,7 +607,7 @@ func (r *Runtime) arrayproto_includes(call FunctionCall) Value {
 	for ; n < length; n++ {
 		idx := valueInt(n)
 		val := nilSafe(o.self.getIdx(idx, nil))
-		if searchElement.SameAs(val) {
+		if searchElement.StrictEquals(val) {
 			return valueTrue
 		}
 	}

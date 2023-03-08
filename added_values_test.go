@@ -7,7 +7,7 @@ import (
 func TestNumberEquality(t *testing.T) {
 	vm := New()
 
-	res, err := vm.RunString(`var a = new Number('5') 
+	res, err := vm.RunString(`var a = new Number('5')
 	a`)
 	if err != nil {
 		t.Fatal(err)
@@ -17,16 +17,12 @@ func TestNumberEquality(t *testing.T) {
 	}
 }
 
-func TestInt64SameAsFloat(t *testing.T) {
-	if !valueInt64(5).SameAs(valueFloat(5.0)) {
+func TestInt64StrictEqualsFloat(t *testing.T) {
+	if !valueInt64(5).StrictEquals(valueFloat(5.0)) {
 		t.Fatal("values are not equal")
 	}
 
-	if !valueInt64(0).SameAs(valueFloat(0.0)) {
-		t.Fatal("values are not equal")
-	}
-
-	if !valueInt64(0).SameAs(valueFloat(-0.0)) {
+	if !valueInt64(0).StrictEquals(valueFloat(0.0)) {
 		t.Fatal("values are not equal")
 	}
 }

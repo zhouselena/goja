@@ -65,6 +65,23 @@ func TestEvalVar(t *testing.T) {
 	testScript(SCRIPT, valueTrue, t)
 }
 
+func TestResolveMixedStack1(t *testing.T) {
+	const SCRIPT = `
+	function test(arg) {
+		var a = 1;
+		var scope = {};
+		(function() {return arg})(); // move arguments to stash
+		with (scope) {
+			a++; // resolveMixedStack1 here
+			return a + arg;
+		}
+	}
+	test(40);
+	`
+
+	testScript(SCRIPT, valueInt(42), t)
+}
+
 func BenchmarkVmNOP2(b *testing.B) {
 	prg := []func(*vm){
 		//loadVal(0).exec,
@@ -286,10 +303,6 @@ func TestFloatToValue(t *testing.T) {
 		{
 			0.0,
 			valueFloat(0),
-		},
-		{
-			-0.0,
-			valueFloat(-0),
 		},
 		{
 			2.0000,

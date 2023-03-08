@@ -300,7 +300,7 @@ func (i valueInt) ToNumber() Value {
 }
 
 func (i valueInt) SameAs(other Value) bool {
-	return i.StrictEquals(other)
+	return i == other
 }
 
 func (i valueInt) Equals(other Value) bool {

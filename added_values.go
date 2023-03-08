@@ -527,10 +527,7 @@ func (i valueInt64) SameAs(other Value) bool {
 	if otherInt, ok := other.assertInt64(); ok {
 		return int64(i) == otherInt
 	}
-	if f, ok := other.assertFloat(); ok {
-		return float64(i) == f
-	}
-	return false
+	return i == other
 }
 
 func (i valueInt64) Equals(other Value) bool {

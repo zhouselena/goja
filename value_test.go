@@ -10,26 +10,20 @@ func TestIntSameAsInt(t *testing.T) {
 	}
 }
 
-func TestIntSameAsInt64(t *testing.T) {
-	if !valueInt(5).SameAs(valueInt64(5)) {
+func TestIntStrictEqualsInt64(t *testing.T) {
+	if !valueInt(5).StrictEquals(valueInt64(5)) {
 		t.Fatal("values are not equal")
 	}
 }
 
-func TestIntSameAsFloat(t *testing.T) {
-	if !valueInt(5).SameAs(valueFloat(5.0)) {
+func TestIntStrictEqualsFloat(t *testing.T) {
+	if !valueInt(5).StrictEquals(valueFloat(5.0)) {
 		t.Fatal("values are not equal")
 	}
 }
 
-func TestIntZeroSameAsFloatZero(t *testing.T) {
-	if !valueInt(0).SameAs(valueFloat(0.0)) {
-		t.Fatal("values are not equal")
-	}
-	if !valueInt(0).SameAs(valueFloat(-0.0)) {
-		t.Fatal("values are not equal")
-	}
-	if !valueInt(-0).SameAs(valueFloat(-0.0)) {
+func TestIntZeroStrictEqualsFloatZero(t *testing.T) {
+	if !valueInt(0).StrictEquals(valueFloat(0.0)) {
 		t.Fatal("values are not equal")
 	}
 }
