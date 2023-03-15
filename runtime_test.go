@@ -1528,6 +1528,123 @@ func TestCreateObject(t *testing.T) {
 // 	}
 // }
 
+func TestInterruptInWrappedFunction2(t *testing.T) {
+	rt := New()
+	// this test panics as otherwise goja will recover and possibly loop
+	var called bool
+	rt.Set("v", rt.ToValue(func() {
+		if called {
+			go func() {
+				panic("this should never get called twice")
+			}()
+		}
+		called = true
+		rt.Interrupt("here is the error")
+	}))
+
+	rt.Set("s", rt.ToValue(func(a Callable) (Value, error) {
+		return a(nil)
+	}))
+
+	rt.Set("k", rt.ToValue(func(e Value) {
+		go func() {
+			panic("this should never get called actually")
+		}()
+	}))
+	// We don't support goja's promises so the following tests can be skipped
+	// _, err := rt.RunString(`
+	//     Promise.resolve().then(()=>k()); // this should never resolve
+	//     while(true) {
+	//         try{
+	//             s(() =>{
+	//                 v();
+	//             })
+	//             break;
+	//         } catch (e) {
+	//             k(e);
+	//         }
+	//     }
+	// `)
+	// if err == nil {
+	// 	t.Fatal("expected error but got no error")
+	// }
+	// intErr := new(InterruptedError)
+	// if !errors.As(err, &intErr) {
+	// 	t.Fatalf("Wrong error type: %T", err)
+	// }
+	// if !strings.Contains(intErr.Error(), "here is the error") {
+	// 	t.Fatalf("Wrong error message: %q", intErr.Error())
+	// }
+	// _, err = rt.RunString(`Promise.resolve().then(()=>globalThis.S=5)`)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// s := rt.Get("S")
+	// if s == nil || s.ToInteger() != 5 {
+	// 	t.Fatalf("Wrong value for S %v", s)
+	// }
+}
+
+func TestInterruptInWrappedFunction2Recover(t *testing.T) {
+	rt := New()
+	// this test panics as otherwise goja will recover and possibly loop
+	var vCalled int
+	rt.Set("v", rt.ToValue(func() {
+		if vCalled == 0 {
+			rt.Interrupt("here is the error")
+		}
+		vCalled++
+	}))
+
+	rt.Set("s", rt.ToValue(func(a Callable) (Value, error) {
+		v, err := a(nil)
+		if err != nil {
+			intErr := new(InterruptedError)
+			if errors.As(err, &intErr) {
+				rt.ClearInterrupt()
+				return nil, errors.New("oops we got interrupted let's not that")
+			}
+		}
+		return v, err
+	}))
+	var kCalled int
+
+	rt.Set("k", rt.ToValue(func(e Value) {
+		kCalled++
+	}))
+	// We don't support goja's promises so the following tests can be skipped
+	// _, err := rt.RunString(`
+	//     Promise.resolve().then(()=>k());
+	//     while(true) {
+	//         try{
+	//             s(() => {
+	//                 v();
+	//             })
+	//             break;
+	//         } catch (e) {
+	//             k(e);
+	//         }
+	//     }
+	// `)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if vCalled != 2 {
+	// 	t.Fatalf("v was not called exactly twice but %d times", vCalled)
+	// }
+	// if kCalled != 2 {
+	// 	t.Fatalf("k was not called exactly twice but %d times", kCalled)
+	// }
+	// _, err = rt.RunString(`Promise.resolve().then(()=>globalThis.S=5)`)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// s := rt.Get("S")
+	// if s == nil || s.ToInteger() != 5 {
+	// 	t.Fatalf("Wrong value for S %v", s)
+	// }
+}
+
 func TestNaN(t *testing.T) {
 	if !IsNaN(_NaN) {
 		t.Fatal("IsNaN() doesn't detect NaN")
@@ -2488,6 +2605,15 @@ func TestErrorStack(t *testing.T) {
 	}
 	`
 	testScript(SCRIPT, _undefined, t)
+}
+
+func TestErrorFormatSymbols(t *testing.T) {
+	vm := New()
+	vm.Set("a", func() (Value, error) { return nil, errors.New("something %s %f") })
+	_, err := vm.RunString("a()")
+	if !strings.Contains(err.Error(), "something %s %f") {
+		t.Fatalf("Wrong value %q", err.Error())
+	}
 }
 
 /*

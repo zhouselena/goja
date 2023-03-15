@@ -661,9 +661,7 @@ func (o *baseObject) setForeignStr(name unistring.String, val, receiver Value, t
 
 func (o *baseObject) setForeignIdx(name valueInt, val, receiver Value, throw bool) (bool, bool) {
 	if idx := toIdx(name); idx != math.MaxUint32 {
-		if o.lastSortedPropLen != len(o.propNames) {
-			o.fixPropOrder()
-		}
+		o.ensurePropOrder()
 		if o.idxPropCount == 0 {
 			return o._setForeignIdx(name, name, nil, receiver, throw)
 		}
@@ -1006,15 +1004,15 @@ func (o *baseObject) preventExtensions(bool) bool {
 	return true
 }
 
-func (o *baseObject) sortLen() int64 {
-	return toLength(o.val.self.getStr("length", nil))
+func (o *baseObject) sortLen() int {
+	return toIntStrict(toLength(o.val.self.getStr("length", nil)))
 }
 
-func (o *baseObject) sortGet(i int64) Value {
+func (o *baseObject) sortGet(i int) Value {
 	return o.val.self.getIdx(valueInt(i), nil)
 }
 
-func (o *baseObject) swap(i, j int64) {
+func (o *baseObject) swap(i int, j int) {
 	ii := valueInt(i)
 	jj := valueInt(j)
 
@@ -1109,12 +1107,12 @@ func genericExportToArrayOrSlice(o *Object, dst reflect.Value, typ reflect.Type,
 		if ex != nil {
 			return ex
 		}
-		if dst.Len() != len(values) {
-			if typ.Kind() == reflect.Array {
+		if typ.Kind() == reflect.Array {
+			if dst.Len() != len(values) {
 				return fmt.Errorf("cannot convert an iterable into an array, lengths mismatch (have %d, need %d)", len(values), dst.Len())
-			} else {
-				dst.Set(reflect.MakeSlice(typ, len(values), len(values)))
 			}
+		} else {
+			dst.Set(reflect.MakeSlice(typ, len(values), len(values)))
 		}
 		ctx.putTyped(o, typ, dst.Interface())
 		for i, val := range values {
@@ -1319,9 +1317,7 @@ func copyNamesIfNeeded(names []unistring.String, extraCap int) []unistring.Strin
 }
 
 func (o *baseObject) iterateStringKeys() iterNextFunc {
-	if len(o.propNames) > o.lastSortedPropLen {
-		o.fixPropOrder()
-	}
+	o.ensurePropOrder()
 	propNames := prepareNamesForCopy(o.propNames)
 	o.propNames = propNames
 	return (&objectPropIter{
@@ -1382,6 +1378,13 @@ func (o *baseObject) equal(objectImpl) bool {
 	return false
 }
 
+// hopefully this gets inlined
+func (o *baseObject) ensurePropOrder() {
+	if o.lastSortedPropLen < len(o.propNames) {
+		o.fixPropOrder()
+	}
+}
+
 // Reorder property names so that any integer properties are shifted to the beginning of the list
 // in ascending order. This is to conform to https://262.ecma-international.org/#sec-ordinaryownpropertykeys.
 // Personally I think this requirement is strange. I can sort of understand where they are coming from,
@@ -1417,9 +1420,7 @@ func (o *baseObject) fixPropOrder() {
 }
 
 func (o *baseObject) stringKeys(all bool, keys []Value) []Value {
-	if len(o.propNames) > o.lastSortedPropLen {
-		o.fixPropOrder()
-	}
+	o.ensurePropOrder()
 	if all {
 		for _, k := range o.propNames {
 			keys = append(keys, stringValueFromRaw(k))

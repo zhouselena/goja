@@ -132,15 +132,15 @@ func (r *Runtime) NewDynamicArray(a DynamicArray) *Object {
 	return v
 }
 
-func (*dynamicObject) sortLen() int64 {
+func (*dynamicObject) sortLen() int {
 	return 0
 }
 
-func (*dynamicObject) sortGet(i int64) Value {
+func (*dynamicObject) sortGet(i int) Value {
 	return nil
 }
 
-func (*dynamicObject) swap(i int64, i2 int64) {
+func (*dynamicObject) swap(i int, i2 int) {
 }
 
 func (*dynamicObject) className() string {
@@ -530,15 +530,15 @@ func (b *baseDynamicObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 	return b.val.MemUsage(ctx)
 }
 
-func (a *dynamicArray) sortLen() int64 {
-	return int64(a.a.Len())
+func (a *dynamicArray) sortLen() int {
+	return a.a.Len()
 }
 
-func (a *dynamicArray) sortGet(i int64) Value {
-	return a.a.Get(int(i))
+func (a *dynamicArray) sortGet(i int) Value {
+	return a.a.Get(i)
 }
 
-func (a *dynamicArray) swap(i int64, j int64) {
+func (a *dynamicArray) swap(i int, j int) {
 	x := a.sortGet(i)
 	y := a.sortGet(j)
 	a.a.Set(int(i), y)

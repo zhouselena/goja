@@ -164,6 +164,11 @@ type compiledLogicalOr struct {
 	left, right compiledExpr
 }
 
+type compiledCoalesce struct {
+	baseCompiledExpr
+	left, right compiledExpr
+}
+
 type compiledLogicalAnd struct {
 	baseCompiledExpr
 	left, right compiledExpr
@@ -781,6 +786,11 @@ func (e *compiledAssignExpr) emitGetter(putOnStack bool) {
 		e.left.emitUnary(nil, func() {
 			e.right.emitGetter(true)
 			e.c.emit(mul)
+		}, false, putOnStack)
+	case token.EXPONENT:
+		e.left.emitUnary(nil, func() {
+			e.right.emitGetter(true)
+			e.c.emit(exp)
 		}, false, putOnStack)
 	case token.SLASH:
 		e.left.emitUnary(nil, func() {
@@ -1639,9 +1649,49 @@ func (e *compiledLogicalOr) emitGetter(putOnStack bool) {
 	j := len(e.c.p.code)
 	e.addSrcMap()
 	e.c.emit(nil)
-	e.c.emit(pop)
 	e.c.emitExpr(e.right, true)
 	e.c.p.code[j] = jeq1(len(e.c.p.code) - j)
+	if !putOnStack {
+		e.c.emit(pop)
+	}
+}
+
+func (e *compiledCoalesce) constant() bool {
+	if e.left.constant() {
+		if v, ex := e.c.evalConst(e.left); ex == nil {
+			if v != _null && v != _undefined {
+				return true
+			}
+			return e.right.constant()
+		} else {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e *compiledCoalesce) emitGetter(putOnStack bool) {
+	if e.left.constant() {
+		if v, ex := e.c.evalConst(e.left); ex == nil {
+			if v == _undefined || v == _null {
+				e.c.emitExpr(e.right, putOnStack)
+			} else {
+				if putOnStack {
+					e.c.emit(loadVal(e.c.p.defineLiteralValue(v)))
+				}
+			}
+		} else {
+			e.c.emitThrow(ex.val)
+		}
+		return
+	}
+	e.c.emitExpr(e.left, true)
+	j := len(e.c.p.code)
+	e.addSrcMap()
+	e.c.emit(nil)
+	e.c.emitExpr(e.right, true)
+	e.c.p.code[j] = jcoalesc(len(e.c.p.code) - j)
 	if !putOnStack {
 		e.c.emit(pop)
 	}
@@ -1681,7 +1731,6 @@ func (e *compiledLogicalAnd) emitGetter(putOnStack bool) {
 	j = len(e.c.p.code)
 	e.addSrcMap()
 	e.c.emit(nil)
-	e.c.emit(pop)
 	e.c.emitExpr(e.right, true)
 	e.c.p.code[j] = jneq1(len(e.c.p.code) - j)
 	if !putOnStack {
@@ -1721,6 +1770,8 @@ func (e *compiledBinaryExpr) emitGetter(putOnStack bool) {
 		e.c.emit(sub)
 	case token.MULTIPLY:
 		e.c.emit(mul)
+	case token.EXPONENT:
+		e.c.emit(exp)
 	case token.SLASH:
 		e.c.emit(div)
 	case token.REMAINDER:
@@ -1755,6 +1806,8 @@ func (c *compiler) compileBinaryExpression(v *ast.BinaryExpression) compiledExpr
 	switch v.Operator {
 	case token.LOGICAL_OR:
 		return c.compileLogicalOr(v.Left, v.Right, v.Idx0())
+	case token.COALESCE:
+		return c.compileCoalesce(v.Left, v.Right, v.Idx0())
 	case token.LOGICAL_AND:
 		return c.compileLogicalAnd(v.Left, v.Right, v.Idx0())
 	}
@@ -1770,6 +1823,15 @@ func (c *compiler) compileBinaryExpression(v *ast.BinaryExpression) compiledExpr
 
 func (c *compiler) compileLogicalOr(left, right ast.Expression, idx file.Idx) compiledExpr {
 	r := &compiledLogicalOr{
+		left:  c.compileExpression(left),
+		right: c.compileExpression(right),
+	}
+	r.init(c, idx)
+	return r
+}
+
+func (c *compiler) compileCoalesce(left, right ast.Expression, idx file.Idx) compiledExpr {
+	r := &compiledCoalesce{
 		left:  c.compileExpression(left),
 		right: c.compileExpression(right),
 	}
@@ -1967,6 +2029,8 @@ func (c *compiler) emitCallee(callee compiledExpr) (calleeName unistring.String)
 		c.endOptChain()
 	case *compiledOptional:
 		c.emitCallee(callee.expr)
+		c.block.conts = append(c.block.conts, len(c.p.code))
+		c.emit(nil)
 	default:
 		c.emit(loadUndef)
 		callee.emitGetter(true)
@@ -2412,6 +2476,9 @@ func (c *compiler) endOptChain() {
 	lbl := len(c.p.code)
 	for _, item := range c.block.breaks {
 		c.p.code[item] = jopt(lbl - item)
+	}
+	for _, item := range c.block.conts {
+		c.p.code[item] = joptc(lbl - item)
 	}
 	c.block = c.block.outer
 }
