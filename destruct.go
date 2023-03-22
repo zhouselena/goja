@@ -300,6 +300,10 @@ func (d *destructKeyedSource) _putSym(s *Symbol, prop Value) {
 	d.w()._putSym(s, prop)
 }
 
+func (d *destructKeyedSource) getPrivateEnv(typ *privateEnvType, create bool) *privateElements {
+	return d.w().getPrivateEnv(typ, create)
+}
+
 func (d *destructKeyedSource) MemUsage(ctx *MemUsageContext) (uint64, error) {
 	if d.wrapped == nil {
 		return 0, nil

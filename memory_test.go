@@ -203,10 +203,10 @@ func TestMemCheck(t *testing.T) {
 		{
 			"array with non-numeric keys",
 			`x = []
-			x["a"] = 3;
+			x[0] = 3;
 			checkMem()
-			x[2] = "abc";
-			x["c"] = 3;
+			x["a"] = "abc";
+			x[1] = 3;
 			checkMem()
 			`,
 			// len("abc") + len("a") + SizeNumber

@@ -24,7 +24,7 @@ func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object {
 	}
 	sb.WriteString(asciiString("\n})"))
 
-	ret := r.toObject(r.eval(sb.String(), false, false, _undefined))
+	ret := r.toObject(r.eval(sb.String(), false, false))
 	ret.self.setProto(proto, true)
 	return ret
 }
@@ -33,9 +33,11 @@ func (r *Runtime) functionproto_toString(call FunctionCall) Value {
 	obj := r.toObject(call.This)
 repeat:
 	switch f := obj.self.(type) {
-	case *methodFuncObject:
-		return newStringValue(f.src)
 	case *funcObject:
+		return newStringValue(f.src)
+	case *classFuncObject:
+		return newStringValue(f.src)
+	case *methodFuncObject:
 		return newStringValue(f.src)
 	case *arrowFuncObject:
 		return newStringValue(f.src)
@@ -49,7 +51,7 @@ repeat:
 	case *proxyObject:
 	repeat2:
 		switch c := f.target.self.(type) {
-		case *methodFuncObject, *funcObject, *arrowFuncObject, *nativeFuncObject, *boundFuncObject:
+		case *classFuncObject, *methodFuncObject, *funcObject, *arrowFuncObject, *nativeFuncObject, *boundFuncObject:
 			return asciiString("function () { [native code] }")
 		case *lazyObject:
 			f.target.self = c.create(obj)
@@ -132,7 +134,7 @@ func (r *Runtime) boundCallable(ctx context.Context, target func(FunctionCall) V
 	}
 }
 
-func (r *Runtime) boundConstruct(target func([]Value, *Object) *Object, boundArgs []Value) func([]Value, *Object) *Object {
+func (r *Runtime) boundConstruct(f *Object, target func([]Value, *Object) *Object, boundArgs []Value) func([]Value, *Object) *Object {
 	if target == nil {
 		return nil
 	}
@@ -143,7 +145,9 @@ func (r *Runtime) boundConstruct(target func([]Value, *Object) *Object, boundArg
 	}
 	return func(fargs []Value, newTarget *Object) *Object {
 		a := append(args, fargs...)
-		copy(a, args)
+		if newTarget == f {
+			newTarget = nil
+		}
 		return target(a, newTarget)
 	}
 }
@@ -191,12 +195,13 @@ lenNotInt:
 	}
 
 	v := &Object{runtime: r}
-
-	ff := r.newNativeFuncObj(v, r.boundCallable(call.ctx, fcall, call.Arguments), r.boundConstruct(construct, call.Arguments), nameStr.string(), nil, l)
-	v.self = &boundFuncObject{
+	ff := r.newNativeFuncAndConstruct(v, r.boundCallable(call.ctx, fcall, call.Arguments), r.boundConstruct(v, construct, call.Arguments), nil, nameStr.string(), l)
+	bf := &boundFuncObject{
 		nativeFuncObject: *ff,
 		wrapped:          obj,
 	}
+	bf.prototype = obj.self.proto()
+	v.self = bf
 
 	return v
 }

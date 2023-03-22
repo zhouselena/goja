@@ -207,6 +207,5 @@ func (r *Runtime) CreateNativeFunction(name, file string, call func(FunctionCall
 }
 
 func (r *Runtime) Eval(name, src string, direct, strict bool) (Value, error) {
-	this := r.NewObject()
-	return r.common_eval(name, src, direct, strict, this), nil
+	return r.common_eval(name, src, direct, strict), nil
 }

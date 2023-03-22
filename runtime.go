@@ -15,12 +15,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dop251/goja/file"
-
 	"golang.org/x/text/collate"
 	"golang.org/x/time/rate"
 
 	js_ast "github.com/dop251/goja/ast"
+	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/parser"
 	"github.com/dop251/goja/unistring"
 )
@@ -648,6 +647,21 @@ func (r *Runtime) newFunc(name unistring.String, length int, strict bool) (f *fu
 	return
 }
 
+func (r *Runtime) newClassFunc(name unistring.String, length int, proto *Object, derived bool) (f *classFuncObject) {
+	v := &Object{runtime: r}
+
+	f = &classFuncObject{}
+	f.class = classFunction
+	f.val = v
+	f.extensible = true
+	f.strict = true
+	f.derived = derived
+	v.self = f
+	f.prototype = proto
+	f.init(name, intToValue(int64(length)))
+	return
+}
+
 func (r *Runtime) newMethod(name unistring.String, length int, strict bool) (f *methodFuncObject) {
 	v := &Object{runtime: r}
 
@@ -672,14 +686,7 @@ func (r *Runtime) newArrowFunc(name unistring.String, length int, strict bool) (
 	f.strict = strict
 
 	vm := r.vm
-	var this Value
-	if vm.sb >= 0 {
-		this = vm.stack[vm.sb]
-	} else {
-		this = vm.r.globalObject
-	}
 
-	f.this = this
 	f.newTarget = vm.newTarget
 	v.self = f
 	f.prototype = r.global.FunctionPrototype
@@ -756,6 +763,18 @@ func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name 
 }
 
 func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newTarget *Object) *Object, defaultProto *Object, name unistring.String, length int64) *nativeFuncObject {
+	return r.newNativeFuncAndConstruct(v, func(call FunctionCall) Value {
+		return ctor(call.Arguments, nil)
+	},
+		func(args []Value, newTarget *Object) *Object {
+			if newTarget == nil {
+				newTarget = v
+			}
+			return ctor(args, newTarget)
+		}, defaultProto, name, intToValue(length))
+}
+
+func (r *Runtime) newNativeFuncAndConstruct(v *Object, call func(call FunctionCall) Value, ctor func(args []Value, newTarget *Object) *Object, defaultProto *Object, name unistring.String, l Value) *nativeFuncObject {
 	if v == nil {
 		v = &Object{runtime: r}
 	}
@@ -771,18 +790,11 @@ func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newT
 				prototype:  r.global.FunctionPrototype,
 			},
 		},
-		f: func(call FunctionCall) Value {
-			return ctor(call.Arguments, nil)
-		},
-		construct: func(args []Value, newTarget *Object) *Object {
-			if newTarget == nil {
-				newTarget = v
-			}
-			return ctor(args, newTarget)
-		},
+		f:         call,
+		construct: ctor,
 	}
 	v.self = f
-	f.init(name, intToValue(length))
+	f.init(name, l)
 	if defaultProto != nil {
 		f._putProp("prototype", defaultProto, false, false, false)
 	}
@@ -968,45 +980,52 @@ func (r *Runtime) builtin_thrower(call FunctionCall) Value {
 	return nil
 }
 
-func (r *Runtime) common_eval(name, src string, direct, strict bool, this Value) Value {
+func (r *Runtime) common_eval(name, src string, direct, strict bool) Value {
 	vm := r.vm
 	inGlobal := true
 	if direct {
 		for s := vm.stash; s != nil; s = s.outer {
-			if s.variable {
+			if s.isVariable() {
 				inGlobal = false
 				break
 			}
 		}
 	}
-	p, err := r.compile("<eval>", src, strict, true, inGlobal)
+	vm.pushCtx()
+	funcObj := _undefined
+	if !direct {
+		vm.stash = &r.global.stash
+		vm.privEnv = nil
+	} else {
+		if sb := vm.sb; sb > 0 {
+			funcObj = vm.stack[sb-1]
+		}
+	}
+	p, err := r.compile("<eval>", src, strict, inGlobal, r.vm)
 	if err != nil {
 		panic(err)
 	}
 
-	vm.pushCtx()
 	vm.prg = p
 	vm.pc = 0
 	vm.args = 0
 	vm.result = _undefined
-	if !direct {
-		vm.stash = &r.global.stash
-	}
+	vm.push(funcObj)
 	vm.sb = vm.sp
-	vm.push(this)
+	vm.push(nil) // this
 	vm.run()
 	retval := vm.result
 	vm.popCtx()
 	vm.halt = false
-	vm.sp -= 1
+	vm.sp -= 2
 	return retval
 }
 
-func (r *Runtime) eval(srcVal valueString, direct, strict bool, this Value) Value {
+func (r *Runtime) eval(srcVal valueString, direct, strict bool) Value {
 	src := escapeInvalidUtf16(srcVal)
 	// Both eval and Eval share the same logic, any change the goja team
 	// makes to the "eval" function should be reflected in "common_eval"
-	return r.common_eval("<eval>", src, direct, strict, this)
+	return r.common_eval("<eval>", src, direct, strict)
 }
 
 func (r *Runtime) builtin_eval(call FunctionCall) Value {
@@ -1014,7 +1033,7 @@ func (r *Runtime) builtin_eval(call FunctionCall) Value {
 		return _undefined
 	}
 	if str, ok := call.Arguments[0].(valueString); ok {
-		return r.eval(str, false, false, r.globalObject)
+		return r.eval(str, false, false)
 	}
 	return call.Arguments[0]
 }
@@ -1403,14 +1422,14 @@ func NewWithContext(ctx context.Context) *Runtime {
 // method. This representation is not linked to a runtime in any way and can be run in multiple runtimes (possibly
 // at the same time).
 func Compile(name, src string, strict bool) (*Program, error) {
-	return compile(name, src, strict, false, true)
+	return compile(name, src, strict, true, nil)
 }
 
 // CompileAST creates an internal representation of the JavaScript code that can be later run using the Runtime.RunProgram()
 // method. This representation is not linked to a runtime in any way and can be run in multiple runtimes (possibly
 // at the same time).
 func CompileAST(prg *js_ast.Program, strict bool) (*Program, error) {
-	return compileAST(prg, strict, false, true)
+	return compileAST(prg, strict, true, nil)
 }
 
 // MustCompile is like Compile but panics if the code cannot be compiled.
@@ -1446,16 +1465,16 @@ func Parse(name, src string, options ...parser.Option) (prg *js_ast.Program, err
 	return
 }
 
-func compile(name, src string, strict, eval, inGlobal bool, parserOptions ...parser.Option) (p *Program, err error) {
+func compile(name, src string, strict, inGlobal bool, evalVm *vm, parserOptions ...parser.Option) (p *Program, err error) {
 	prg, err := Parse(name, src, parserOptions...)
 	if err != nil {
 		return
 	}
 
-	return compileAST(prg, strict, eval, inGlobal)
+	return compileAST(prg, strict, inGlobal, evalVm)
 }
 
-func compileAST(prg *js_ast.Program, strict, eval, inGlobal bool) (p *Program, err error) {
+func compileAST(prg *js_ast.Program, strict, inGlobal bool, evalVm *vm) (p *Program, err error) {
 	c := newCompiler()
 
 	defer func() {
@@ -1470,13 +1489,13 @@ func compileAST(prg *js_ast.Program, strict, eval, inGlobal bool) (p *Program, e
 		}
 	}()
 
-	c.compile(prg, strict, eval, inGlobal)
+	c.compile(prg, strict, inGlobal, evalVm)
 	p = c.p
 	return
 }
 
-func (r *Runtime) compile(name, src string, strict, eval, inGlobal bool) (p *Program, err error) {
-	p, err = compile(name, src, strict, eval, inGlobal, r.parserOptions...)
+func (r *Runtime) compile(name, src string, strict, inGlobal bool, evalVm *vm) (p *Program, err error) {
+	p, err = compile(name, src, strict, inGlobal, evalVm, r.parserOptions...)
 	if err != nil {
 		switch x1 := err.(type) {
 		case *CompilerSyntaxError:
@@ -1501,7 +1520,7 @@ func (r *Runtime) RunString(str string) (Value, error) {
 
 // RunScript executes the given string in the global context.
 func (r *Runtime) RunScript(name, src string) (Value, error) {
-	p, err := r.compile(name, src, false, false, true)
+	p, err := r.compile(name, src, false, true, nil)
 
 	if err != nil {
 		return nil, err
@@ -1845,10 +1864,10 @@ func (r *Runtime) ToValue(i interface{}) Value {
 	case nil:
 		return _null
 	case *Object:
-		if i == nil || i.runtime == nil {
+		if i == nil || i.self == nil {
 			return _null
 		}
-		if i.runtime != r {
+		if i.runtime != nil && i.runtime != r {
 			panic(r.NewTypeError("Illegal runtime transition of an Object"))
 		}
 		return i
@@ -2523,42 +2542,67 @@ func ToFunctionWithContext(v Value) (CallableWithContext, bool) {
 }
 
 // AssertFunction checks if the Value is a function and returns a Callable.
+// Note, for classes this returns a callable and a 'true', however calling it will always result in a TypeError.
+// For classes use AssertConstructor().
 func AssertFunction(v Value) (Callable, bool) {
 	if obj, ok := v.(*Object); ok {
 		if f, ok := obj.self.assertCallable(); ok {
 			return func(this Value, args ...Value) (ret Value, err error) {
-				defer func() {
-					if x := recover(); x != nil {
-						if ex, ok := x.(*uncatchableException); ok {
-							err = ex.err
-							if len(obj.runtime.vm.callStack) == 0 {
-								obj.runtime.leaveAbrupt()
-							}
-						} else {
-							panic(x)
-						}
-					}
-				}()
-				ex := obj.runtime.vm.try(obj.runtime.vm.ctx, func() {
+				err = obj.runtime.runWrapped(func() {
 					ret = f(FunctionCall{
 						ctx:       obj.runtime.vm.ctx,
 						This:      this,
 						Arguments: args,
 					})
 				})
-				if ex != nil {
-					err = ex
-				}
-				vm := obj.runtime.vm
-				vm.clearStack()
-				if len(vm.callStack) == 0 {
-					obj.runtime.leave()
-				}
 				return
 			}, true
 		}
 	}
 	return nil, false
+}
+
+// Constructor is a type that can be used to call constructors. The first argument (newTarget) can be nil
+// which sets it to the constructor function itself.
+type Constructor func(newTarget *Object, args ...Value) (*Object, error)
+
+// AssertConstructor checks if the Value is a constructor and returns a Constructor.
+func AssertConstructor(v Value) (Constructor, bool) {
+	if obj, ok := v.(*Object); ok {
+		if ctor := obj.self.assertConstructor(); ctor != nil {
+			return func(newTarget *Object, args ...Value) (ret *Object, err error) {
+				err = obj.runtime.runWrapped(func() {
+					ret = ctor(args, newTarget)
+				})
+				return
+			}, true
+		}
+	}
+	return nil, false
+}
+
+func (r *Runtime) runWrapped(f func()) (err error) {
+	defer func() {
+		if x := recover(); x != nil {
+			if ex, ok := x.(*uncatchableException); ok {
+				err = ex.err
+				if len(r.vm.callStack) == 0 {
+					r.leaveAbrupt()
+				}
+			} else {
+				panic(x)
+			}
+		}
+	}()
+	ex := r.vm.try(r.vm.ctx, f)
+	if ex != nil {
+		err = ex
+	}
+	r.vm.clearStack()
+	if len(r.vm.callStack) == 0 {
+		r.leave()
+	}
+	return
 }
 
 // IsUndefined returns true if the supplied Value is undefined. Note, it checks against the real undefined, not

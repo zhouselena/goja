@@ -2839,7 +2839,7 @@ func TestExceptionWithinAppliedNativeFunc(t *testing.T) {
 
 	expected := `TypeError: oh no!
 	at myNativeFunc (native)
-	at myFunc (<eval>:3:28(5))
+	at myFunc (<eval>:3:28(4))
 	at <eval>:5:8(4)
 `
 	if ex.String() != expected {
@@ -2892,7 +2892,7 @@ func TestExceptionWithinAppliedObjectFunc(t *testing.T) {
 	expected := `Error: oh no!
 	at foo (<eval>:4:10(6))
 	at apply (native)
-	at myFunc (<eval>:9:19(5))
+	at myFunc (<eval>:9:19(4))
 	at <eval>:12:8(4)
 `
 	if ex.String() != expected {
