@@ -54,6 +54,7 @@ var (
 	reflectTypeArray  = reflect.TypeOf([]interface{}{})
 	reflectTypeString = reflect.TypeOf("")
 	reflectTypeFunc   = reflect.TypeOf((func(FunctionCall) Value)(nil))
+	reflectTypeError  = reflect.TypeOf((*error)(nil)).Elem()
 )
 
 var intCache [256]Value
@@ -1359,8 +1360,20 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 	return ctx.buf.Bytes(), nil
 }
 
-// Class returns the class name
+// UnmarshalJSON implements the json.Unmarshaler interface. It is added to compliment MarshalJSON, because
+// some alternative JSON encoders refuse to use MarshalJSON unless UnmarshalJSON is also present.
+// It is a no-op and always returns nil.
+func (o *Object) UnmarshalJSON([]byte) error {
+	return nil
+}
+
+// Class returns the class name (otto compatibility)
 func (o *Object) Class() string {
+	return o.self.className()
+}
+
+// ClassName returns the class name
+func (o *Object) ClassName() string {
 	return o.self.className()
 }
 

@@ -273,6 +273,54 @@ func TestGoReflectMethodPtr(t *testing.T) {
 	}
 }
 
+func (b *testBoolS) Method() bool {
+	return bool(*b)
+}
+
+func TestGoReflectPtrMethodOnNonPtrValue(t *testing.T) {
+	var o testGoReflectMethod_O
+	o.Get()
+	vm := New()
+	vm.Set("o", o)
+	_, err := vm.RunString(`o.Get()`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vm.RunString(`o.Method()`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b testBoolS
+	vm.Set("b", b)
+	_, err = vm.RunString(`b.Method()`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGoReflectStructField(t *testing.T) {
+	type S struct {
+		F testGoReflectMethod_O
+		B testBoolS
+	}
+	var s S
+	vm := New()
+	vm.Set("s", &s)
+
+	const SCRIPT = `
+	s.F.Set("Test");
+	assert.sameValue(s.F.Method(""), "Test", "1");
+
+	s.B = true;
+	assert.sameValue(s.B.Method(), true, "2");
+
+	assert.sameValue(s.B.toString(), "B", "3");
+	`
+
+	vm.testScriptWithTestLib(SCRIPT, _undefined, t)
+}
+
 func TestGoReflectProp(t *testing.T) {
 	const SCRIPT = `
 	var d1 = Object.getOwnPropertyDescriptor(o, "Get");
@@ -1245,6 +1293,25 @@ func TestGoReflectCopyOnWrite(t *testing.T) {
 	}
 }
 
+func TestReflectSetReflectValue(t *testing.T) {
+	o := []testGoReflectMethod_O{{}}
+	vm := New()
+	vm.Set("o", o)
+	_, err := vm.RunString(`
+		const t = o[0];
+		t.Set("a");
+		o[0] = {};
+		o[0].Set("b");
+		if (t.Get() !== "a") {
+			throw new Error();
+		}
+	`)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestReflectOverwriteReflectMap(t *testing.T) {
 	vm := New()
 	type S struct {
@@ -1452,4 +1519,43 @@ func TestGoReflectToPrimitive(t *testing.T) {
 			f("+s", _NaN, t)
 		})
 	})
+}
+
+type testGoReflectFuncRt struct {
+}
+
+func (*testGoReflectFuncRt) M(call FunctionCall, r *Runtime) Value {
+	if r == nil {
+		panic(typeError("Runtime is nil"))
+	}
+	return call.Argument(0)
+}
+
+func (*testGoReflectFuncRt) C(call ConstructorCall, r *Runtime) *Object {
+	if r == nil {
+		panic(typeError("Runtime is nil in constructor"))
+	}
+	call.This.Set("r", call.Argument(0))
+	return nil
+}
+
+func TestGoReflectFuncWithRuntime(t *testing.T) {
+	vm := New()
+	var s testGoReflectFuncRt
+	vm.Set("s", &s)
+	res, err := vm.RunString("s.M(true)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != valueTrue {
+		t.Fatal(res)
+	}
+
+	res, err = vm.RunString("new s.C(true).r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != valueTrue {
+		t.Fatal(res)
+	}
 }

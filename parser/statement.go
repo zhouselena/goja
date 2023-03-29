@@ -3,7 +3,7 @@ package parser
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/dop251/goja/ast"
@@ -488,6 +488,7 @@ func (self *_parser) parseCaseStatement() *ast.CaseStatement {
 			self.token == token.DEFAULT {
 			break
 		}
+		self.scope.allowLet = true
 		node.Consequent = append(node.Consequent, self.parseStatement())
 
 	}
@@ -843,7 +844,7 @@ func (self *_parser) parseSourceMap() file.SourceMapConsumer {
 					data, err = self.opts.sourceMapLoader(sourceURL.String())
 				} else {
 					if sourceURL.Scheme == "" || sourceURL.Scheme == "file" {
-						data, err = ioutil.ReadFile(sourceURL.Path)
+						data, err = os.ReadFile(sourceURL.Path)
 					} else {
 						err = fmt.Errorf("unsupported source map URL scheme: %s", sourceURL.Scheme)
 					}

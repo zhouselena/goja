@@ -179,7 +179,9 @@ type Runtime struct {
 
 	symbolRegistry map[unistring.String]*Symbol
 
-	typeInfoCache   map[reflect.Type]*reflectTypeInfo
+	fieldsInfoCache  map[reflect.Type]*reflectFieldsInfo
+	methodsInfoCache map[reflect.Type]*reflectMethodsInfo
+
 	fieldNameMapper FieldNameMapper
 
 	vm    *vm
@@ -828,6 +830,30 @@ func (r *Runtime) newNativeFunc(call func(FunctionCall) Value, construct func(ar
 	return v
 }
 
+func (r *Runtime) newWrappedFunc(value reflect.Value) *Object {
+
+	v := &Object{runtime: r}
+
+	f := &wrappedFuncObject{
+		nativeFuncObject: nativeFuncObject{
+			baseFuncObject: baseFuncObject{
+				baseObject: baseObject{
+					class:      classFunction,
+					val:        v,
+					extensible: true,
+					prototype:  r.global.FunctionPrototype,
+				},
+			},
+			f: r.wrapReflectFunc(value),
+		},
+		wrapped: value,
+	}
+	v.self = f
+	name := unistring.NewFromString(runtime.FuncForPC(value.Pointer()).Name())
+	f.init(name, intToValue(int64(value.Type().NumIn())))
+	return v
+}
+
 func (r *Runtime) newNativeFuncConstructObj(v *Object, construct func(args []Value, proto *Object) *Object, name unistring.String, proto *Object, length int) *nativeFuncObject {
 	f := &nativeFuncObject{
 		ctx: r.vm.ctx,
@@ -935,34 +961,6 @@ func (r *Runtime) builtin_newBoolean(args []Value, proto *Object) *Object {
 // TODO(REALMC-10739) return the actual stack trace
 func (r *Runtime) error_captureStackTrace(call FunctionCall) Value {
 	return newStringValue("")
-}
-
-func (r *Runtime) error_toString(call FunctionCall) Value {
-	var nameStr, msgStr valueString
-	obj := r.toObject(call.This)
-	name := obj.self.getStr("name", nil)
-	if name == nil || name == _undefined {
-		nameStr = asciiString("Error")
-	} else {
-		nameStr = name.toString()
-	}
-	msg := obj.self.getStr("message", nil)
-	if msg == nil || msg == _undefined {
-		msgStr = stringEmpty
-	} else {
-		msgStr = msg.toString()
-	}
-	if nameStr.length() == 0 {
-		return msgStr
-	}
-	if msgStr.length() == 0 {
-		return nameStr
-	}
-	var sb valueStringBuilder
-	sb.WriteString(nameStr)
-	sb.WriteString(asciiString(": "))
-	sb.WriteString(msgStr)
-	return sb.String()
 }
 
 func (r *Runtime) builtin_new(construct *Object, args []Value) *Object {
@@ -1714,6 +1712,10 @@ UTF-8) conversion from JS to Go may be lossy. In particular, code points that ca
 (0xD800-0xDFFF) cannot be represented in UTF-8 unless they form a valid surrogate pair and are replaced with
 utf8.RuneError.
 
+The string value must be a valid UTF-8. If it is not, invalid characters are replaced with utf8.RuneError, but
+the behaviour of a subsequent Export() is unspecified (it may return the original value, or a value with replaced
+invalid characters).
+
 # Nil
 
 Nil is converted to null.
@@ -1729,27 +1731,27 @@ func(FunctionCall, *Runtime) Value is treated as above, except the *Runtime is a
 func(ConstructorCall) *Object is treated as a native constructor, allowing to use it with the new
 operator:
 
-		func MyObject(call goja.ConstructorCall) *goja.Object {
-		   // call.This contains the newly created object as per http://www.ecma-international.org/ecma-262/5.1/index.html#sec-13.2.2
-		   // call.Arguments contain arguments passed to the function
+	func MyObject(call goja.ConstructorCall) *goja.Object {
+	   // call.This contains the newly created object as per http://www.ecma-international.org/ecma-262/5.1/index.html#sec-13.2.2
+	   // call.Arguments contain arguments passed to the function
 
-		   call.This.Set("method", method)
+	   call.This.Set("method", method)
 
-		   //...
+	   //...
 
-	    // If return value is a non-nil *Object, it will be used instead of call.This
-	    // This way it is possible to return a Go struct or a map converted
-	    // into goja.Value using ToValue(), however in this case
-	    // instanceof will not work as expected, unless you set the prototype:
-	    //
-	    // instance := &myCustomStruct{}
-	    // instanceValue := vm.ToValue(instance).(*Object)
-	    // instanceValue.SetPrototype(call.This.Prototype())
-	    // return instanceValue
-	    return nil
-	 }
+	   // If return value is a non-nil *Object, it will be used instead of call.This
+	   // This way it is possible to return a Go struct or a map converted
+	   // into goja.Value using ToValue(), however in this case
+	   // instanceof will not work as expected, unless you set the prototype:
+	   //
+	   // instance := &myCustomStruct{}
+	   // instanceValue := vm.ToValue(instance).(*Object)
+	   // instanceValue.SetPrototype(call.This.Prototype())
+	   // return instanceValue
+	   return nil
+	}
 
-		runtime.Set("MyObject", MyObject)
+	runtime.Set("MyObject", MyObject)
 
 Then it can be used in JS as follows:
 
@@ -1860,6 +1862,10 @@ Note that the underlying type is not lost, calling Export() returns the original
 reflect based types.
 */
 func (r *Runtime) ToValue(i interface{}) Value {
+	return r.toValue(i, reflect.Value{})
+}
+
+func (r *Runtime) toValue(i interface{}, origValue reflect.Value) Value {
 	switch i := i.(type) {
 	case nil:
 		return _null
@@ -1876,7 +1882,13 @@ func (r *Runtime) ToValue(i interface{}) Value {
 	case Value:
 		return i
 	case string:
-		return newStringValue(i)
+		if len(i) <= 16 {
+			if u := unistring.Scan(i); u != nil {
+				return &importedString{s: i, u: u, scanned: true}
+			}
+			return asciiString(i)
+		}
+		return &importedString{s: i}
 	case bool:
 		if i {
 			return valueTrue
@@ -1955,9 +1967,6 @@ func (r *Runtime) ToValue(i interface{}) Value {
 		m.init()
 		return obj
 	case []interface{}:
-		if i == nil {
-			return _null
-		}
 		return r.newObjectGoSlice(&i).val
 	case *[]interface{}:
 		if i == nil {
@@ -1966,13 +1975,13 @@ func (r *Runtime) ToValue(i interface{}) Value {
 		return r.newObjectGoSlice(i).val
 	}
 
-	return r.reflectValueToValue(reflect.ValueOf(i))
-}
+	if !origValue.IsValid() {
+		origValue = reflect.ValueOf(i)
+	}
 
-func (r *Runtime) reflectValueToValue(origValue reflect.Value) Value {
 	value := origValue
 	for value.Kind() == reflect.Ptr {
-		value = reflect.Indirect(value)
+		value = value.Elem()
 	}
 
 	if !value.IsValid() {
@@ -1994,8 +2003,8 @@ func (r *Runtime) reflectValueToValue(origValue reflect.Value) Value {
 							val:        obj,
 							extensible: true,
 						},
-						origValue: origValue,
-						value:     value,
+						origValue:   origValue,
+						fieldsValue: value,
 					},
 				}
 				m.init()
@@ -2010,8 +2019,8 @@ func (r *Runtime) reflectValueToValue(origValue reflect.Value) Value {
 				baseObject: baseObject{
 					val: obj,
 				},
-				origValue: origValue,
-				value:     value,
+				origValue:   origValue,
+				fieldsValue: value,
 			},
 		}
 		a.init()
@@ -2025,8 +2034,8 @@ func (r *Runtime) reflectValueToValue(origValue reflect.Value) Value {
 					baseObject: baseObject{
 						val: obj,
 					},
-					origValue: origValue,
-					value:     value,
+					origValue:   origValue,
+					fieldsValue: value,
 				},
 			},
 		}
@@ -2034,8 +2043,7 @@ func (r *Runtime) reflectValueToValue(origValue reflect.Value) Value {
 		obj.self = a
 		return obj
 	case reflect.Func:
-		name := unistring.NewFromString(runtime.FuncForPC(value.Pointer()).Name())
-		return r.newNativeFunc(r.wrapReflectFunc(value), nil, name, nil, value.Type().NumIn())
+		return r.newWrappedFunc(value)
 	}
 
 	obj := &Object{runtime: r}
@@ -2043,8 +2051,8 @@ func (r *Runtime) reflectValueToValue(origValue reflect.Value) Value {
 		baseObject: baseObject{
 			val: obj,
 		},
-		origValue: origValue,
-		value:     value,
+		origValue:   origValue,
+		fieldsValue: value,
 	}
 	obj.self = o
 	o.init()
@@ -2325,10 +2333,11 @@ func (r *Runtime) wrapJSFunc(fn Callable, typ reflect.Type) func(args []reflect.
 			jsArgs[i] = r.ToValue(arg.Interface())
 		}
 
-		results = make([]reflect.Value, typ.NumOut())
+		numOut := typ.NumOut()
+		results = make([]reflect.Value, numOut)
 		res, err := fn(_undefined, jsArgs...)
 		if err == nil {
-			if typ.NumOut() > 0 {
+			if numOut > 0 {
 				v := reflect.New(typ.Out(0)).Elem()
 				err = r.toReflectValue(res, v, &objectExportCtx{})
 				if err == nil {
@@ -2338,8 +2347,17 @@ func (r *Runtime) wrapJSFunc(fn Callable, typ reflect.Type) func(args []reflect.
 		}
 
 		if err != nil {
-			if typ.NumOut() == 2 && typ.Out(1).Name() == "error" {
-				results[1] = reflect.ValueOf(err).Convert(typ.Out(1))
+			if numOut > 0 && typ.Out(numOut-1) == reflectTypeError {
+				if ex, ok := err.(*Exception); ok {
+					if exo, ok := ex.val.(*Object); ok {
+						if v := exo.self.getStr("value", nil); v != nil {
+							if v.ExportType().AssignableTo(reflectTypeError) {
+								err = v.Export().(error)
+							}
+						}
+					}
+				}
+				results[numOut-1] = reflect.ValueOf(err).Convert(typ.Out(numOut - 1))
 			} else {
 				panic(err)
 			}
@@ -2374,13 +2392,9 @@ func (r *Runtime) wrapJSFunc(fn Callable, typ reflect.Type) func(args []reflect.
 // Exporting to a 'func' creates a strictly typed 'gateway' into an ES function which can be called from Go.
 // The arguments are converted into ES values using Runtime.ToValue(). If the func has no return values,
 // the return value is ignored. If the func has exactly one return value, it is converted to the appropriate
-// type using ExportTo(). If the func has exactly 2 return values and the second value is 'error', exceptions
-// are caught and returned as *Exception. In all other cases exceptions result in a panic. Any extra return values
-// are zeroed.
-//
-// Note, if you want to catch and return exceptions as an `error` and you don't need the return value,
-// 'func(...) error' will not work as expected. The 'error' in this case is mapped to the function return value, not
-// the exception which will still result in a panic. Use 'func(...) (Value, error)' instead, and ignore the Value.
+// type using ExportTo(). If the last return value is 'error', exceptions are caught and returned as *Exception
+// (instances of GoError are unwrapped, i.e. their 'value' is returned instead). In all other cases exceptions
+// result in a panic. Any extra return values are zeroed.
 //
 // 'this' value will always be set to 'undefined'.
 //
@@ -2797,7 +2811,15 @@ func (r *Runtime) getIterator(obj Value, method func(FunctionCall) Value) *itera
 		ctx:  r.vm.ctx,
 		This: obj,
 	}))
-	next := toMethod(iter.self.getStr("next", nil))
+
+	var next func(FunctionCall) Value
+
+	if obj, ok := iter.self.getStr("next", nil).(*Object); ok {
+		if call, ok := obj.self.assertCallable(); ok {
+			next = call
+		}
+	}
+
 	return &iteratorRecord{
 		iterator: iter,
 		next:     next,
@@ -2808,6 +2830,9 @@ func (r *Runtime) getIterator(obj Value, method func(FunctionCall) Value) *itera
 func (ir *iteratorRecord) iterate(step func(Value)) {
 	r := ir.iterator.runtime
 	for {
+		if ir.next == nil {
+			panic(r.NewTypeError("iterator.next is missing or not a function"))
+		}
 		res := r.toObject(ir.next(FunctionCall{ctx: ir.ctx, This: ir.iterator}))
 		if nilSafe(res.self.getStr("done", nil)).ToBoolean() {
 			break

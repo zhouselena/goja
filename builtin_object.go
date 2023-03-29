@@ -428,26 +428,6 @@ func (r *Runtime) object_values(call FunctionCall) Value {
 	return r.newArrayValues(values)
 }
 
-func (r *Runtime) object_fromEntries(call FunctionCall) Value {
-	object := call.Argument(0).ToObject(r)
-	if object == nil || !isArray(object) {
-		panic(r.NewTypeError("Object must be of type array"))
-	}
-
-	result := r.NewObject()
-	for _, i := range object.Keys() {
-		entry := object.Get(i).ToObject(r)
-		if !isArray(entry) {
-			panic(r.NewTypeError("Object must be of type array"))
-		}
-		key := entry.Get("0")
-		value := entry.Get("1")
-		result.setOwn(key, value, true)
-
-	}
-	return result
-}
-
 func (r *Runtime) objectproto_hasOwnProperty(call FunctionCall) Value {
 	p := toPropertyKey(call.Argument(0))
 	o := call.This.ToObject(r)
@@ -594,6 +574,40 @@ func (r *Runtime) object_setPrototypeOf(call FunctionCall) Value {
 	return o
 }
 
+func (r *Runtime) object_fromEntries(call FunctionCall) Value {
+	o := call.Argument(0)
+	r.checkObjectCoercible(o)
+
+	result := r.newBaseObject(r.global.ObjectPrototype, classObject).val
+
+	iter := r.getIterator(o, nil)
+	iter.iterate(func(nextValue Value) {
+		i0 := valueInt(0)
+		i1 := valueInt(1)
+
+		itemObj := r.toObject(nextValue)
+		k := itemObj.self.getIdx(i0, nil)
+		v := itemObj.self.getIdx(i1, nil)
+		key := toPropertyKey(k)
+
+		createDataPropertyOrThrow(result, key, v)
+	})
+
+	return result
+}
+
+func (r *Runtime) object_hasOwn(call FunctionCall) Value {
+	o := call.Argument(0)
+	obj := o.ToObject(r)
+	p := toPropertyKey(call.Argument(1))
+
+	if obj.hasOwnProperty(p) {
+		return valueTrue
+	} else {
+		return valueFalse
+	}
+}
+
 func (r *Runtime) initObject() {
 	o := r.global.ObjectPrototype.self
 	o._putProp("toString", r.newNativeFunc(r.objectproto_toString, nil, "toString", nil, 0), true, false, true)
@@ -632,15 +646,14 @@ func (r *Runtime) initObject() {
 	o._putProp("keys", r.newNativeFunc(r.object_keys, nil, "keys", nil, 1), true, false, true)
 	o._putProp("setPrototypeOf", r.newNativeFunc(r.object_setPrototypeOf, nil, "setPrototypeOf", nil, 2), true, false, true)
 	o._putProp("values", r.newNativeFunc(r.object_values, nil, "values", nil, 1), true, false, true)
+	o._putProp("fromEntries", r.newNativeFunc(r.object_fromEntries, nil, "fromEntries", nil, 1), true, false, true)
+	o._putProp("hasOwn", r.newNativeFunc(r.object_hasOwn, nil, "hasOwn", nil, 2), true, false, true)
 
 	entriesFunc := r.newNativeFunc(r.object_entries, nil, "entries", nil, 1)
 	o._putSym(SymIterator, valueProp(entriesFunc, true, false, true))
 	o._putSym(SymToStringTag, valueProp(asciiString(classObject), false, false, true))
 
-	o._putProp("values", r.newNativeFunc(r.object_values, nil, "values", nil, 1), true, false, true)
 	o._putProp("entries", r.newNativeFunc(r.object_entries, nil, "entries", nil, 1), true, false, true)
-
-	o._putProp("fromEntries", r.newNativeFunc(r.object_fromEntries, nil, "fromEntries", nil, 1), true, false, true)
 
 	r.addToGlobal("Object", r.global.Object)
 }

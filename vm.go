@@ -3364,6 +3364,8 @@ repeat:
 		return
 	case *nativeFuncObject:
 		vm._nativeCall(f, n)
+	case *wrappedFuncObject:
+		vm._nativeCall(&f.nativeFuncObject, n)
 	case *boundFuncObject:
 		vm._nativeCall(&f.nativeFuncObject, n)
 	case *proxyObject:
@@ -4515,7 +4517,7 @@ func (_typeof) exec(vm *vm) {
 			break
 		}
 		switch s := v.self.(type) {
-		case *classFuncObject, *methodFuncObject, *funcObject, *nativeFuncObject, *boundFuncObject, *arrowFuncObject:
+		case *classFuncObject, *methodFuncObject, *funcObject, *nativeFuncObject, *wrappedFuncObject, *boundFuncObject, *arrowFuncObject:
 			r = stringFunction
 		case *proxyObject:
 			if s.call == nil {
@@ -4862,13 +4864,26 @@ func (n concatStrings) exec(vm *vm) {
 	strs := vm.stack[vm.sp-int(n) : vm.sp]
 	length := 0
 	allAscii := true
-	for _, s := range strs {
-		if allAscii {
-			if _, ok := s.(unicodeString); ok {
+	for i, s := range strs {
+		switch s := s.(type) {
+		case asciiString:
+			length += s.length()
+		case unicodeString:
+			length += s.length()
+			allAscii = false
+		case *importedString:
+			s.ensureScanned()
+			if s.u != nil {
+				strs[i] = s.u
+				length += s.u.length()
 				allAscii = false
+			} else {
+				strs[i] = asciiString(s.s)
+				length += len(s.s)
 			}
+		default:
+			panic(unknownStringTypeErr(s))
 		}
-		length += s.(valueString).length()
 	}
 
 	vm.sp -= int(n) - 1

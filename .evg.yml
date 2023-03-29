@@ -23,7 +23,7 @@ tasks:
             export ROOT_DIR=`pwd`
             export GOROOT=$ROOT_DIR/go
             export PATH=$ROOT_DIR/go/bin:$PATH
-            
+
             cd goja
             go test -v ./...
 
@@ -33,6 +33,6 @@ buildvariants:
     run_on:
       - rhel70
     expansions:
-      go_url: "https://dl.google.com/go/go1.14.10.linux-amd64.tar.gz"
+      go_url: "https://dl.google.com/go/go1.16.10.linux-amd64.tar.gz"
     tasks:
       - name: test
