@@ -12,7 +12,7 @@ func (r *Runtime) toConstructor(v Value) func(args []Value, newTarget *Object) *
 		return ctor
 	}
 
-	panic("Value is not a constructor")
+	panic(r.NewTypeError("Value is not a constructor"))
 }
 
 func (r *Runtime) builtin_reflect_construct(call FunctionCall) Value {
