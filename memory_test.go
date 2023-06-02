@@ -9,6 +9,7 @@ const (
 	testNativeValueMemUsage = 100
 	memUsageLimit           = uint64(10000)
 	arrLenThreshold         = 1_000
+	objPropsLenThreshold    = 1_000
 )
 
 type TestNativeValue struct {
@@ -381,7 +382,9 @@ func TestMemCheck(t *testing.T) {
 			memChecks := []uint64{}
 			vm := New()
 			vm.Set("checkMem", func(call FunctionCall) Value {
-				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, memUsageLimit, arrLenThreshold, TestNativeMemUsageChecker{}))
+				mem, err := vm.MemUsage(
+					NewMemUsageContext(vm, 100, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+				)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -450,12 +453,16 @@ func TestMemMaxDepth(t *testing.T) {
 
 			// All global variables are contained in the Runtime's globalObject field, which causes
 			// them to be one level deeper
-			_, err = vm.MemUsage(NewMemUsageContext(vm, tc.expectedDepth, memUsageLimit, arrLenThreshold, TestNativeMemUsageChecker{}))
+			_, err = vm.MemUsage(
+				NewMemUsageContext(vm, tc.expectedDepth, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+			)
 			if err != ErrMaxDepth {
 				t.Fatalf("expected mem check to hit depth limit error, but got nil %v", err)
 			}
 
-			_, err = vm.MemUsage(NewMemUsageContext(vm, tc.expectedDepth+1, memUsageLimit, arrLenThreshold, TestNativeMemUsageChecker{}))
+			_, err = vm.MemUsage(
+				NewMemUsageContext(vm, tc.expectedDepth+1, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+			)
 			if err != nil {
 				t.Fatalf("expected to NOT hit mem check hit depth limit error, but got %v", err)
 			}
@@ -517,7 +524,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			2 + SizeEmpty + SizeNumber + (50 * SizeNumber) + (50 * SizeBool),
 		},
 		{
-			"mixed array under threshold but over limit",
+			"array under threshold but over limit",
 			`y = []
 			y.push([]);
 			checkMem();
@@ -563,7 +570,116 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			memChecks := []uint64{}
 			vm := New()
 			vm.Set("checkMem", func(call FunctionCall) Value {
-				mem, err := vm.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, tc.threshold, TestNativeMemUsageChecker{}))
+				mem, err := vm.MemUsage(
+					NewMemUsageContext(vm, 100, tc.memLimit, tc.threshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+				memChecks = append(memChecks, mem)
+				return UndefinedValue()
+			})
+
+			nc := vm.CreateNativeClass("MyNativeVal", func(call FunctionCall) interface{} {
+				return TestNativeValue{}
+			}, nil, nil)
+
+			vm.Set("MyNativeVal", nc.Function)
+
+			_, err := vm.RunString(tc.script)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(memChecks) < 2 {
+				t.Fatalf("expected at least two entries in mem check function, but got %d", len(memChecks))
+			}
+
+			memDiff := memChecks[len(memChecks)-1] - memChecks[0]
+			if memDiff != tc.expectedSizeDiff {
+				t.Fatalf("expected memory change to equal %d but got %d instead", tc.expectedSizeDiff, memDiff)
+			}
+		})
+	}
+}
+
+func TestMemObjectsWithPropsLenThreshold(t *testing.T) {
+	for _, tc := range []struct {
+		description      string
+		script           string
+		threshold        int
+		memLimit         uint64
+		expectedSizeDiff uint64
+	}{
+		{
+			"object under threshold",
+			`y = {}
+				checkMem();
+				for (i=0;i<10;i++) {
+					y["i"+i] = i
+				}
+				checkMem()`,
+			100,
+			memUsageLimit,
+			// len("i0") + value i
+			10*2 + 10*SizeNumber +
+				// for loop 0 + 10 + len("i")
+				SizeNumber + SizeNumber + 1,
+		},
+		{
+			"object under threshold but over limit",
+			`y = {}
+				checkMem();
+				for (i=0;i<10;i++) {
+					y["i"+i] = i
+				}
+				checkMem()`,
+			100,
+			40,
+			// len("i0") + value i
+			10*2 + 10*SizeNumber +
+				// for loop 0 + 10 + len("i")
+				SizeNumber + SizeNumber + 1,
+		},
+		{
+			"object over threshold",
+			`y = {}
+			checkMem();
+			for (i=100;i<200;i++) {
+				y["i"+i] = i
+			}
+			checkMem()`,
+			75,
+			memUsageLimit,
+			// len("i100") + value i
+			100*4 + 100*SizeNumber +
+				// for loop 100 + 200 + len("i")
+				SizeNumber + SizeNumber + 1,
+		},
+		{
+			"mixed object over threshold",
+			`y = {}
+			checkMem();
+			for (i=100;i<200;i++) {
+				y["i"+i] = i < 150 ? i : "i"+i
+			}
+			checkMem()`,
+			200,
+			memUsageLimit,
+			// len("i100") + value i
+			50*4 + 50*SizeNumber +
+				// len("i150") + len("i150") + 150 number + len("i")
+				50*4 + 50*4 + 3 + 1 +
+				// for loop 100 + 200 + len("i")
+				SizeNumber + SizeNumber + 1,
+		},
+	} {
+		t.Run(fmt.Sprintf(tc.description), func(t *testing.T) {
+			memChecks := []uint64{}
+			vm := New()
+			vm.Set("checkMem", func(call FunctionCall) Value {
+				mem, err := vm.MemUsage(
+					NewMemUsageContext(vm, 100, tc.memLimit, arrLenThreshold, tc.threshold, TestNativeMemUsageChecker{}),
+				)
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -563,22 +563,22 @@ var (
 // With this function we sample 10% of the array values,
 // determine their average mem usage and use that to estimate mem
 // usage of the whole array
-func estimateMemUsage(ctx *MemUsageContext, values []Value) (uint64, error) {
+func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (uint64, error) {
 	var total, samplesVisited, runningEstimate uint64
-	sampleSize := len(values) / 10
+	sampleSize := len(a.values) / 10
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions
-	for i := 0; i < len(values); i += sampleSize {
-		if values[i] == nil {
+	for i := 0; i < len(a.values); i += sampleSize {
+		if a.values[i] == nil {
 			continue
 		}
 
-		inc, err := values[i].MemUsage(ctx)
+		inc, err := a.values[i].MemUsage(ctx)
 		samplesVisited += 1
 		total += inc
-		// average * number of values
-		runningEstimate = uint64((float32(total) / float32(samplesVisited)) * float32(len(values)))
+		// average * number of a.values
+		runningEstimate = uint64((float32(total) / float32(samplesVisited)) * float32(len(a.values)))
 		if err != nil {
 			return runningEstimate, err
 		}
@@ -614,7 +614,7 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 		return total, errArrayLenExceedsThresholdNil
 	}
 	if ctx.ArrayLenExceedsThreshold(len(a.values)) {
-		inc, err := estimateMemUsage(ctx, a.values)
+		inc, err := a.estimateMemUsage(ctx)
 		total += inc
 		if err != nil {
 			return total, err

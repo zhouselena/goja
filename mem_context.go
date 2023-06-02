@@ -91,11 +91,18 @@ type MemUsageContext struct {
 	visitTracker
 	*depthTracker
 	NativeMemUsageChecker
-	MemUsageExceedsLimit     func(memUsage uint64) bool
-	ArrayLenExceedsThreshold func(arrayLen int) bool
+	MemUsageExceedsLimit           func(memUsage uint64) bool
+	ArrayLenExceedsThreshold       func(arrayLen int) bool
+	ObjectPropsLenExceedsThreshold func(objPropsLen int) bool
 }
 
-func NewMemUsageContext(vm *Runtime, maxDepth int, memLimit uint64, arrayLenThreshold int, nativeChecker NativeMemUsageChecker) *MemUsageContext {
+func NewMemUsageContext(
+	vm *Runtime,
+	maxDepth int,
+	memLimit uint64,
+	arrayLenThreshold, objPropsLenThreshold int,
+	nativeChecker NativeMemUsageChecker,
+) *MemUsageContext {
 	return &MemUsageContext{
 		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, stashesVisited: map[*stash]bool{}},
 		depthTracker:          &depthTracker{curDepth: 0, maxDepth: maxDepth},
@@ -107,6 +114,10 @@ func NewMemUsageContext(vm *Runtime, maxDepth int, memLimit uint64, arrayLenThre
 		ArrayLenExceedsThreshold: func(arrayLen int) bool {
 			// array length threshold above which we should estimate mem usage
 			return arrayLen > arrayLenThreshold
+		},
+		ObjectPropsLenExceedsThreshold: func(objPropsLen int) bool {
+			// number of obj props beyond which we should estimate mem usage
+			return objPropsLen > objPropsLenThreshold
 		},
 	}
 }
