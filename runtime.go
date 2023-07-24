@@ -315,7 +315,9 @@ type Exception struct {
 
 func (e *Exception) NativeError() error {
 	if errObj, ok := e.val.(*Object); ok && errObj.__wrapped != nil {
-		return errObj.__wrapped.(error)
+		if errWrapped, ok := errObj.__wrapped.(error); ok {
+			return errWrapped
+		}
 	}
 	return e.nativeErr
 }
