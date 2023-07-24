@@ -289,8 +289,6 @@ func (f *arrowFuncObject) Call(call FunctionCall) Value {
 	return f._call(call.Context(), call.Arguments, f.newTarget, nil)
 }
 
-var printed bool
-
 func (f *baseJsFuncObject) _call(ctx context.Context, args []Value, newTarget, this Value) Value {
 	vm := f.val.runtime.vm
 
