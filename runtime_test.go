@@ -2452,6 +2452,75 @@ func TestDestructSymbol(t *testing.T) {
 	testScriptWithTestLibX(SCRIPT, _undefined, t)
 }
 
+func TestNativeError(t *testing.T) {
+	tests := []struct {
+		name     string
+		e        *Exception
+		expected error
+	}{
+		{
+			name: "standard value should return native error",
+			e: &Exception{
+				val:       valueFalse,
+				nativeErr: errors.New("native error"),
+			},
+			expected: errors.New("native error"),
+		},
+		{
+			name: "nil value should return native error",
+			e: &Exception{
+				val:       nil,
+				nativeErr: errors.New("native error"),
+			},
+			expected: errors.New("native error"),
+		},
+		{
+			name: "object value which is not __wrapped should return native error",
+			e: &Exception{
+				val: &valueProperty{
+					value: &Object{},
+				},
+				nativeErr: errors.New("native error"),
+			},
+			expected: errors.New("native error"),
+		},
+		{
+			name: "object value which is __wrapped error should return wrapped error",
+			e: &Exception{
+				val: &Object{
+					__wrapped: errors.New("wrapped error"),
+				},
+				nativeErr: errors.New("native error"),
+			},
+			expected: errors.New("wrapped error"),
+		},
+		{
+			name: "object value which is __wrapped error should return wrapped error",
+			e: &Exception{
+				val: &Object{
+					__wrapped: "i used to be a bug",
+				},
+				nativeErr: errors.New("native error"),
+			},
+			expected: errors.New("native error"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.e.NativeError()
+			if actual != nil && tc.expected == nil {
+				t.Fatalf("Actual expected to be nil: %v", actual)
+			}
+			if actual == nil && tc.expected != nil {
+				t.Fatalf("Actual expected to not be nil: %v", actual)
+			}
+			if actual.Error() != tc.expected.Error() {
+				t.Fatalf("Actual: %v Expected: %v", actual, tc.expected)
+			}
+		})
+	}
+}
 func TestAccessorFuncName(t *testing.T) {
 	const SCRIPT = `
 	const namedSym = Symbol('test262');

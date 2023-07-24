@@ -315,7 +315,9 @@ type Exception struct {
 
 func (e *Exception) NativeError() error {
 	if errObj, ok := e.val.(*Object); ok && errObj.__wrapped != nil {
-		return errObj.__wrapped.(error)
+		if errWrapped, ok := errObj.__wrapped.(error); ok {
+			return errWrapped
+		}
 	}
 	return e.nativeErr
 }
@@ -3049,11 +3051,6 @@ func (r *Runtime) setGlobal(name unistring.String, v Value, strict bool) {
 // 	return job.callback(FunctionCall{This: this, Arguments: args})
 // }
 
-func (r *Runtime) invoke(v Value, p unistring.String, args ...Value) Value {
-	o := v.ToObject(r)
-	return r.toCallable(o.self.getStr(p, nil))(FunctionCall{ctx: r.ctx, This: v, Arguments: args})
-}
-
 func (r *Runtime) iterableToList(iterable Value, method func(FunctionCall) Value) []Value {
 	iter := r.getIterator(iterable, method)
 	var values []Value
@@ -3061,14 +3058,6 @@ func (r *Runtime) iterableToList(iterable Value, method func(FunctionCall) Value
 		values = append(values, item)
 	})
 	return values
-}
-
-func (r *Runtime) putSpeciesReturnThis(o objectImpl) {
-	o._putSym(SymSpecies, &valueProperty{
-		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
-		accessor:     true,
-		configurable: true,
-	})
 }
 
 func strToArrayIdx(s unistring.String) uint32 {

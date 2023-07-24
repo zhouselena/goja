@@ -217,11 +217,6 @@ func (r *Runtime) dataViewProto_getByteLen(call FunctionCall) Value {
 	panic(r.NewTypeError("Method get DataView.prototype.byteLength called on incompatible receiver %s", r.objectproto_toString(FunctionCall{This: call.This})))
 }
 
-// (REALMC-7469: can be removed) arrayBufferProto_setByteLength is needed to satisfy otto
-func (r *Runtime) dataViewProto_setByteLen(call FunctionCall) Value {
-	return _undefined
-}
-
 func (r *Runtime) dataViewProto_getByteOffset(call FunctionCall) Value {
 	if dv, ok := r.toObject(call.This).self.(*dataViewObject); ok {
 		dv.viewedArrayBuf.ensureNotDetached(true)

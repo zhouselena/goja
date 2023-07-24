@@ -50,7 +50,6 @@ type Object struct {
 
 	weakRefs map[weakMap]Value
 
-	depth     int
 	__wrapped interface{}
 
 	mu            sync.RWMutex
