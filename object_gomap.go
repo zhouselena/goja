@@ -174,3 +174,21 @@ func (o *objectGoMapSimple) equal(other objectImpl) bool {
 	}
 	return false
 }
+
+func (o *objectGoMapSimple) MemUsage(ctx *MemUsageContext) (uint64, uint64, error) {
+	mem, newMem, err := o.baseObject.MemUsage(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	for key := range o.data {
+		mem += uint64(len(key))
+		newMem += uint64(len(key)) + SizeString
+		memValue, newMemValue, err := o._getStr(key).MemUsage(ctx)
+		mem += memValue
+		newMem += newMemValue
+		if err != nil {
+			return mem, newMem, err
+		}
+	}
+	return mem, newMem, nil
+}

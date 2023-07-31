@@ -271,3 +271,119 @@ func TestGoSliceToString(t *testing.T) {
 		t.Fatal(exp)
 	}
 }
+
+func TestGoSliceMemUsage(t *testing.T) {
+	vm := New()
+	tests := []struct {
+		name           string
+		val            *objectGoSlice
+		expectedMem    uint64
+		expectedNewMem uint64
+		errExpected    error
+	}{
+		{
+			name: "should account for each value given a non-empty slice",
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{
+					valueInt(99),
+					valueInt(99),
+				},
+			},
+			// overhead + values
+			expectedMem: SizeEmptyStruct + SizeInt*2,
+			// overhead + values
+			expectedNewMem: SizeEmptyStruct + SizeInt*2,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for each value given a slice with go ints",
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{
+					99,
+					99,
+				},
+			},
+			// overhead + values
+			expectedMem: SizeEmptyStruct + SizeInt*2,
+			// overhead + values
+			expectedNewMem: SizeEmptyStruct + SizeInt*2,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for each value given slice with a nil value",
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{nil},
+			},
+			// overhead + null
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			// overhead + null
+			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for nested slices",
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{
+					[]interface{}{
+						valueInt(99),
+						valueInt(99),
+					},
+				},
+			},
+			// overhead + (value + len("length") + "length".value + prototype + ints)
+			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
+			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			errExpected:    nil,
+		},
+		{
+			name: "should account for nested pointer slice",
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{
+					&[]interface{}{
+						valueInt(99),
+						valueInt(99),
+					},
+				},
+			},
+			// overhead + (value + len("length") + "length".value + prototype + ints)
+			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
+			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			errExpected:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+			if newTotal != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
+			}
+		})
+	}
+}

@@ -1,6 +1,8 @@
 package goja
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestGomapProp(t *testing.T) {
 	const SCRIPT = `
@@ -324,5 +326,133 @@ func TestGoMapUnicode(t *testing.T) {
 	}
 	if res == nil || !res.StrictEquals(valueInt(42)) {
 		t.Fatalf("Unexpected value: %v", res)
+	}
+}
+
+func TestGoMapMemUsage(t *testing.T) {
+	vm := New()
+	vmCtx := NewMemUsageContext(vm, 100, 100, 100, 100, nil)
+
+	nestedMap := map[string]interface{}{
+		"subTest1": valueInt(99),
+		"subTest2": valueInt(99),
+	}
+
+	// The baseObject is quite large when ToValue is called due to the initialization of
+	// objectGoMapSimple. The init sets the object prototype with all its associated
+	// functions and fields. Calculating ahead of time for test case
+	nestedMapAsObject := vm.ToValue(nestedMap)
+	nestedMapMemUsage, nestedMapNewMemUsage, err := nestedMapAsObject.MemUsage(vmCtx)
+	if err != nil {
+		t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, nil)
+	}
+
+	tests := []struct {
+		name           string
+		val            *objectGoMapSimple
+		expectedMem    uint64
+		expectedNewMem uint64
+		errExpected    error
+	}{
+		{
+			name: "should account for each key value pair given a non-empty object",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test0": valueInt(99),
+					"test1": valueInt(99),
+				},
+			},
+			// baseObject overhead + len("testN") + value
+			expectedMem: SizeEmptyStruct + (5+SizeInt)*2,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for each key value pair given a map with native ints",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test0": 99,
+					"test1": 99,
+				},
+			},
+			// baseObject overhead + len("testN") + value
+			expectedMem: SizeEmptyStruct + (5+SizeInt)*2,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for each key value pair given map with a nil value",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": nil,
+				},
+			},
+			// overhead + len("test") + null
+			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("test") with string overhead + null
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for nested key value pairs",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": nestedMap,
+				},
+			},
+			// overhead + len("test") + (Object prototype + values)
+			expectedMem: SizeEmptyStruct + 4 + nestedMapMemUsage,
+			// overhead + len("testN") with string overhead + (Object prototype with overhead + values with string overhead)
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + nestedMapNewMemUsage,
+			errExpected:    nil,
+		},
+		{
+			name: "should account for nested pointer of key value pairs",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": &nestedMap,
+				},
+			},
+			// overhead + len("test") + nested overhead
+			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("testN") with string overhead + nested overhead
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
+			errExpected:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+			if newTotal != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
+			}
+		})
 	}
 }
