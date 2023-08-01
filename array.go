@@ -554,7 +554,6 @@ func toIdx(v valueInt) uint32 {
 }
 
 var (
-	errMemUsageExceedsLimitNil     = errors.New("error checking mem usage limit")
 	errArrayLenExceedsThresholdNil = errors.New("error checking array len threshold")
 )
 
@@ -582,11 +581,8 @@ func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (uint64, error) {
 		if err != nil {
 			return runningEstimate, err
 		}
-		if ctx.MemUsageExceedsLimit == nil {
-			return runningEstimate, errMemUsageExceedsLimitNil
-		}
-		if ctx.MemUsageExceedsLimit(total) {
-			return runningEstimate, nil
+		if exceeded := ctx.MemUsageLimitExceeded(total); exceeded {
+			return total, nil
 		}
 	}
 
@@ -634,12 +630,9 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 		if err != nil {
 			return total, err
 		}
-		if ctx.MemUsageExceedsLimit == nil {
-			return total, errMemUsageExceedsLimitNil
-		}
 		// This is an early exit in case we reach the mem usage
 		// limit before we get to scan the whole array.
-		if ctx.MemUsageExceedsLimit(total) {
+		if exceeded := ctx.MemUsageLimitExceeded(total); exceeded {
 			return total, nil
 		}
 	}

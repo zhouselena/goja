@@ -25,7 +25,11 @@ tasks:
             export PATH=$ROOT_DIR/go/bin:$PATH
 
             cd goja
-            go test -v ./...
+            go test -v ./... >> ${workdir}/goja.suite
+      - command: gotest.parse_files
+        params:
+          files:
+            - "${workdir}/goja.suite"
 
 buildvariants:
   - name: linux-64
