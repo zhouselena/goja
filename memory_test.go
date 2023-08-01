@@ -479,7 +479,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 		expectedSizeDiff uint64
 	}{
 		{
-			"array of numbers under threshold",
+			"array of numbers under length threshold",
 			`y = []
 			var i = 0;
 			y.push([]);

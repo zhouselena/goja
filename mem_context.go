@@ -91,9 +91,9 @@ type MemUsageContext struct {
 	visitTracker
 	*depthTracker
 	NativeMemUsageChecker
-	MemUsageExceedsLimit           func(memUsage uint64) bool
 	ArrayLenExceedsThreshold       func(arrayLen int) bool
 	ObjectPropsLenExceedsThreshold func(objPropsLen int) bool
+	memoryLimit                    uint64
 }
 
 func NewMemUsageContext(
@@ -107,10 +107,7 @@ func NewMemUsageContext(
 		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, stashesVisited: map[*stash]bool{}},
 		depthTracker:          &depthTracker{curDepth: 0, maxDepth: maxDepth},
 		NativeMemUsageChecker: nativeChecker,
-		MemUsageExceedsLimit: func(memUsage uint64) bool {
-			// memory usage limit above which we should stop mem usage computations
-			return memUsage > memLimit
-		},
+		memoryLimit:           memLimit,
 		ArrayLenExceedsThreshold: func(arrayLen int) bool {
 			// array length threshold above which we should estimate mem usage
 			return arrayLen > arrayLenThreshold
@@ -120,6 +117,12 @@ func NewMemUsageContext(
 			return objPropsLen > objPropsLenThreshold
 		},
 	}
+}
+
+// MemUsageLimitExceeded ensures a limit function is defined and checks against the limit. If limit is breached
+// it will return true
+func (m *MemUsageContext) MemUsageLimitExceeded(memUsage uint64) bool {
+	return memUsage > m.memoryLimit
 }
 
 var (

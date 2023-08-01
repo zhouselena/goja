@@ -131,3 +131,79 @@ func BenchmarkArraySetEmpty(b *testing.B) {
 		a.self.setOwnIdx(0, valueTrue, true)
 	}
 }
+
+func TestArrayObjectMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		mu          *MemUsageContext
+		ao          *arrayObject
+		expected    uint64
+		errExpected error
+	}{
+		{
+			name: "mem below threshold",
+			mu:   NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			ao: &arrayObject{
+				values: []Value{
+					New()._newString(newStringValue("key"), nil),
+				},
+			},
+			expected:    41,
+			errExpected: nil,
+		},
+		{
+			name: "mem way above threshold returns first crossing of threshold",
+			mu:   NewMemUsageContext(New(), 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			ao: &arrayObject{
+				values: []Value{
+					New()._newString(newStringValue("key"), nil),
+					New()._newString(newStringValue("key1"), nil),
+					New()._newString(newStringValue("key2"), nil),
+					New()._newString(newStringValue("key3"), nil),
+					New()._newString(newStringValue("key4"), nil),
+					New()._newString(newStringValue("key5"), nil),
+				},
+			},
+			expected:    119,
+			errExpected: nil,
+		},
+		{
+			name: "array limit function undefined throws error",
+			mu: &MemUsageContext{
+				visitTracker: visitTracker{
+					objsVisited:    map[objectImpl]bool{},
+					stashesVisited: map[*stash]bool{}},
+				depthTracker: &depthTracker{
+					curDepth: 0,
+					maxDepth: 50,
+				},
+				NativeMemUsageChecker: &TestNativeMemUsageChecker{},
+				memoryLimit:           50,
+				ObjectPropsLenExceedsThreshold: func(objPropsLen int) bool {
+					// number of obj props beyond which we should estimate mem usage
+					return objPropsLen > 50
+				},
+			},
+			ao: &arrayObject{
+				values: []Value{New()._newString(newStringValue("key"), nil)},
+			},
+			expected:    16,
+			errExpected: errArrayLenExceedsThresholdNil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.ao.MemUsage(tc.mu)
+			if err == nil && tc.errExpected != nil || err != nil && tc.errExpected == nil {
+				t.Fatalf("Unexpected error. Actual: %v Expected; %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expected {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
+			}
+		})
+	}
+}

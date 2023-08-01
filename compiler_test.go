@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 )
 
 const TESTLIB = `
@@ -5643,5 +5644,61 @@ func BenchmarkCompile(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func TestProgramMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		mu          *MemUsageContext
+		p           *Program
+		expected    uint64
+		errExpected error
+	}{
+		{
+			name: "mem below threshold",
+			mu:   NewMemUsageContext(New(), 88, 50, 50, 50, TestNativeMemUsageChecker{}),
+			p: &Program{
+				values: []Value{
+					New().newDateObject(time.Now(), true, nil),
+				},
+			},
+			expected:    16,
+			errExpected: nil,
+		},
+		{
+			name: "mem way above threshold returns first crossing of threshold",
+			mu:   NewMemUsageContext(New(), 88, 50, 50, 50, TestNativeMemUsageChecker{}),
+			p: &Program{
+				values: []Value{
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+					New().newDateObject(time.Now(), true, nil),
+				},
+			},
+			expected:    64,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.p.MemUsage(tc.mu)
+			if err == nil && tc.errExpected != nil || err != nil && tc.errExpected == nil {
+				t.Fatalf("Unexpected error. Actual: %v Expected; %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expected {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
+			}
+		})
 	}
 }

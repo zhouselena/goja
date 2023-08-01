@@ -242,3 +242,73 @@ func BenchmarkMapDeleteJS(b *testing.B) {
 		}
 	}
 }
+
+func TestMapObjectMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		mu          *MemUsageContext
+		mo          *mapObject
+		expected    uint64
+		errExpected error
+	}{
+		{
+			name: "mem below threshold",
+			mu:   NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mo: &mapObject{
+				m: &orderedMap{
+					hashTable: map[uint64]*mapEntry{
+						1: {
+							key:   New()._newString(newStringValue("key"), nil),
+							value: New()._newString(newStringValue("value"), nil),
+						},
+					},
+				},
+			},
+			expected:    60,
+			errExpected: nil,
+		},
+		{
+			name: "mem way above threshold returns first crossing of threshold",
+			mu:   NewMemUsageContext(New(), 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mo: &mapObject{
+				m: &orderedMap{
+					hashTable: map[uint64]*mapEntry{
+						1: {
+							key:   New()._newString(newStringValue("key"), nil),
+							value: New()._newString(newStringValue("value"), nil),
+						},
+						2: {
+							key:   New()._newString(newStringValue("key"), nil),
+							value: New()._newString(newStringValue("value"), nil),
+						},
+						3: {
+							key:   New()._newString(newStringValue("key"), nil),
+							value: New()._newString(newStringValue("value"), nil),
+						},
+						4: {
+							key:   New()._newString(newStringValue("key"), nil),
+							value: New()._newString(newStringValue("value"), nil),
+						},
+					},
+				},
+			},
+			expected:    112,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.mo.MemUsage(tc.mu)
+			if err == nil && tc.errExpected != nil || err != nil && tc.errExpected == nil {
+				t.Fatalf("Unexpected error. Actual: %v Expected; %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expected {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
+			}
+		})
+	}
+}
