@@ -786,8 +786,9 @@ func (vm *vm) peek() Value {
 func (vm *vm) saveCtx(ctx *vmContext) {
 	ctx.prg, ctx.stash, ctx.privEnv, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args =
 		vm.prg, vm.stash, vm.privEnv, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args
-	if vm.getFuncName() != "" {
-		ctx.funcName = vm.getFuncName()
+	funcName := vm.getFuncName()
+	if funcName != "" {
+		ctx.funcName = funcName
 	} else if ctx.prg != nil && ctx.prg.funcName != "" {
 		ctx.funcName = ctx.prg.funcName
 	}
