@@ -457,24 +457,24 @@ func (p *Program) sourceOffset(pc int) int {
 	return 0
 }
 
-func (p *Program) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	total := uint64(0)
+func (p *Program) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	for _, val := range p.values {
 		if val == nil {
 			continue
 		}
 
-		inc, err := val.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := val.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
-		if exceeded := ctx.MemUsageLimitExceeded(total); exceeded {
-			return total, nil
+		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+			return memUsage, newMemUsage, nil
 		}
 	}
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }
 
 func (p *Program) addSrcMap(srcPos int) {

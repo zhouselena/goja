@@ -117,15 +117,20 @@ type Value interface {
 
 	hash(hasher *maphash.Hash) uint64
 
-	MemUsage(ctx *MemUsageContext) (uint64, error)
+	MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error)
 }
 
 const (
-	SizeBool   = uint64(unsafe.Sizeof(true))
-	SizeNumber = uint64(unsafe.Sizeof(float64(0)))
-	SizeInt32  = uint64(unsafe.Sizeof(int32(0)))
-	SizeInt    = uint64(unsafe.Sizeof(int(0)))
-	SizeEmpty  = uint64(unsafe.Sizeof((*baseObject)(nil)))
+	SizeBool        = uint64(unsafe.Sizeof(true))
+	SizeNumber      = uint64(unsafe.Sizeof(float64(0)))
+	SizeInt32       = uint64(unsafe.Sizeof(int32(0)))
+	SizeInt         = uint64(unsafe.Sizeof(int(0)))
+	SizeEmptyStruct = uint64(unsafe.Sizeof((*baseObject)(nil)))
+	SizeEmptySlice  = uint64(unsafe.Sizeof([]Value{}))
+	// SizeString allows us to take into account the 16 additional bytes
+	// for any string type in go including the pointer to the start of
+	// the string data and the length of the string
+	SizeString = uint64(unsafe.Sizeof(""))
 )
 
 type valueContainer interface {
@@ -222,8 +227,8 @@ func fToStr(num float64, mode ftoa.FToStrMode, prec int) string {
 	return string(ftoa.FToStr(num, mode, prec, buf1[:0]))
 }
 
-func (i valueInt) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return SizeNumber, nil
+func (i valueInt) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return SizeNumber, SizeNumber, nil
 }
 
 func (i valueInt) assertInt() (int, bool) {
@@ -355,8 +360,8 @@ func (i valueInt) hash(*maphash.Hash) uint64 {
 	return uint64(i)
 }
 
-func (o valueBool) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return SizeBool, nil
+func (o valueBool) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return SizeBool, SizeBool, nil
 }
 
 func (b valueBool) ToInt() int {
@@ -567,8 +572,8 @@ func (n valueNull) IsObject() bool {
 	return false
 }
 
-func (n valueNull) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return SizeEmpty, nil
+func (n valueNull) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return SizeEmptyStruct, SizeEmptyStruct, nil
 }
 
 func (u valueUndefined) toString() valueString {
@@ -760,33 +765,39 @@ func (p *valueProperty) hash(*maphash.Hash) uint64 {
 	panic("valueProperty should never be used in maps or sets")
 }
 
-func (p *valueProperty) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	total := uint64(0)
+func (p *valueProperty) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if p == nil {
+		return SizeEmptyStruct, SizeEmptyStruct, err
+	}
+
 	if p.value != nil {
-		inc, err := p.value.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := p.value.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	if p.getterFunc != nil {
-		inc, err := p.getterFunc.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := p.getterFunc.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	if p.setterFunc != nil {
-		inc, err := p.setterFunc.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := p.setterFunc.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }
 
 func (p *valueProperty) ToInt() int {
@@ -843,8 +854,8 @@ func floatToIntClip(n float64) int64 {
 	return int64(n)
 }
 
-func (f valueFloat) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return SizeNumber, nil
+func (f valueFloat) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return SizeNumber, SizeNumber, nil
 }
 
 func (f valueFloat) ToInt() int {
@@ -1153,33 +1164,32 @@ func (o *Object) hash(*maphash.Hash) uint64 {
 	return o.getId()
 }
 
-func (o *Object) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (o *Object) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if o == nil || o.self == nil {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 
 	if o.__wrapped != nil {
-		nativeMem, ok := ctx.NativeMemUsage(o.__wrapped)
-		if ok {
-			return nativeMem, nil
+		if nativeMem, ok := ctx.NativeMemUsage(o.__wrapped); ok {
+			return nativeMem, nativeMem, nil
 		}
 	}
 
 	switch x := o.self.(type) {
 	case *objectGoReflect:
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	case *objectGoMapReflect:
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	case *objectGoMapSimple:
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	case *objectGoSlice:
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	case *objectGoSliceReflect:
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	default:
 		r, ok := x.(MemUsageReporter)
 		if !ok {
-			return 0, nil
+			return 0, 0, nil
 		}
 		return r.MemUsage(ctx)
 	}
@@ -1467,8 +1477,8 @@ func (o valueUnresolved) hash(*maphash.Hash) uint64 {
 	return 0
 }
 
-func (o valueUnresolved) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return uint64(len(o.ref)), nil
+func (o valueUnresolved) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return uint64(len(o.ref)), uint64(len(o.ref)) + SizeString, nil
 }
 
 func (o valueUnresolved) ToInt() int {
@@ -1628,8 +1638,8 @@ func (s *Symbol) hash(*maphash.Hash) uint64 {
 	return uint64(s.h)
 }
 
-func (s *Symbol) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return 0, nil
+func (s *Symbol) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return s.desc.MemUsage(ctx)
 }
 
 func exportValue(v Value, ctx *objectExportCtx) interface{} {

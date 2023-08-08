@@ -304,9 +304,9 @@ func (d *destructKeyedSource) getPrivateEnv(typ *privateEnvType, create bool) *p
 	return d.w().getPrivateEnv(typ, create)
 }
 
-func (d *destructKeyedSource) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (d *destructKeyedSource) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if d.wrapped == nil {
-		return 0, nil
+		return memUsage, newMemUsage, err
 	}
 
 	return d.wrapped.MemUsage(ctx)

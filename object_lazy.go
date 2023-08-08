@@ -319,14 +319,15 @@ func (o *lazyObject) swap(i int, j int) {
 	obj.swap(i, j)
 }
 
-func (o *lazyObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if o.val == nil || ctx.IsObjVisited(o) {
-		return SizeEmpty, nil
+func (o *lazyObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if o == nil || o.val == nil || ctx.IsObjVisited(o) {
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(o)
 
-	total := uint64(SizeEmpty)
-	inc, err := o.val.MemUsage(ctx)
-	total += inc
-	return total, err
+	memUsage = SizeEmptyStruct
+	newMemUsage = SizeEmptyStruct
+	inc, newInc, err := o.val.MemUsage(ctx)
+
+	return memUsage + inc, newMemUsage + newInc, err
 }

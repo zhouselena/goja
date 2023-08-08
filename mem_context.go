@@ -55,38 +55,6 @@ type NativeMemUsageChecker interface {
 	NativeMemUsage(goNativeValue interface{}) (uint64, bool)
 }
 
-func (self *stash) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if ctx.IsStashVisited(self) {
-		return 0, nil
-	}
-	ctx.VisitStash(self)
-	total := uint64(0)
-	if self.obj != nil {
-		inc, err := self.obj.MemUsage(ctx)
-		total += inc
-		if err != nil {
-			return total, err
-		}
-	}
-
-	if self.outer != nil {
-		inc, err := self.outer.MemUsage(ctx)
-		total += inc
-		if err != nil {
-			return total, err
-		}
-	}
-	if len(self.values) > 0 {
-		inc, err := self.values.MemUsage(ctx)
-		total += inc
-		if err != nil {
-			return total, err
-		}
-	}
-
-	return total, nil
-}
-
 type MemUsageContext struct {
 	visitTracker
 	*depthTracker
@@ -130,5 +98,8 @@ var (
 )
 
 type MemUsageReporter interface {
-	MemUsage(ctx *MemUsageContext) (uint64, error)
+	// The newMemUsage value is used to allow tracking significant differences in how
+	// we track memory usage vs a more accurate tracking. This will help
+	// us evaluate the impact of any memory usage value change.
+	MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error)
 }

@@ -269,6 +269,7 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 		mu          *MemUsageContext
 		sao         *sparseArrayObject
 		expected    uint64
+		newExpected uint64
 		errExpected error
 	}{
 		{
@@ -282,7 +283,18 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			expected:    45,
+			// array overhead + index size + stringObject + sparseArray baseObject
+			expected: SizeEmptyStruct + SizeInt32 + 25 + SizeEmptyStruct,
+			// array overhead + index size + stringObject + sparseArray baseObject
+			newExpected: SizeEmptyStruct + SizeInt32 + 57 + SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name:        "mem is SizeEmptyStruct for nil sparse array",
+			mu:          NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			sao:         nil,
+			expected:    SizeEmptyStruct,
+			newExpected: SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
@@ -292,7 +304,7 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 				items: []sparseArrayItem{
 					{
 						idx:   1,
-						value: New()._newString(newStringValue("key"), nil),
+						value: New()._newString(newStringValue("key0"), nil),
 					},
 					{
 						idx:   2,
@@ -316,22 +328,28 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			expected:    127,
+			// array overhead + index size + stringObject (we reach the limit at 4)
+			expected: SizeEmptyStruct + (SizeInt32+26)*4,
+			// index size + stringObject (we reach the limit at 4)
+			newExpected: SizeEmptyStruct + (SizeInt32+58)*4,
 			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, err := tc.sao.MemUsage(tc.mu)
-			if err == nil && tc.errExpected != nil || err != nil && tc.errExpected == nil {
-				t.Fatalf("Unexpected error. Actual: %v Expected; %v", err, tc.errExpected)
+			total, newTotal, err := tc.sao.MemUsage(tc.mu)
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
 			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
 				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
 			}
 			if total != tc.expected {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
+			}
+			if newTotal != tc.newExpected {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.newExpected)
 			}
 		})
 	}

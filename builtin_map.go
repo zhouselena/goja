@@ -94,19 +94,19 @@ func (mo *mapObject) exportToMap(dst reflect.Value, typ reflect.Type, ctx *objec
 	return nil
 }
 
-func (mo *mapObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (mo *mapObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if mo == nil || ctx.IsObjVisited(mo) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(mo)
 
 	if err := ctx.Descend(); err != nil {
-		return 0, err
+		return memUsage, newMemUsage, err
 	}
 
-	total, err := mo.baseObject.MemUsage(ctx)
+	memUsage, newMemUsage, err = mo.baseObject.MemUsage(ctx)
 	if err != nil {
-		return total, err
+		return memUsage, newMemUsage, err
 	}
 
 	for _, entry := range mo.m.hashTable {
@@ -115,28 +115,30 @@ func (mo *mapObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 		}
 
 		if entry.key != nil {
-			inc, err := entry.key.MemUsage(ctx)
-			total += inc
+			inc, newInc, err := entry.key.MemUsage(ctx)
+			memUsage += inc
+			newMemUsage += newInc
 			if err != nil {
-				return total, err
+				return memUsage, newMemUsage, err
 			}
 		}
 
 		if entry.value != nil {
-			inc, err := entry.value.MemUsage(ctx)
-			total += inc
+			inc, newInc, err := entry.value.MemUsage(ctx)
+			memUsage += inc
+			newMemUsage += newInc
 			if err != nil {
-				return total, err
+				return memUsage, newMemUsage, err
 			}
 		}
-		if exceeded := ctx.MemUsageLimitExceeded(total); exceeded {
-			return total, nil
+		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+			return memUsage, newMemUsage, nil
 		}
 	}
 
 	ctx.Ascend()
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }
 
 func (r *Runtime) mapProto_clear(call FunctionCall) Value {
