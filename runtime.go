@@ -512,42 +512,54 @@ func (r *Runtime) typeErrorResult(throw bool, args ...interface{}) {
 	}
 }
 
-func (r *Runtime) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	total := uint64(0)
+func (r *Runtime) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if r == nil {
+		return SizeEmptyStruct, SizeEmptyStruct, err
+	}
 
 	if r.globalObject != nil {
-		inc, err := r.globalObject.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := r.globalObject.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	for idx := range r.vm.callStack {
-		inc, err := r.vm.callStack[idx].MemUsage(ctx)
-		total += inc
-		if err != nil {
-			return total, err
+	if r.vm == nil {
+		return memUsage, newMemUsage, nil
+	}
+
+	if r.vm.callStack != nil {
+		for idx := range r.vm.callStack {
+			inc, newInc, err := r.vm.callStack[idx].MemUsage(ctx)
+			memUsage += inc
+			newMemUsage += newInc
+			if err != nil {
+				return memUsage, newMemUsage, err
+			}
 		}
 	}
 
 	if r.vm.stash != nil {
-		inc, err := r.vm.stash.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := r.vm.stash.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	if r.vm.stack != nil {
-		inc, err := r.vm.stack.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := r.vm.stack.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }
 
 func (r *Runtime) newError(typ *Object, format string, args ...interface{}) Value {

@@ -390,6 +390,6 @@ func (r *Runtime) initProxy() {
 	r.addToGlobal("Proxy", r.global.Proxy)
 }
 
-func (np *nativeProxyHandler) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return 0, nil
+func (h *nativeProxyHandler) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	return memUsage, newMemUsage, err
 }

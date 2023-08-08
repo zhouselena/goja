@@ -3,6 +3,8 @@ package goja
 import (
 	"testing"
 	"time"
+
+	"github.com/dop251/goja/unistring"
 )
 
 func TestDateUTC(t *testing.T) {
@@ -305,5 +307,69 @@ func TestDateExportType(t *testing.T) {
 	}
 	if typ := v.ExportType(); typ != typeTime {
 		t.Fatal(typ)
+	}
+}
+
+func TestDateMemUsage(t *testing.T) {
+	tests := []struct {
+		name           string
+		val            *dateObject
+		expectedMem    uint64
+		expectedNewMem uint64
+		errExpected    error
+	}{
+		{
+			name: "should have a value given by baseObject overhead and msec",
+			val:  &dateObject{msec: int64(100)},
+			// baseObject + msec value
+			expectedMem: SizeEmptyStruct + SizeNumber,
+			// baseObject + msec value
+			expectedNewMem: SizeEmptyStruct + SizeNumber,
+			errExpected:    nil,
+		},
+		{
+			name: "should have a value given by a non-empty baseObject and msec",
+			val: &dateObject{
+				msec: int64(100),
+				baseObject: baseObject{
+					propNames: []unistring.String{"test"},
+					values:    map[unistring.String]Value{"test": valueInt(99)},
+				},
+			},
+			// msec value
+			expectedMem: SizeNumber +
+				// baseObject overhead + len("test") + value
+				SizeEmptyStruct + 4 + SizeInt,
+			// msec value
+			expectedNewMem: SizeNumber +
+				// baseObject overhead + len("test") with string overhead + value
+				SizeEmptyStruct + (4 + SizeString) + SizeInt,
+			errExpected: nil,
+		},
+		{
+			name:           "should have a value of SizeEmptyStruct given a nil dateObject",
+			val:            nil,
+			expectedMem:    SizeEmptyStruct,
+			expectedNewMem: SizeEmptyStruct,
+			errExpected:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+			if newTotal != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
+			}
+		})
 	}
 }

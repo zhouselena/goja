@@ -267,7 +267,7 @@ type objectImpl interface {
 	_putSym(s *Symbol, prop Value)
 	getPrivateEnv(typ *privateEnvType, create bool) *privateElements
 
-	MemUsage(ctx *MemUsageContext) (uint64, error)
+	MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error)
 }
 
 type baseObject struct {
@@ -1924,100 +1924,109 @@ func (i *privateId) string() unistring.String {
 	return privateIdString(i.name)
 }
 
+func computeMemUsageEstimate(memUsage, samplesVisited uint64, totalProps int) uint64 {
+	// averageMemUsage * total object props
+	return uint64(float32(memUsage) / float32(samplesVisited) * float32(totalProps))
+}
+
 // estimateMemUsage helps calculating mem usage for large objects.
 // It will sample the object and use those samples to estimate the
 // mem usage.
-func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (uint64, error) {
-	var total, samplesVisited uint64
-	var averageMemUsage float32
-	sampleSize := len(o.propNames) / 10
+func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
+	var samplesVisited, memUsage, newMemUsage uint64
+	totalProps := len(o.propNames)
+	sampleSize := totalProps / 10
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions
-	for i := 0; i < len(o.propNames); i += sampleSize {
+	for i := 0; i < totalProps; i += sampleSize {
 		k := o.propNames[i]
+		memUsage += uint64(len(k))
+		newMemUsage += uint64(len(k)) + SizeString
 		v := o.values[k]
 		if v == nil {
 			continue
 		}
 
-		inc, err := v.MemUsage(ctx)
+		inc, newInc, err := v.MemUsage(ctx)
 		samplesVisited += 1
-		total += inc
-		total += uint64(len(k))
-		averageMemUsage = float32(total) / float32(samplesVisited)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return uint64(averageMemUsage * float32(len(o.propNames))), err
+			return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), computeMemUsageEstimate(newMemUsage, samplesVisited, totalProps), err
 		}
 	}
 
-	return uint64(averageMemUsage * float32(len(o.propNames))), nil
+	return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), computeMemUsageEstimate(newMemUsage, samplesVisited, totalProps), nil
 }
 
-func (o *baseObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if o == nil || ctx.IsObjVisited(o) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(o)
 
 	if err := ctx.Descend(); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	total := SizeEmpty
+	memUsage = SizeEmptyStruct
+	newMemUsage = SizeEmptyStruct
 	if ctx.ObjectPropsLenExceedsThreshold(len(o.propNames)) {
-		inc, err := o.estimateMemUsage(ctx)
-		total += inc
+		inc, newInc, err := o.estimateMemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	} else {
 		for _, k := range o.propNames {
 			v := o.values[k]
+			memUsage += uint64(len(k))
+			newMemUsage += uint64(len(k)) + SizeString
+
 			if v == nil {
 				continue
 			}
-
-			inc, err := v.MemUsage(ctx)
-			total += inc
-			total += uint64(len(k))
-
+			inc, newInc, err := v.MemUsage(ctx)
+			memUsage += inc
+			newMemUsage += newInc
 			if err != nil {
-				return total, err
+				return memUsage, newMemUsage, err
 			}
 		}
 	}
 
 	if o.prototype != nil {
-		inc, err := o.prototype.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := o.prototype.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	ctx.Ascend()
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }
 
-func (self *primitiveValueObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	if self == nil || ctx.IsObjVisited(self) {
-		return SizeEmpty, nil
+func (o *primitiveValueObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if o == nil || ctx.IsObjVisited(o) {
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
-	ctx.VisitObj(self)
+	ctx.VisitObj(o)
 
-	total := uint64(0)
-
-	if self.pValue != nil {
-		inc, err := self.pValue.MemUsage(ctx)
-		total += inc
+	if o.pValue != nil {
+		inc, newInc, err := o.pValue.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	inc, baseErr := self.baseObject.MemUsage(ctx)
-	total += inc
-	return total, baseErr
+	inc, newInc, err := o.baseObject.MemUsage(ctx)
+
+	return memUsage + inc, newMemUsage + newInc, err
 }

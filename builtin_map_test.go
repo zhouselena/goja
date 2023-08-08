@@ -245,11 +245,12 @@ func BenchmarkMapDeleteJS(b *testing.B) {
 
 func TestMapObjectMemUsage(t *testing.T) {
 	tests := []struct {
-		name        string
-		mu          *MemUsageContext
-		mo          *mapObject
-		expected    uint64
-		errExpected error
+		name           string
+		mu             *MemUsageContext
+		mo             *mapObject
+		expectedMem    uint64
+		expectedNewMem uint64
+		errExpected    error
 	}{
 		{
 			name: "mem below threshold",
@@ -264,8 +265,19 @@ func TestMapObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			expected:    60,
-			errExpected: nil,
+			// baseObject + stringObject + len(key) + stringObject + len(key)
+			expectedMem: SizeEmptyStruct + 22 + 3 + 22 + 5,
+			// baseObject + stringObject + (len(key) + overhead) + stringObject + (len(key) + overhead)
+			expectedNewMem: SizeEmptyStruct + 38 + (3 + SizeString) + 38 + (5 + SizeString),
+			errExpected:    nil,
+		},
+		{
+			name:           "mem is SizeEmptyStruct given a nil map object",
+			mu:             NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mo:             nil,
+			expectedMem:    SizeEmptyStruct,
+			expectedNewMem: SizeEmptyStruct,
+			errExpected:    nil,
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
@@ -292,22 +304,36 @@ func TestMapObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			expected:    112,
+			// baseObject
+			expectedMem: SizeEmptyStruct +
+				// stringObject + len(key) (we reach the limit after 2)
+				(22+3)*2 +
+				// stringObject + len(value) (we reach the limit after 2)
+				(22+5)*2,
+			// baseObject
+			expectedNewMem: SizeEmptyStruct +
+				// stringObject + len(key) + overhead (we reach the limit after 2)
+				(38+(3+SizeString))*2 +
+				// stringObject + len(value) + overhead (we reach the limit after 2)
+				(38+(5+SizeString))*2,
 			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, err := tc.mo.MemUsage(tc.mu)
-			if err == nil && tc.errExpected != nil || err != nil && tc.errExpected == nil {
-				t.Fatalf("Unexpected error. Actual: %v Expected; %v", err, tc.errExpected)
+			total, newTotal, err := tc.mo.MemUsage(tc.mu)
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
 			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
 				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
 			}
-			if total != tc.expected {
-				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+			if newTotal != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

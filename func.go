@@ -461,33 +461,34 @@ func (f *boundFuncObject) hasInstance(v Value) bool {
 	return instanceOfOperator(v, f.wrapped)
 }
 
-func (f *nativeFuncObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (f *nativeFuncObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if f == nil || ctx.IsObjVisited(f) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(f)
 
 	return f.baseFuncObject.MemUsage(ctx)
 }
 
-func (f *funcObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (f *funcObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if f == nil || ctx.IsObjVisited(f) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(f)
 
-	total, baseObjectErr := f.baseObject.MemUsage(ctx)
-	if baseObjectErr != nil {
-		return total, baseObjectErr
+	memUsage, newMemUsage, err = f.baseObject.MemUsage(ctx)
+	if err != nil {
+		return memUsage, newMemUsage, err
 	}
 
 	if f.stash != nil {
-		inc, err := f.stash.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := f.stash.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }

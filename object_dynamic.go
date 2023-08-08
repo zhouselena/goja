@@ -563,8 +563,12 @@ func (o *baseDynamicObject) getPrivateEnv(*privateEnvType, bool) *privateElement
 	panic(newTypeError("Dynamic objects cannot have private elements"))
 }
 
-func (b *baseDynamicObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
-	return b.val.MemUsage(ctx)
+func (o *baseDynamicObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if o == nil {
+		return SizeEmptyStruct, SizeEmptyStruct, err
+	}
+
+	return o.val.MemUsage(ctx)
 }
 
 func (a *dynamicArray) sortLen() int {
@@ -801,6 +805,9 @@ func (a *dynamicArray) keys(all bool, accum []Value) []Value {
 	return a.stringKeys(all, accum)
 }
 
-func (a *dynamicArray) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (a *dynamicArray) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if a == nil {
+		return SizeEmptyStruct, SizeEmptyStruct, err
+	}
 	return a.val.MemUsage(ctx)
 }

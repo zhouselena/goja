@@ -108,7 +108,7 @@ func (a ArrayBuffer) Detached() bool {
 	return a.buf.detached
 }
 
-func (a ArrayBuffer) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (a ArrayBuffer) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	return a.buf.MemUsage(ctx)
 }
 
@@ -705,32 +705,35 @@ func (a *typedArrayObject) iterateStringKeys() iterNextFunc {
 	}).next
 }
 
-func (a *typedArrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (a *typedArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if a == nil || ctx.IsObjVisited(a) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(a)
 
-	total := SizeEmpty
+	memUsage = SizeEmptyStruct
+	newMemUsage = SizeEmptyStruct
 	if a.viewedArrayBuf != nil {
-		inc, err := a.viewedArrayBuf.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := a.viewedArrayBuf.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	if a.defaultCtor != nil {
-		inc, err := a.defaultCtor.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := a.defaultCtor.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	inc, err := a.baseObject.MemUsage(ctx)
-	total += inc
-	return total, err
+	inc, newInc, err := a.baseObject.MemUsage(ctx)
+
+	return memUsage + inc, newMemUsage + newInc, err
 }
 
 func (r *Runtime) _newTypedArrayObject(buf *arrayBufferObject, offset, length, elemSize int, defCtor *Object, arr typedArray, proto *Object) *typedArrayObject {
@@ -810,24 +813,27 @@ func (o *dataViewObject) getIdxAndByteOrder(getIdx int, littleEndianVal Value, s
 	return getIdx, bo
 }
 
-func (o *dataViewObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (o *dataViewObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if o == nil || ctx.IsObjVisited(o) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(o)
 
-	total := SizeEmpty
+	memUsage = SizeEmptyStruct
+	newMemUsage = SizeEmptyStruct
 	if o.viewedArrayBuf != nil {
-		inc, err := o.viewedArrayBuf.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := o.viewedArrayBuf.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
-	inc, err := o.baseObject.MemUsage(ctx)
-	total += inc
-	return total, err
+	inc, newInc, err := o.baseObject.MemUsage(ctx)
+	memUsage += inc
+	newMemUsage += newInc
+	return memUsage, newMemUsage, err
 }
 
 func (o *arrayBufferObject) ensureNotDetached(throw bool) bool {
@@ -968,16 +974,17 @@ func (o *arrayBufferObject) export(*objectExportCtx) interface{} {
 	}
 }
 
-func (o *arrayBufferObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (o *arrayBufferObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if o == nil || ctx.IsObjVisited(o) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(o)
 
-	total := uint64(len(o.data))
-	inc, err := o.baseObject.MemUsage(ctx)
-	total += inc
-	return total, err
+	memUsage = uint64(len(o.data))
+	newMemUsage = uint64(len(o.data))
+	inc, newInc, err := o.baseObject.MemUsage(ctx)
+
+	return memUsage + inc, newMemUsage + newInc, err
 }
 
 func (r *Runtime) _newArrayBuffer(proto *Object, o *Object) *arrayBufferObject {

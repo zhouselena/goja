@@ -145,7 +145,7 @@ type proxyHandler interface {
 
 	toObject(*Runtime) *Object
 
-	MemUsage(ctx *MemUsageContext) (uint64, error)
+	MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error)
 }
 
 type jsProxyHandler struct {
@@ -1054,47 +1054,51 @@ func (p *proxyObject) revoke() {
 	p.target = nil
 }
 
-func (p *proxyObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (p *proxyObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if p == nil || ctx.IsObjVisited(p) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(p)
 
 	if err := ctx.Descend(); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	total := SizeEmpty
-	inc, baseObjetErr := p.baseObject.MemUsage(ctx)
-	total += inc
-	if baseObjetErr != nil {
-		return total, baseObjetErr
+	memUsage = SizeEmptyStruct
+	newMemUsage = SizeEmptyStruct
+	inc, newInc, err := p.baseObject.MemUsage(ctx)
+	memUsage += inc
+	newMemUsage += newInc
+	if err != nil {
+		return memUsage, newMemUsage, err
 	}
 
 	if p.target != nil {
-		inc, err := p.target.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := p.target.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	if p.handler != nil {
-		inc, err := p.handler.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := p.handler.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 	}
 
 	ctx.Ascend()
 
-	return total, nil
+	return memUsage, newMemUsage, nil
 }
 
-func (h *jsProxyHandler) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (h *jsProxyHandler) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if h == nil || h.handler == nil || ctx.IsObjVisited(h.handler.self) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, err
 	}
 	return h.handler.MemUsage(ctx)
 }

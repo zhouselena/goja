@@ -133,38 +133,61 @@ func BenchmarkArraySetEmpty(b *testing.B) {
 }
 
 func TestArrayObjectMemUsage(t *testing.T) {
+	vm := New()
+
 	tests := []struct {
-		name        string
-		mu          *MemUsageContext
-		ao          *arrayObject
-		expected    uint64
-		errExpected error
+		name           string
+		mu             *MemUsageContext
+		ao             *arrayObject
+		expectedMem    uint64
+		expectedNewMem uint64
+		errExpected    error
 	}{
 		{
-			name: "mem below threshold",
-			mu:   NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
-			ao: &arrayObject{
-				values: []Value{
-					New()._newString(newStringValue("key"), nil),
-				},
-			},
-			expected:    41,
-			errExpected: nil,
+			name: "mem below threshold given a nil slice of values",
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			ao:   &arrayObject{},
+			// array overhead + array baseObject
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			// array overhead + array baseObject
+			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
+			name: "mem below threshold given empty slice of values",
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			ao:   &arrayObject{values: []Value{}},
+			// array overhead + array baseObject
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			// array overhead + array baseObject + values slice overhead
+			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice,
+			errExpected:    nil,
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(New(), 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
 			ao: &arrayObject{
 				values: []Value{
-					New()._newString(newStringValue("key"), nil),
-					New()._newString(newStringValue("key1"), nil),
-					New()._newString(newStringValue("key2"), nil),
-					New()._newString(newStringValue("key3"), nil),
-					New()._newString(newStringValue("key4"), nil),
-					New()._newString(newStringValue("key5"), nil),
+					vm._newString(newStringValue("key0"), nil),
+					vm._newString(newStringValue("key1"), nil),
+					vm._newString(newStringValue("key2"), nil),
+					vm._newString(newStringValue("key3"), nil),
+					vm._newString(newStringValue("key4"), nil),
+					vm._newString(newStringValue("key5"), nil),
 				},
 			},
-			expected:    119,
+			// array overhead + array baseObject
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct +
+				// (stringObject + baseObject + prop "length") * entries (at 4 we reach the limit)
+				(SizeEmptyStruct+SizeEmptyStruct+6)*4 +
+				// len("keyN") * entries (at 4 we reach the limit)
+				4*4,
+			// array overhead + array baseObject + values slice overhead
+			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice +
+				// (stringObject + baseObject + prop "length" with string overhead) * entries (at 4 we reach the limit)
+				(SizeEmptyStruct+SizeEmptyStruct+(6+SizeString))*4 +
+				// len("keyN") with string overhead * entries (at 4 we reach the limit)
+				(4+SizeString)*4,
 			errExpected: nil,
 		},
 		{
@@ -185,24 +208,28 @@ func TestArrayObjectMemUsage(t *testing.T) {
 				},
 			},
 			ao: &arrayObject{
-				values: []Value{New()._newString(newStringValue("key"), nil)},
+				values: []Value{vm._newString(newStringValue("key"), nil)},
 			},
-			expected:    16,
-			errExpected: errArrayLenExceedsThresholdNil,
+			expectedMem:    SizeEmptyStruct + SizeEmptyStruct,
+			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected:    errArrayLenExceedsThresholdNil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, err := tc.ao.MemUsage(tc.mu)
-			if err == nil && tc.errExpected != nil || err != nil && tc.errExpected == nil {
-				t.Fatalf("Unexpected error. Actual: %v Expected; %v", err, tc.errExpected)
+			total, newTotal, err := tc.ao.MemUsage(tc.mu)
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
 			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
 				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
 			}
-			if total != tc.expected {
-				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+			if newTotal != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

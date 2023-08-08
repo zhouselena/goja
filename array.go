@@ -562,8 +562,8 @@ var (
 // With this function we sample 10% of the array values,
 // determine their average mem usage and use that to estimate mem
 // usage of the whole array
-func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (uint64, error) {
-	var total, samplesVisited, runningEstimate uint64
+func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
+	var samplesVisited, memUsage, newMemUsage uint64
 	sampleSize := len(a.values) / 10
 
 	// grabbing one sample every "sampleSize" to provide consistent
@@ -573,51 +573,65 @@ func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (uint64, error) {
 			continue
 		}
 
-		inc, err := a.values[i].MemUsage(ctx)
+		inc, newInc, err := a.values[i].MemUsage(ctx)
 		samplesVisited += 1
-		total += inc
+		memUsage += inc
+		newMemUsage += newInc
 		// average * number of a.values
-		runningEstimate = uint64((float32(total) / float32(samplesVisited)) * float32(len(a.values)))
+		estimate = uint64((float32(memUsage) / float32(samplesVisited)) * float32(len(a.values)))
+		newEstimate = uint64((float32(newMemUsage) / float32(samplesVisited)) * float32(len(a.values)))
 		if err != nil {
-			return runningEstimate, err
+			return estimate, newEstimate, err
 		}
-		if exceeded := ctx.MemUsageLimitExceeded(total); exceeded {
-			return total, nil
+		if exceeded := ctx.MemUsageLimitExceeded(estimate); exceeded {
+			return estimate, newEstimate, nil
 		}
 	}
 
-	return runningEstimate, nil
+	return estimate, newEstimate, nil
 }
 
-func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
+func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
 	if a == nil || ctx.IsObjVisited(a) {
-		return SizeEmpty, nil
+		return SizeEmptyStruct, SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(a)
 
-	total := SizeEmpty
-	inc, err := a.baseObject.MemUsage(ctx)
-	total += inc
+	// arrayObject overhead
+	memUsage = SizeEmptyStruct
+	newMemUsage = SizeEmptyStruct
+
+	inc, newInc, err := a.baseObject.MemUsage(ctx)
+	memUsage += inc
+	newMemUsage += newInc
 	if err != nil {
-		return total, err
+		return memUsage, newMemUsage, err
 	}
 
 	if err := ctx.Descend(); err != nil {
-		return total, err
+		return memUsage, newMemUsage, err
 	}
 
 	if ctx.ArrayLenExceedsThreshold == nil {
-		return total, errArrayLenExceedsThresholdNil
+		return memUsage, newMemUsage, errArrayLenExceedsThresholdNil
 	}
+
+	// slice overhead from a.values
+	if a.values != nil {
+		memUsage += 0
+		newMemUsage += SizeEmptySlice
+	}
+
 	if ctx.ArrayLenExceedsThreshold(len(a.values)) {
-		inc, err := a.estimateMemUsage(ctx)
-		total += inc
+		inc, newInc, err := a.estimateMemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 
 		ctx.Ascend()
-		return total, nil
+		return memUsage, newMemUsage, nil
 	}
 
 	for _, v := range a.values {
@@ -625,18 +639,19 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (uint64, error) {
 			continue
 		}
 
-		inc, err := v.MemUsage(ctx)
-		total += inc
+		inc, newInc, err := v.MemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return total, err
+			return memUsage, newMemUsage, err
 		}
 		// This is an early exit in case we reach the mem usage
 		// limit before we get to scan the whole array.
-		if exceeded := ctx.MemUsageLimitExceeded(total); exceeded {
-			return total, nil
+		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+			return memUsage, newMemUsage, nil
 		}
 	}
 
 	ctx.Ascend()
-	return total, nil
+	return memUsage, newMemUsage, nil
 }

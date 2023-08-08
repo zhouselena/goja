@@ -9,7 +9,7 @@ import (
 func TestStringOOBProperties(t *testing.T) {
 	const SCRIPT = `
 	var string = new String("str");
-	
+
 	string[4] = 1;
 	string[4];
 	`
@@ -162,5 +162,44 @@ func BenchmarkASCIIConcat(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Unexpected errors %s", err)
 		}
+	}
+}
+
+func TestStringObjectMemUsage(t *testing.T) {
+	vm := New()
+
+	for _, tc := range []struct {
+		name           string
+		val            *stringObject
+		expectedMem    uint64
+		expectedNewMem uint64
+	}{
+		{
+			"should return SizeEmptyStruct given a nil stringObject",
+			nil,
+			SizeEmptyStruct,
+			SizeEmptyStruct,
+		},
+		{
+			"should account for base object and data given a non-empty stringObject",
+			&stringObject{value: newStringValue("yo"), length: 2},
+			// baseObject + len("yo")
+			SizeEmptyStruct + 2,
+			// baseObject + len("yo") and string overhead
+			SizeEmptyStruct + (2 + SizeString),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mem, newMem, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
+			if err != nil {
+				t.Fatalf("Unexpected error. Actual: %v Expected: nil", err)
+			}
+			if mem != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", mem, tc.expectedMem)
+			}
+			if newMem != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newMem, tc.expectedNewMem)
+			}
+		})
 	}
 }
