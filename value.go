@@ -1639,6 +1639,9 @@ func (s *Symbol) hash(*maphash.Hash) uint64 {
 }
 
 func (s *Symbol) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+	if s.desc == nil {
+		return 0, 0, err
+	}
 	return s.desc.MemUsage(ctx)
 }
 

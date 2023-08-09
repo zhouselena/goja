@@ -107,6 +107,13 @@ func TestValueMemUsage(t *testing.T) {
 			expectedNewMem: 4 + SizeString,
 			errExpected:    nil,
 		},
+		{
+			name:           "should return 0 given a Symbol with nil desc",
+			val:            &Symbol{},
+			expectedMem:    0,
+			expectedNewMem: 0,
+			errExpected:    nil,
+		},
 	}
 
 	for _, tc := range tests {
