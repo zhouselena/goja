@@ -586,7 +586,33 @@ func (vm *vm) run() {
 	vm.halt = false
 	interrupted := false
 	for !vm.halt {
-		vm.r.waitOneTick()
+		// NOTE: we should try to avoid making expensive operations within this
+		// loop since it gets called millions of times per second.
+		vm.r.ticks++
+		if vm.r.limiterTicksLeft > 0 {
+			vm.r.limiterTicksLeft--
+		} else {
+			vm.r.fillBucket()
+
+			ctx := vm.r.vm.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			if waitErr := vm.r.limiter.WaitN(ctx, vm.r.limiterTicksLeft); waitErr != nil {
+				if vm.r.vm.ctx == nil {
+					panic(waitErr)
+				}
+				if ctxErr := vm.r.vm.ctx.Err(); ctxErr != nil {
+					panic(ctxErr)
+				}
+				if strings.Contains(waitErr.Error(), "would exceed") {
+					panic(context.DeadlineExceeded)
+				}
+				panic(waitErr)
+			}
+		}
+
 		if interrupted = atomic.LoadUint32(&vm.interrupted) != 0; interrupted {
 			vm.interruptLock.Lock()
 			interruptFunc, ok := vm.interruptVal.(func())
