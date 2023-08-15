@@ -195,8 +195,8 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 	return obj
 }
 
-// CreateLazyObject creates a lazy object that will do initialization when the object is called upon during runtime
-func (r *Runtime) CreateLazyObject(create func(val *Object) *Object) (Value, error) {
+// NewLazyObject creates a lazy object that will do initialization when the object is called upon during runtime
+func (r *Runtime) NewLazyObject(create func(val *Object) *Object) (Value, error) {
 	if create == nil {
 		return UndefinedValue(), errors.New("create cannot be nil")
 	}
