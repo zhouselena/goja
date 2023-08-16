@@ -119,6 +119,12 @@ func TestNativeClass(t *testing.T) {
 }
 
 func TestNewLazyObject(t *testing.T) {
+	t.Run("should return an error if no callback is supplied to NewLazyObject", func(t *testing.T) {
+		vm := New()
+		_, err := vm.NewLazyObject(nil)
+		is(t, err.Error(), "create cannot be nil")
+	})
+
 	t.Run("creating new lazy object should not allocate size when not accessed", func(t *testing.T) {
 		vm := New()
 		o, err := vm.NewLazyObject(func(val *Object) *Object {
