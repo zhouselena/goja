@@ -195,6 +195,20 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 	return obj
 }
 
+// NewLazyObject creates a lazy object that will do initialization when the object is called upon during runtime
+func (r *Runtime) NewLazyObject(create func(val *Object) *Object) (Value, error) {
+	if create == nil {
+		return UndefinedValue(), errors.New("create cannot be nil")
+	}
+
+	createObjectImpl := func(val *Object) objectImpl {
+		obj := create(val)
+		return obj.self
+	}
+
+	return r.newLazyObject(createObjectImpl), nil
+}
+
 // CreateNativeFunction creates a native function that will call the given call function.
 // This provides for a way to detail how the function appears to a user within JS
 // compared to passing the call in via toValue.

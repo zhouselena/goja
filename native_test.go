@@ -117,3 +117,56 @@ func TestNativeClass(t *testing.T) {
 	is(t, err, nil)
 	is(t, ret.String(), "undefined")
 }
+
+func TestNewLazyObject(t *testing.T) {
+	t.Run("should return an error if no callback is supplied to NewLazyObject", func(t *testing.T) {
+		vm := New()
+		_, err := vm.NewLazyObject(nil)
+		is(t, err.Error(), "create cannot be nil")
+	})
+
+	t.Run("creating new lazy object should not allocate size when not accessed", func(t *testing.T) {
+		vm := New()
+		o, err := vm.NewLazyObject(func(val *Object) *Object {
+			o := vm.newBaseObject(nil, "myClass")
+			o._putProp("myProp", newStringValue("hello world"), false, false, false)
+			return o.val
+		})
+		is(t, err, nil)
+
+		mem, newMem, err := o.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 1, nil))
+		is(t, newMem, SizeEmptyStruct*2) // memUsage of Object + lazyObject
+		is(t, mem, SizeEmptyStruct*2)    // memUsage of Object + lazyObject
+	})
+
+	t.Run("accessing a lazy object should allocate memory and initialize the object", func(t *testing.T) {
+		vm := New()
+		var didInitialize bool
+		o, err := vm.NewLazyObject(func(val *Object) *Object {
+			didInitialize = true
+			o := vm.newBaseObject(nil, "myClass")
+			o._putProp("myProp", newStringValue("hello world"), false, false, false)
+			return o.val
+		})
+		is(t, err, nil)
+
+		memBeforeAccess, newMemBeforeAccess, err := o.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 1, nil))
+		is(t, err, nil)
+		is(t, memBeforeAccess, SizeEmptyStruct*2)    // memUsage of Object + lazyObject
+		is(t, newMemBeforeAccess, SizeEmptyStruct*2) // memUsage of Object + lazyObject
+
+		obj, ok := o.(*Object)
+		is(t, ok, true)
+
+		// access the lazyobject which causes the lazyObject's init callback to run
+		hasMyProp := obj.hasOwnProperty(newStringValue("myProp"))
+		is(t, hasMyProp, true)
+		is(t, didInitialize, true)
+
+		mem, newMem, err := o.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 1, nil))
+		is(t, err, nil)
+		if mem <= memBeforeAccess || newMem <= newMemBeforeAccess {
+			t.Fatal("memory usage of lazy object should have grown after accessing it but it didnt")
+		}
+	})
+}
