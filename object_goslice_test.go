@@ -299,6 +299,19 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
+			name: "should account for baseObject only given a nil data field",
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+			},
+			// overhead
+			expectedMem: SizeEmptyStruct,
+			// overhead
+			expectedNewMem: SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
 			name: "should account for each value given a slice with go ints",
 			val: &objectGoSlice{
 				baseObject: baseObject{
@@ -342,8 +355,8 @@ func TestGoSliceMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// overhead + (value + len("length") + "length".value + prototype + ints)
-			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			// default + default since we don't account for objectGoSlice in (*Object).MemUsage
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
 			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
 			errExpected:    nil,
@@ -361,8 +374,8 @@ func TestGoSliceMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// overhead + (value + len("length") + "length".value + prototype + ints)
-			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			// default + default since we don't account for objectGoSlice in (*Object).MemUsage
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
 			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
 			errExpected:    nil,
@@ -371,7 +384,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100000, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

@@ -487,8 +487,8 @@ func TestStashMemUsage(t *testing.T) {
 					self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 				},
 			},
-			// baseObject overhead + obj value
-			expectedMem: SizeEmptyStruct + (4 + SizeInt),
+			// baseObject overhead + obj value with string overhead
+			expectedMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			// baseObject overhead + obj value with string overhead
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			errExpected:    nil,

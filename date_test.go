@@ -338,8 +338,8 @@ func TestDateMemUsage(t *testing.T) {
 			},
 			// msec value
 			expectedMem: SizeNumber +
-				// baseObject overhead + len("test") + value
-				SizeEmptyStruct + 4 + SizeInt,
+				// baseObject overhead + len("test") with string overhead + value
+				SizeEmptyStruct + (4 + SizeString) + SizeInt,
 			// msec value
 			expectedNewMem: SizeNumber +
 				// baseObject overhead + len("test") with string overhead + value

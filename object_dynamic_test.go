@@ -457,7 +457,7 @@ func TestBaseDynamicObjectMemUsage(t *testing.T) {
 					self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 				},
 			},
-			expectedMem:    SizeEmptyStruct + (4 + SizeInt),
+			expectedMem:    SizeEmptyStruct + (4 + SizeString + SizeInt),
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			errExpected:    nil,
 		},

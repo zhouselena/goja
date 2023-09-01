@@ -96,14 +96,14 @@ func TestValueMemUsage(t *testing.T) {
 		{
 			name:           "should account for ref given a valueUnresolved",
 			val:            valueUnresolved{ref: "test"},
-			expectedMem:    4,
+			expectedMem:    4 + SizeString,
 			expectedNewMem: 4 + SizeString,
 			errExpected:    nil,
 		},
 		{
 			name:           "should account for desc given a Symbol",
 			val:            &Symbol{desc: newStringValue("test")},
-			expectedMem:    4,
+			expectedMem:    4 + SizeString,
 			expectedNewMem: 4 + SizeString,
 			errExpected:    nil,
 		},
@@ -164,7 +164,7 @@ func TestValuePropertyMemUsage(t *testing.T) {
 					self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 				},
 			},
-			expectedMem:    SizeEmptyStruct + SizeEmptyStruct + 4,
+			expectedMem:    SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString),
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString),
 			errExpected:    nil,
 		},
@@ -175,7 +175,7 @@ func TestValuePropertyMemUsage(t *testing.T) {
 					self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 				},
 			},
-			expectedMem:    SizeEmptyStruct + SizeEmptyStruct + 4,
+			expectedMem:    SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString),
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString),
 			errExpected:    nil,
 		},
@@ -201,6 +201,7 @@ func TestValuePropertyMemUsage(t *testing.T) {
 }
 
 func TestObjectMemUsage(t *testing.T) {
+	vm := New()
 	tests := []struct {
 		name           string
 		val            *Object
@@ -244,17 +245,47 @@ func TestObjectMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:           "should have a value of SizeEmptyStruct given an Object with self of type objectGoMapSimple",
+			name:           "should have a value of SizeEmptyStruct given an Object with self of type objectGoMapSimple empty",
 			val:            &Object{self: &objectGoMapSimple{}},
 			expectedMem:    SizeEmptyStruct,
 			expectedNewMem: SizeEmptyStruct,
 			errExpected:    nil,
 		},
 		{
-			name:           "should have a value of SizeEmptyStruct given an Object with self of type objectGoSlice",
+			name: "should have different values given an Object with self of type objectGoMapSimple non empty",
+			val: &Object{self: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test0": valueInt(99),
+					"test1": valueInt(99),
+				},
+			}},
+			expectedMem:    SizeEmptyStruct,
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
+			errExpected:    nil,
+		},
+		{
+			name:           "should have a value of SizeEmptyStruct given an Object with self of type objectGoSlice empty",
 			val:            &Object{self: &objectGoSlice{}},
 			expectedMem:    SizeEmptyStruct,
 			expectedNewMem: SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
+			name: "should have different values given an Object with self of type objectGoSlice non empty",
+			val: &Object{self: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{
+					valueInt(99),
+					valueInt(99),
+				},
+			}},
+			expectedMem:    SizeEmptyStruct,
+			expectedNewMem: SizeEmptyStruct + SizeInt*2,
 			errExpected:    nil,
 		},
 		{
@@ -269,8 +300,8 @@ func TestObjectMemUsage(t *testing.T) {
 			val: &Object{
 				self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 			},
-			// baseObject overhead + value
-			expectedMem: SizeEmptyStruct + (4 + SizeInt),
+			// baseObject overhead + value with string overhead
+			expectedMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			// baseObject overhead + value with string overhead
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			errExpected:    nil,

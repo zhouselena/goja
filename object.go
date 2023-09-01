@@ -1941,7 +1941,7 @@ func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, ne
 	// memory usage across function executions
 	for i := 0; i < totalProps; i += sampleSize {
 		k := o.propNames[i]
-		memUsage += uint64(len(k))
+		memUsage += uint64(len(k)) + SizeString
 		newMemUsage += uint64(len(k)) + SizeString
 		v := o.values[k]
 		if v == nil {
@@ -1982,7 +1982,7 @@ func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsag
 	} else {
 		for _, k := range o.propNames {
 			v := o.values[k]
-			memUsage += uint64(len(k))
+			memUsage += uint64(len(k)) + SizeString
 			newMemUsage += uint64(len(k)) + SizeString
 
 			if v == nil {

@@ -264,6 +264,7 @@ func TestSparseArrayExportToSlice(t *testing.T) {
 }
 
 func TestSparseArrayObjectMemUsage(t *testing.T) {
+	vm := New()
 	tests := []struct {
 		name        string
 		mu          *MemUsageContext
@@ -274,24 +275,24 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 	}{
 		{
 			name: "mem below threshold",
-			mu:   NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
 			sao: &sparseArrayObject{
 				items: []sparseArrayItem{
 					{
 						idx:   1,
-						value: New()._newString(newStringValue("key"), nil),
+						value: vm.ToValue("key"),
 					},
 				},
 			},
-			// array overhead + index size + stringObject + sparseArray baseObject
-			expected: SizeEmptyStruct + SizeInt32 + 25 + SizeEmptyStruct,
-			// array overhead + index size + stringObject + sparseArray baseObject
-			newExpected: SizeEmptyStruct + SizeInt32 + 57 + SizeEmptyStruct,
+			// array overhead + index size + (string len + overhead) + sparseArray baseObject
+			expected: SizeEmptyStruct + SizeInt32 + (3 + SizeString) + SizeEmptyStruct,
+			// array overhead + index size + (string len + overhead) + sparseArray baseObject
+			newExpected: SizeEmptyStruct + SizeInt32 + (3 + SizeString) + SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
 			name:        "mem is SizeEmptyStruct for nil sparse array",
-			mu:          NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
 			sao:         nil,
 			expected:    SizeEmptyStruct,
 			newExpected: SizeEmptyStruct,
@@ -299,39 +300,39 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(New(), 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
 			sao: &sparseArrayObject{
 				items: []sparseArrayItem{
 					{
 						idx:   1,
-						value: New()._newString(newStringValue("key0"), nil),
+						value: vm.ToValue("key0"),
 					},
 					{
 						idx:   2,
-						value: New()._newString(newStringValue("key1"), nil),
+						value: vm.ToValue("key1"),
 					},
 					{
 						idx:   3,
-						value: New()._newString(newStringValue("key2"), nil),
+						value: vm.ToValue("key2"),
 					},
 					{
 						idx:   4,
-						value: New()._newString(newStringValue("key3"), nil),
+						value: vm.ToValue("key3"),
 					},
 					{
 						idx:   5,
-						value: New()._newString(newStringValue("key4"), nil),
+						value: vm.ToValue("key4"),
 					},
 					{
 						idx:   6,
-						value: New()._newString(newStringValue("key5"), nil),
+						value: vm.ToValue("key5"),
 					},
 				},
 			},
-			// array overhead + index size + stringObject (we reach the limit at 4)
-			expected: SizeEmptyStruct + (SizeInt32+26)*4,
-			// index size + stringObject (we reach the limit at 4)
-			newExpected: SizeEmptyStruct + (SizeInt32+58)*4,
+			// array overhead + index size + (string len + overhead) (we reach the limit at 4)
+			expected: SizeEmptyStruct + (SizeInt32+(4+SizeString))*4,
+			// array overhead + index size + (string len + overhead) (we reach the limit at 4)
+			newExpected: SizeEmptyStruct + (SizeInt32+(4+SizeString))*4,
 			errExpected: nil,
 		},
 	}

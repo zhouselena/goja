@@ -351,5 +351,5 @@ func (i *importedString) toTrimmedUTF8() string {
 }
 
 func (i *importedString) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return uint64(len(i.String())), uint64(len(i.String())) + SizeString, err
+	return uint64(len(i.String())) + SizeString, uint64(len(i.String())) + SizeString, err
 }

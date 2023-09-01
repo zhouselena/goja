@@ -675,8 +675,8 @@ func TestBaseObjectMemUsage(t *testing.T) {
 			name:      "should account for each key value pair given a non-empty object",
 			threshold: 100,
 			val:       &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
-			// overhead + len("test") + value
-			expectedMem: SizeEmptyStruct + 4 + SizeInt,
+			// overhead + len("test") with string overhead + value
+			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeInt,
 			// overhead + len("test") with string overhead + value
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeInt,
 			errExpected:    nil,
@@ -685,8 +685,8 @@ func TestBaseObjectMemUsage(t *testing.T) {
 			name:      "should account for each key value pair given a non-empty object with a nil value",
 			threshold: 100,
 			val:       &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": nil}},
-			// overhead + len("test")
-			expectedMem: SizeEmptyStruct + 4,
+			// overhead + len("test") with string overhead
+			expectedMem: SizeEmptyStruct + (4 + SizeString),
 			// overhead + len("test") with string overhead
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString),
 			errExpected:    nil,
@@ -708,8 +708,8 @@ func TestBaseObjectMemUsage(t *testing.T) {
 					"test3": valueInt(99),
 				},
 			},
-			// overhead + len("testN") + value
-			expectedMem: SizeEmptyStruct + (5+SizeInt)*4,
+			// overhead + len("testN") with string overhead + value
+			expectedMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*4,
 			// overhead + len("testN") with string overhead + value
 			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*4,
 			errExpected:    nil,
@@ -779,8 +779,8 @@ func TestPrimitiveValueObjectMemUsage(t *testing.T) {
 		{
 			name: "should account for overehead and each key value pair given a primitive value object with non-empty object",
 			val:  &primitiveValueObject{baseObject: baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}}},
-			// baseObject overhead + len("test") + value
-			expectedMem: SizeEmptyStruct + 4 + SizeInt,
+			// baseObject overhead + len("test") with string overhead + value
+			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeInt,
 			// baseObject overhead + len("test") with string overhead + value
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeInt,
 			errExpected:    nil,

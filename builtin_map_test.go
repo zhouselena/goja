@@ -244,6 +244,7 @@ func BenchmarkMapDeleteJS(b *testing.B) {
 }
 
 func TestMapObjectMemUsage(t *testing.T) {
+	vm := New()
 	tests := []struct {
 		name           string
 		mu             *MemUsageContext
@@ -254,26 +255,26 @@ func TestMapObjectMemUsage(t *testing.T) {
 	}{
 		{
 			name: "mem below threshold",
-			mu:   NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
 			mo: &mapObject{
 				m: &orderedMap{
 					hashTable: map[uint64]*mapEntry{
 						1: {
-							key:   New()._newString(newStringValue("key"), nil),
-							value: New()._newString(newStringValue("value"), nil),
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
 						},
 					},
 				},
 			},
-			// baseObject + stringObject + len(key) + stringObject + len(key)
-			expectedMem: SizeEmptyStruct + 22 + 3 + 22 + 5,
-			// baseObject + stringObject + (len(key) + overhead) + stringObject + (len(key) + overhead)
-			expectedNewMem: SizeEmptyStruct + 38 + (3 + SizeString) + 38 + (5 + SizeString),
+			// baseObject + (len(key) + overhead)  + (len(value) + overhead)
+			expectedMem: SizeEmptyStruct + (3 + SizeString) + (5 + SizeString),
+			// baseObject + (len(key) + overhead) + (len(value) + overhead)
+			expectedNewMem: SizeEmptyStruct + (3 + SizeString) + (5 + SizeString),
 			errExpected:    nil,
 		},
 		{
 			name:           "mem is SizeEmptyStruct given a nil map object",
-			mu:             NewMemUsageContext(New(), 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:             NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
 			mo:             nil,
 			expectedMem:    SizeEmptyStruct,
 			expectedNewMem: SizeEmptyStruct,
@@ -281,41 +282,41 @@ func TestMapObjectMemUsage(t *testing.T) {
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(New(), 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
 			mo: &mapObject{
 				m: &orderedMap{
 					hashTable: map[uint64]*mapEntry{
 						1: {
-							key:   New()._newString(newStringValue("key"), nil),
-							value: New()._newString(newStringValue("value"), nil),
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
 						},
 						2: {
-							key:   New()._newString(newStringValue("key"), nil),
-							value: New()._newString(newStringValue("value"), nil),
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
 						},
 						3: {
-							key:   New()._newString(newStringValue("key"), nil),
-							value: New()._newString(newStringValue("value"), nil),
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
 						},
 						4: {
-							key:   New()._newString(newStringValue("key"), nil),
-							value: New()._newString(newStringValue("value"), nil),
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
 						},
 					},
 				},
 			},
 			// baseObject
 			expectedMem: SizeEmptyStruct +
-				// stringObject + len(key) (we reach the limit after 2)
-				(22+3)*2 +
-				// stringObject + len(value) (we reach the limit after 2)
-				(22+5)*2,
+				// len(key) + overhead (we reach the limit after 3)
+				(3+SizeString)*3 +
+				// len(value) + overhead (we reach the limit after 3)
+				(5+SizeString)*3,
 			// baseObject
 			expectedNewMem: SizeEmptyStruct +
-				// stringObject + len(key) + overhead (we reach the limit after 2)
-				(38+(3+SizeString))*2 +
-				// stringObject + len(value) + overhead (we reach the limit after 2)
-				(38+(5+SizeString))*2,
+				// len(key) + overhead (we reach the limit after 3)
+				(3+SizeString)*3 +
+				// len(value) + overhead (we reach the limit after 3)
+				(5+SizeString)*3,
 			errExpected: nil,
 		},
 	}

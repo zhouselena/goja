@@ -181,7 +181,7 @@ func (o *objectGoMapSimple) MemUsage(ctx *MemUsageContext) (uint64, uint64, erro
 		return 0, 0, err
 	}
 	for key := range o.data {
-		mem += uint64(len(key))
+		mem += uint64(len(key)) + SizeString
 		newMem += uint64(len(key)) + SizeString
 		memValue, newMemValue, err := o._getStr(key).MemUsage(ctx)
 		mem += memValue

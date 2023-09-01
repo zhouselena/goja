@@ -15,14 +15,14 @@ func TestStringAsciiMemUsage(t *testing.T) {
 		{
 			name:           "should have a value of 0/SizeString given an empty string",
 			val:            asciiString(""),
-			expectedMem:    0,
+			expectedMem:    SizeString, // string overhead
 			expectedNewMem: SizeString, // string overhead
 			errExpected:    nil,
 		},
 		{
 			name:           "should have a value given the length of the string",
 			val:            asciiString("yo"),
-			expectedMem:    2,
+			expectedMem:    2 + SizeString, // length with string overhead
 			expectedNewMem: 2 + SizeString, // length with string overhead
 			errExpected:    nil,
 		},

@@ -183,8 +183,8 @@ func TestStringObjectMemUsage(t *testing.T) {
 		{
 			"should account for base object and data given a non-empty stringObject",
 			&stringObject{value: newStringValue("yo"), length: 2},
-			// baseObject + len("yo")
-			SizeEmptyStruct + 2,
+			// baseObject + len("yo") and string overhead
+			SizeEmptyStruct + (2 + SizeString),
 			// baseObject + len("yo") and string overhead
 			SizeEmptyStruct + (2 + SizeString),
 		},

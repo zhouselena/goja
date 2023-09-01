@@ -157,8 +157,8 @@ func TestArrayObjectMemUsage(t *testing.T) {
 			name: "mem below threshold given empty slice of values",
 			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
 			ao:   &arrayObject{values: []Value{}},
-			// array overhead + array baseObject
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			// array overhead + array baseObject + values slice overhead
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice,
 			// array overhead + array baseObject + values slice overhead
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice,
 			errExpected:    nil,
@@ -168,24 +168,20 @@ func TestArrayObjectMemUsage(t *testing.T) {
 			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
 			ao: &arrayObject{
 				values: []Value{
-					vm._newString(newStringValue("key0"), nil),
-					vm._newString(newStringValue("key1"), nil),
-					vm._newString(newStringValue("key2"), nil),
-					vm._newString(newStringValue("key3"), nil),
-					vm._newString(newStringValue("key4"), nil),
-					vm._newString(newStringValue("key5"), nil),
+					vm.ToValue("key0"),
+					vm.ToValue("key1"),
+					vm.ToValue("key2"),
+					vm.ToValue("key3"),
+					vm.ToValue("key4"),
+					vm.ToValue("key5"),
 				},
 			},
-			// array overhead + array baseObject
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct +
-				// (stringObject + baseObject + prop "length") * entries (at 4 we reach the limit)
-				(SizeEmptyStruct+SizeEmptyStruct+6)*4 +
-				// len("keyN") * entries (at 4 we reach the limit)
-				4*4,
+			// array overhead + array baseObject + values slice overhead
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice +
+				// len("keyN") with string overhead * entries (at 4 we reach the limit)
+				(4+SizeString)*4,
 			// array overhead + array baseObject + values slice overhead
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice +
-				// (stringObject + baseObject + prop "length" with string overhead) * entries (at 4 we reach the limit)
-				(SizeEmptyStruct+SizeEmptyStruct+(6+SizeString))*4 +
 				// len("keyN") with string overhead * entries (at 4 we reach the limit)
 				(4+SizeString)*4,
 			errExpected: nil,

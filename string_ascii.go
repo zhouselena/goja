@@ -333,7 +333,7 @@ func (s asciiString) ExportType() reflect.Type {
 }
 
 func (s asciiString) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return uint64(s.length()), uint64(s.length()) + SizeString, err
+	return uint64(s.length()) + SizeString, uint64(s.length()) + SizeString, err
 }
 
 func (s asciiString) ToInt() int {

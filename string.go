@@ -334,7 +334,7 @@ func (s *stringObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUs
 	}
 	ctx.VisitObj(s)
 
-	memUsage = uint64(s.length)
+	memUsage = uint64(s.length) + SizeString
 	newMemUsage = uint64(s.length) + SizeString
 	inc, newInc, err := s.baseObject.MemUsage(ctx)
 

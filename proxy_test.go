@@ -46,8 +46,8 @@ func TestProxyMemUsage(t *testing.T) {
 					self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 				},
 			},
-			// proxy overhead + baseObject overhead + target overhead + key/value pair
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptyStruct + (4 + SizeInt),
+			// proxy overhead + baseObject overhead + target overhead + key/value pair with string overhead
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString + SizeInt),
 			// proxy overhead + baseObject overhead + target overhead + key/value pair with string overhead
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString + SizeInt),
 			errExpected:    nil,
@@ -70,8 +70,8 @@ func TestProxyMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// proxy overhead + baseObject overhead + target overhead + key/value pair
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptyStruct + (4 + SizeInt),
+			// proxy overhead + baseObject overhead + target overhead + key/value pair with string overhead
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString + SizeInt),
 			// proxy overhead + baseObject overhead + target overhead + key/value pair with string overhead
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptyStruct + (4 + SizeString + SizeInt),
 			errExpected:    nil,
@@ -126,8 +126,8 @@ func TestJSProxyHandlerMemUsage(t *testing.T) {
 					self: &baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}},
 				},
 			},
-			// baseObject overhead + key/value pair
-			expectedMem: SizeEmptyStruct + (4 + SizeInt),
+			// baseObject overhead + key/value pair with string overhead
+			expectedMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			// baseObject overhead + key/value pair with string overhead
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
 			errExpected:    nil,

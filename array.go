@@ -618,7 +618,7 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsa
 
 	// slice overhead from a.values
 	if a.values != nil {
-		memUsage += 0
+		memUsage += SizeEmptySlice
 		newMemUsage += SizeEmptySlice
 	}
 

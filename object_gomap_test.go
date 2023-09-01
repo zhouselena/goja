@@ -365,8 +365,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test1": valueInt(99),
 				},
 			},
-			// baseObject overhead + len("testN") + value
-			expectedMem: SizeEmptyStruct + (5+SizeInt)*2,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			// baseObject overhead + len("testN") with string overhead + value
 			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			errExpected:    nil,
@@ -382,8 +382,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test1": 99,
 				},
 			},
-			// baseObject overhead + len("testN") + value
-			expectedMem: SizeEmptyStruct + (5+SizeInt)*2,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			// baseObject overhead + len("testN") with string overhead + value
 			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			errExpected:    nil,
@@ -398,8 +398,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": nil,
 				},
 			},
-			// overhead + len("test") + null
-			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("test") with string overhead + null
+			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
 			// overhead + len("test") with string overhead + null
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
 			errExpected:    nil,
@@ -414,8 +414,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": nestedMap,
 				},
 			},
-			// overhead + len("test") + (Object prototype + values)
-			expectedMem: SizeEmptyStruct + 4 + nestedMapMemUsage,
+			// overhead + len("testN") with string overhead + (Object prototype with overhead + values with string overhead)
+			expectedMem: SizeEmptyStruct + (4 + SizeString) + nestedMapMemUsage,
 			// overhead + len("testN") with string overhead + (Object prototype with overhead + values with string overhead)
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + nestedMapNewMemUsage,
 			errExpected:    nil,
@@ -430,8 +430,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": &nestedMap,
 				},
 			},
-			// overhead + len("test") + nested overhead
-			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("testN") with string overhead + nested overhead
+			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
 			// overhead + len("testN") with string overhead + nested overhead
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
 			errExpected:    nil,
