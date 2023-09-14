@@ -255,6 +255,9 @@ var (
 
 		// Left-hand side as a CoverParenthesizedExpression
 		"test/language/expressions/assignment/fn-name-lhs-cover.js": true,
+
+		// Skip due to regexp named groups
+		"test/built-ins/String/prototype/replaceAll/searchValue-replacer-RegExp-call.js": true,
 	}
 
 	featuresBlackList = []string{

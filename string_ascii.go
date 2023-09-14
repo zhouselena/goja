@@ -285,6 +285,9 @@ func (s asciiString) compareTo(other valueString) int {
 func (s asciiString) index(substr valueString, start int) int {
 	a, u := devirtualizeString(substr)
 	if u == nil {
+		if start > len(s) {
+			return -1
+		}
 		p := strings.Index(string(s[start:]), string(a))
 		if p >= 0 {
 			return p + start
