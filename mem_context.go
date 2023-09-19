@@ -5,8 +5,8 @@ import (
 )
 
 type visitTracker struct {
-	objsVisited    map[objectImpl]bool
-	stashesVisited map[*stash]bool
+	objsVisited    map[objectImpl]struct{}
+	stashesVisited map[*stash]struct{}
 }
 
 func (vt visitTracker) IsObjVisited(obj objectImpl) bool {
@@ -15,7 +15,7 @@ func (vt visitTracker) IsObjVisited(obj objectImpl) bool {
 }
 
 func (vt visitTracker) VisitObj(obj objectImpl) {
-	vt.objsVisited[obj] = true
+	vt.objsVisited[obj] = struct{}{}
 }
 
 func (vt visitTracker) IsStashVisited(stash *stash) bool {
@@ -24,7 +24,7 @@ func (vt visitTracker) IsStashVisited(stash *stash) bool {
 }
 
 func (vt visitTracker) VisitStash(stash *stash) {
-	vt.stashesVisited[stash] = true
+	vt.stashesVisited[stash] = struct{}{}
 }
 
 type depthTracker struct {
@@ -72,7 +72,7 @@ func NewMemUsageContext(
 	nativeChecker NativeMemUsageChecker,
 ) *MemUsageContext {
 	return &MemUsageContext{
-		visitTracker:          visitTracker{objsVisited: map[objectImpl]bool{}, stashesVisited: map[*stash]bool{}},
+		visitTracker:          visitTracker{objsVisited: make(map[objectImpl]struct{}), stashesVisited: make(map[*stash]struct{})},
 		depthTracker:          &depthTracker{curDepth: 0, maxDepth: maxDepth},
 		NativeMemUsageChecker: nativeChecker,
 		memoryLimit:           memLimit,
