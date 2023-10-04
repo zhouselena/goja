@@ -274,6 +274,12 @@ func TestObject_fromEntries(t *testing.T) {
  					 [ o.a, o.b, o.c ]
  				 `, "1,true,sea",
 		},
+		{
+			`
+ 					 var o = Object.fromEntries([['a', 1], [, 'empty'], ['b', true]]);
+ 					 [ o.a, o[undefined], o.b ]
+ 				 `, "1,empty,true",
+		},
 	} {
 		actual, err := vm.RunString(tt.js)
 		if err != nil {

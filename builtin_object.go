@@ -584,7 +584,7 @@ func (r *Runtime) object_fromEntries(call FunctionCall) Value {
 		itemObj := r.toObject(nextValue)
 		k := itemObj.self.getIdx(i0, nil)
 		v := itemObj.self.getIdx(i1, nil)
-		key := toPropertyKey(k)
+		key := toPropertyKey(nilSafe(k))
 
 		createDataPropertyOrThrow(result, key, v)
 	})
