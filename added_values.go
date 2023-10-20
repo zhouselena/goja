@@ -126,7 +126,7 @@ func (i valueNumber) ToBoolean() bool {
 }
 
 func (i valueNumber) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+	return r.newPrimitiveObject(i, r.getNumberPrototype(), classNumber)
 }
 
 func (i valueNumber) ToNumber() Value {
@@ -158,7 +158,7 @@ func (i valueNumber) Equals(other Value) bool {
 		return i.ToInt() == o.ToInt()
 	}
 	if o, ok := other.(*Object); ok {
-		return i.Equals(o.self.toPrimitiveNumber())
+		return i.Equals(o.toPrimitiveNumber())
 	}
 	return false
 }
@@ -194,7 +194,7 @@ func (i valueNumber) assertString() (valueString, bool) {
 }
 
 func (i valueNumber) baseObject(r *Runtime) *Object {
-	return r.global.NumberPrototype
+	return r.getNumberPrototype()
 }
 
 func (i valueNumber) Export() interface{} {
@@ -256,7 +256,7 @@ func (i valueUInt32) ToBoolean() bool {
 }
 
 func (i valueUInt32) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+	return r.newPrimitiveObject(i, r.getNumberPrototype(), classNumber)
 }
 
 func (i valueUInt32) ToNumber() Value {
@@ -284,7 +284,7 @@ func (i valueUInt32) Equals(other Value) bool {
 		return int(i) == o.ToInt()
 	}
 	if o, ok := other.(*Object); ok {
-		return i.Equals(o.self.toPrimitiveNumber())
+		return i.Equals(o.toPrimitiveNumber())
 	}
 	return false
 }
@@ -324,7 +324,7 @@ func (i valueUInt32) assertString() (valueString, bool) {
 }
 
 func (i valueUInt32) baseObject(r *Runtime) *Object {
-	return r.global.NumberPrototype
+	return r.getNumberPrototype()
 }
 
 func (i valueUInt32) Export() interface{} {
@@ -389,7 +389,7 @@ func (i valueInt32) ToBoolean() bool {
 }
 
 func (i valueInt32) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+	return r.newPrimitiveObject(i, r.getNumberPrototype(), classNumber)
 }
 
 func (i valueInt32) ToNumber() Value {
@@ -417,7 +417,7 @@ func (i valueInt32) Equals(other Value) bool {
 		return int(i) == o.ToInt()
 	}
 	if o, ok := other.(*Object); ok {
-		return i.Equals(o.self.toPrimitiveNumber())
+		return i.Equals(o.toPrimitiveNumber())
 	}
 	return false
 }
@@ -453,7 +453,7 @@ func (i valueInt32) assertString() (valueString, bool) {
 }
 
 func (i valueInt32) baseObject(r *Runtime) *Object {
-	return r.global.NumberPrototype
+	return r.getNumberPrototype()
 }
 
 func (i valueInt32) Export() interface{} {
@@ -516,7 +516,7 @@ func (i valueInt64) ToBoolean() bool {
 }
 
 func (i valueInt64) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+	return r.newPrimitiveObject(i, r.getNumberPrototype(), classNumber)
 }
 
 func (i valueInt64) ToNumber() Value {
@@ -544,7 +544,7 @@ func (i valueInt64) Equals(other Value) bool {
 		return int(i) == o.ToInt()
 	}
 	if o, ok := other.(*Object); ok {
-		return i.Equals(o.self.toPrimitiveNumber())
+		return i.Equals(o.toPrimitiveNumber())
 	}
 	return false
 }
@@ -582,7 +582,7 @@ func (i valueInt64) hash(*maphash.Hash) uint64 {
 }
 
 func (i valueInt64) baseObject(r *Runtime) *Object {
-	return r.global.NumberPrototype
+	return r.getNumberPrototype()
 }
 
 func (i valueInt64) Export() interface{} {

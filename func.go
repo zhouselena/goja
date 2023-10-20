@@ -26,6 +26,10 @@ type baseJsFuncObject struct {
 	strict bool
 }
 
+type funcObjectImpl interface {
+	source() valueString
+}
+
 type funcObject struct {
 	baseJsFuncObject
 }
@@ -270,7 +274,7 @@ func (f *classFuncObject) construct(args []Value, newTarget *Object) *Object {
 			if v := r.vm.stack[r.vm.sp+1]; v != nil { // using residual 'this' value (a bit hacky)
 				instance = r.toObject(v)
 			} else {
-				panic(r.newError(r.global.ReferenceError, "Must call super constructor in derived class before returning from derived constructor"))
+				panic(r.newError(r.getReferenceError(), "Must call super constructor in derived class before returning from derived constructor"))
 			}
 		}
 		return instance
@@ -368,9 +372,9 @@ func (f *baseFuncObject) init(name unistring.String, length Value) {
 	f._putProp("name", stringValueFromRaw(name), false, false, true)
 }
 
-func (f *baseFuncObject) hasInstance(v Value) bool {
+func hasInstance(val *Object, v Value) bool {
 	if v, ok := v.(*Object); ok {
-		o := f.val.self.getStr("prototype", nil)
+		o := val.self.getStr("prototype", nil)
 		if o1, ok := o.(*Object); ok {
 			for {
 				v = v.self.proto()
@@ -382,11 +386,15 @@ func (f *baseFuncObject) hasInstance(v Value) bool {
 				}
 			}
 		} else {
-			f.val.runtime.typeErrorResult(true, "prototype is not an object")
+			panic(val.runtime.NewTypeError("prototype is not an object"))
 		}
 	}
 
 	return false
+}
+
+func (f *baseFuncObject) hasInstance(v Value) bool {
+	return hasInstance(f.val, v)
 }
 
 func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object, args []Value, newTarget *Object) *Object {
@@ -420,6 +428,27 @@ func (f *nativeFuncObject) Call(call FunctionCall) Value {
 	rv := f.f(call)
 	vm.setFuncName(prevFuncName)
 	return rv
+}
+
+func (f *nativeFuncObject) vmCall(vm *vm, n int) {
+	if f.f != nil {
+		vm.pushCtx()
+		vm.prg = nil
+		vm.sb = vm.sp - n // so that [sb-1] points to the callee
+		ret := f.f(FunctionCall{
+			Arguments: vm.stack[vm.sp-n : vm.sp],
+			This:      vm.stack[vm.sp-n-2],
+		})
+		if ret == nil {
+			ret = _undefined
+		}
+		vm.stack[vm.sp-n-2] = ret
+		vm.popCtx()
+	} else {
+		vm.stack[vm.sp-n-2] = _undefined
+	}
+	vm.sp -= n + 1
+	vm.pc++
 }
 
 func (f *nativeFuncObject) assertConstructor() func(args []Value, newTarget *Object) *Object {

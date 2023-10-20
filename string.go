@@ -108,7 +108,7 @@ func (r *Runtime) createStringIterator(s valueString) Value {
 	si.val = o
 	si.extensible = true
 	o.self = si
-	si.prototype = r.global.StringIteratorPrototype
+	si.prototype = r.getStringIteratorPrototype()
 	si.init()
 
 	return o

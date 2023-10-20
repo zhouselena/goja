@@ -238,9 +238,6 @@ type objectImpl interface {
 	deleteIdx(idx valueInt, throw bool) bool
 	deleteSym(s *Symbol, throw bool) bool
 
-	toPrimitiveNumber() Value
-	toPrimitiveString() Value
-	toPrimitive() Value
 	assertCallable() (call func(FunctionCall) Value, ok bool)
 	assertConstructor() func(args []Value, newTarget *Object) *Object
 	proto() *Object
@@ -915,7 +912,7 @@ func (o *Object) tryPrimitive(methodName unistring.String) Value {
 	return nil
 }
 
-func (o *Object) genericToPrimitiveNumber() Value {
+func (o *Object) ordinaryToPrimitiveNumber() Value {
 	if o.Prototype() == nil {
 		o.self.setProto(o.runtime.global.ObjectPrototype, false)
 	}
@@ -931,11 +928,7 @@ func (o *Object) genericToPrimitiveNumber() Value {
 	panic(o.runtime.NewTypeError("Could not convert %v to primitive", o.self))
 }
 
-func (o *baseObject) toPrimitiveNumber() Value {
-	return o.val.genericToPrimitiveNumber()
-}
-
-func (o *Object) genericToPrimitiveString() Value {
+func (o *Object) ordinaryToPrimitiveString() Value {
 	if o.Prototype() == nil {
 		o.self.setProto(o.runtime.global.ObjectPrototype, false)
 	}
@@ -948,19 +941,7 @@ func (o *Object) genericToPrimitiveString() Value {
 		return v
 	}
 
-	panic(o.runtime.NewTypeError("Could not convert %v to primitive", o.self))
-}
-
-func (o *Object) genericToPrimitive() Value {
-	return o.genericToPrimitiveNumber()
-}
-
-func (o *baseObject) toPrimitiveString() Value {
-	return o.val.genericToPrimitiveString()
-}
-
-func (o *baseObject) toPrimitive() Value {
-	return o.val.genericToPrimitiveNumber()
+	panic(o.runtime.NewTypeError("Could not convert %v (%T) to primitive", o.self, o.self))
 }
 
 func (o *Object) tryExoticToPrimitive(hint Value) Value {
@@ -984,7 +965,7 @@ func (o *Object) toPrimitiveNumber() Value {
 		return v
 	}
 
-	return o.self.toPrimitiveNumber()
+	return o.ordinaryToPrimitiveNumber()
 }
 
 func (o *Object) toPrimitiveString() Value {
@@ -992,14 +973,14 @@ func (o *Object) toPrimitiveString() Value {
 		return v
 	}
 
-	return o.self.toPrimitiveString()
+	return o.ordinaryToPrimitiveString()
 }
 
 func (o *Object) toPrimitive() Value {
 	if v := o.tryExoticToPrimitive(hintDefault); v != nil {
 		return v
 	}
-	return o.self.toPrimitive()
+	return o.ordinaryToPrimitiveNumber()
 }
 
 func (o *baseObject) assertCallable() (func(FunctionCall) Value, bool) {

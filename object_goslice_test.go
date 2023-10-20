@@ -358,7 +358,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			// default + default since we don't account for objectGoSlice in (*Object).MemUsage
 			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
-			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + SizeEmptyStruct + SizeNumber*2),
 			errExpected:    nil,
 		},
 		{
@@ -377,7 +377,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			// default + default since we don't account for objectGoSlice in (*Object).MemUsage
 			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
-			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + SizeEmptyStruct + SizeNumber*2),
 			errExpected:    nil,
 		},
 	}

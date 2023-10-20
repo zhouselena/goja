@@ -301,7 +301,7 @@ func (i valueInt) ToBoolean() bool {
 }
 
 func (i valueInt) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(i, r.global.NumberPrototype, classNumber)
+	return r.newPrimitiveObject(i, r.getNumberPrototype(), classNumber)
 }
 
 func (i valueInt) ToNumber() Value {
@@ -345,7 +345,7 @@ func (i valueInt) StrictEquals(other Value) bool {
 }
 
 func (i valueInt) baseObject(r *Runtime) *Object {
-	return r.global.NumberPrototype
+	return r.getNumberPrototype()
 }
 
 func (i valueInt) Export() interface{} {
@@ -456,7 +456,7 @@ func (b valueBool) ToBoolean() bool {
 }
 
 func (b valueBool) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(b, r.global.BooleanPrototype, "Boolean")
+	return r.newPrimitiveObject(b, r.getBooleanPrototype(), "Boolean")
 }
 
 func (b valueBool) ToNumber() Value {
@@ -494,7 +494,7 @@ func (b valueBool) StrictEquals(other Value) bool {
 }
 
 func (b valueBool) baseObject(r *Runtime) *Object {
-	return r.global.BooleanPrototype
+	return r.getBooleanPrototype()
 }
 
 func (b valueBool) Export() interface{} {
@@ -937,7 +937,7 @@ func (f valueFloat) ToBoolean() bool {
 }
 
 func (f valueFloat) ToObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(f, r.global.NumberPrototype, "Number")
+	return r.newPrimitiveObject(f, r.getNumberPrototype(), "Number")
 }
 
 func (f valueFloat) ToNumber() Value {
@@ -1027,7 +1027,7 @@ func (f valueFloat) StrictEquals(other Value) bool {
 }
 
 func (f valueFloat) baseObject(r *Runtime) *Object {
-	return r.global.NumberPrototype
+	return r.getNumberPrototype()
 }
 
 func (f valueFloat) Export() interface{} {
@@ -1198,16 +1198,16 @@ func (o *Object) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage ui
 }
 
 func (o *Object) ToInt() int {
-	return o.self.toPrimitiveNumber().ToNumber().ToInt()
+	return o.toPrimitiveNumber().ToNumber().ToInt()
 }
 func (o *Object) ToInt32() int32 {
-	return o.self.toPrimitiveNumber().ToNumber().ToInt32()
+	return o.toPrimitiveNumber().ToNumber().ToInt32()
 }
 func (o *Object) ToUInt32() uint32 {
-	return o.self.toPrimitiveNumber().ToNumber().ToUInt32()
+	return o.toPrimitiveNumber().ToNumber().ToUInt32()
 }
 func (o *Object) ToInt64() int64 {
-	return o.self.toPrimitiveNumber().ToNumber().ToInt64()
+	return o.toPrimitiveNumber().ToNumber().ToInt64()
 }
 
 func (o *Object) assertInt() (int, bool) {
@@ -1633,7 +1633,7 @@ func (s *Symbol) ExportType() reflect.Type {
 }
 
 func (s *Symbol) baseObject(r *Runtime) *Object {
-	return r.newPrimitiveObject(s, r.global.SymbolPrototype, "Symbol")
+	return r.newPrimitiveObject(s, r.getSymbolPrototype(), "Symbol")
 }
 
 func (s *Symbol) hash(*maphash.Hash) uint64 {

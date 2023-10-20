@@ -38,7 +38,7 @@ func (r *Runtime) TryToValue(i interface{}) (Value, error) {
 }
 
 func (r *Runtime) MakeCustomError(name, msg string) *Object {
-	e := r.newError(r.global.Error, msg).(*Object)
+	e := r.newError(r.getError(), msg).(*Object)
 	e.self.setOwnStr("name", asciiString(name), false)
 	return e
 }
@@ -56,13 +56,13 @@ func (r *Runtime) CreateNativeErrorClass(
 	classProps []Property,
 	funcProps []Property,
 ) NativeClass {
-	classProto := r.builtin_new(r.global.Error, []Value{})
+	classProto := r.builtin_new(r.getError(), []Value{})
 	proto := classProto.self
 	for _, prop := range classProps {
 		proto._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
 	}
-
-	classFunc := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+	v := &Object{runtime: r}
+	classFunc := r.newNativeFuncConstruct(v, func(args []Value, proto *Object) *Object {
 		obj := r.newBaseObject(proto, className)
 		call := FunctionCall{
 			ctx:       r.vm.ctx,
@@ -98,11 +98,12 @@ func (r *Runtime) CreateNativeErrorClass(
 }
 
 func (r *Runtime) CreateNativeError(name string) (Value, func(err error) Value) {
-	proto := r.builtin_new(r.global.Error, []Value{})
+	proto := r.builtin_new(r.getError(), []Value{})
 	o := proto.self
 	o._putProp("name", asciiString(name), true, false, true)
 
-	e := r.newNativeFuncConstructProto(r.builtin_Error, unistring.String(name), proto, r.global.Error, 1)
+	v := &Object{runtime: r}
+	e := r.newNativeFuncConstructProto(v, r.builtin_Error, unistring.String(name), proto, r.getError(), 1)
 
 	return e, func(err error) Value {
 		return r.MakeCustomError(name, err.Error())
@@ -115,13 +116,14 @@ func (r *Runtime) CreateNativeClass(
 	classProps []Property,
 	funcProps []Property,
 ) NativeClass {
-	classProto := r.builtin_new(r.global.Object, []Value{})
+	classProto := r.builtin_new(r.getObject(), []Value{})
 	proto := classProto.self
 	for _, prop := range classProps {
 		proto._putProp(unistring.String(prop.Name), prop.Value, true, false, true)
 	}
 
-	classFunc := r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+	v := &Object{runtime: r}
+	classFunc := r.newNativeFuncConstruct(v, func(args []Value, proto *Object) *Object {
 		obj := r.newBaseObject(proto, className)
 
 		call := FunctionCall{
@@ -160,7 +162,8 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 	r := n.runtime
 	className := n.className
 	classProto := n.classProto
-	obj, err := r.New(r.newNativeFuncConstruct(func(args []Value, proto *Object) *Object {
+	v := &Object{runtime: r}
+	obj, err := r.New(r.newNativeFuncConstruct(v, func(args []Value, proto *Object) *Object {
 		obj := r.newBaseObject(proto, className)
 		g := &_goNativeValue{baseObject: obj, value: val}
 		obj.val.self = g
@@ -195,20 +198,6 @@ func (n NativeClass) InstanceOf(val interface{}) Value {
 	return obj
 }
 
-// NewLazyObject creates a lazy object that will do initialization when the object is called upon during runtime
-func (r *Runtime) NewLazyObject(create func(val *Object) *Object) (Value, error) {
-	if create == nil {
-		return UndefinedValue(), errors.New("create cannot be nil")
-	}
-
-	createObjectImpl := func(val *Object) objectImpl {
-		obj := create(val)
-		return obj.self
-	}
-
-	return r.newLazyObject(createObjectImpl), nil
-}
-
 // CreateNativeFunction creates a native function that will call the given call function.
 // This provides for a way to detail how the function appears to a user within JS
 // compared to passing the call in via toValue.
@@ -217,7 +206,7 @@ func (r *Runtime) CreateNativeFunction(name, file string, call func(FunctionCall
 		return UndefinedValue(), errors.New("call cannot be nil")
 	}
 
-	return r.newNativeFunc(call, nil, unistring.String(name), nil, 1), nil
+	return r.newNativeFunc(call, unistring.String(name), 1), nil
 }
 
 func (r *Runtime) Eval(name, src string, direct, strict bool) (Value, error) {

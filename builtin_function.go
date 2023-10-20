@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sync"
 )
 
 func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object {
@@ -29,39 +30,22 @@ func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object {
 	return ret
 }
 
-func nativeFuncString(f *nativeFuncObject) Value {
+func (f *nativeFuncObject) source() valueString {
 	return newStringValue(fmt.Sprintf("function %s() { [native code] }", nilSafe(f.getStr("name", nil)).toString()))
+}
+
+func (f *baseJsFuncObject) source() valueString {
+	return newStringValue(f.src)
 }
 
 func (r *Runtime) functionproto_toString(call FunctionCall) Value {
 	obj := r.toObject(call.This)
-repeat:
 	switch f := obj.self.(type) {
-	case *funcObject:
-		return newStringValue(f.src)
-	case *classFuncObject:
-		return newStringValue(f.src)
-	case *methodFuncObject:
-		return newStringValue(f.src)
-	case *arrowFuncObject:
-		return newStringValue(f.src)
-	case *nativeFuncObject:
-		return nativeFuncString(f)
-	case *boundFuncObject:
-		return nativeFuncString(&f.nativeFuncObject)
-	case *wrappedFuncObject:
-		return nativeFuncString(&f.nativeFuncObject)
-	case *lazyObject:
-		obj.self = f.create(obj)
-		goto repeat
+	case funcObjectImpl:
+		return f.source()
 	case *proxyObject:
-	repeat2:
-		switch c := f.target.self.(type) {
-		case *classFuncObject, *methodFuncObject, *funcObject, *arrowFuncObject, *nativeFuncObject, *boundFuncObject:
+		if _, ok := f.target.self.(funcObjectImpl); ok {
 			return asciiString("function () { [native code] }")
-		case *lazyObject:
-			f.target.self = c.create(obj)
-			goto repeat2
 		}
 	}
 	panic(r.NewTypeError("Function.prototype.toString requires that 'this' be a Function"))
@@ -212,16 +196,85 @@ lenNotInt:
 	return v
 }
 
-func (r *Runtime) initFunction() {
-	o := r.global.FunctionPrototype.self.(*nativeFuncObject)
-	o.prototype = r.global.ObjectPrototype
-	o._putProp("name", stringEmpty, false, false, true)
-	o._putProp("apply", r.newNativeFunc(r.functionproto_apply, nil, "apply", nil, 2), true, false, true)
-	o._putProp("bind", r.newNativeFunc(r.functionproto_bind, nil, "bind", nil, 1), true, false, true)
-	o._putProp("call", r.newNativeFunc(r.functionproto_call, nil, "call", nil, 1), true, false, true)
-	o._putProp("toString", r.newNativeFunc(r.functionproto_toString, nil, "toString", nil, 0), true, false, true)
-	o._putSym(SymHasInstance, valueProp(r.newNativeFunc(r.functionproto_hasInstance, nil, "[Symbol.hasInstance]", nil, 1), false, false, false))
+func (r *Runtime) getThrower() *Object {
+	ret := r.global.thrower
+	if ret == nil {
+		ret = r.newNativeFunc(r.builtin_thrower, "", 0)
+		r.global.thrower = ret
+		r.object_freeze(FunctionCall{Arguments: []Value{ret}})
+	}
+	return ret
+}
 
-	r.global.Function = r.newNativeFuncConstruct(r.builtin_Function, "Function", r.global.FunctionPrototype, 1)
-	r.addToGlobal("Function", r.global.Function)
+func (r *Runtime) newThrowerProperty(configurable bool) Value {
+	thrower := r.getThrower()
+	return &valueProperty{
+		getterFunc:   thrower,
+		setterFunc:   thrower,
+		accessor:     true,
+		configurable: configurable,
+	}
+}
+
+func createFunctionProtoTemplate() *objectTemplate {
+	t := newObjectTemplate()
+	t.protoFactory = func(r *Runtime) *Object {
+		return r.global.ObjectPrototype
+	}
+
+	t.putStr("constructor", func(r *Runtime) Value { return valueProp(r.getFunction(), true, false, true) })
+
+	t.putStr("length", func(r *Runtime) Value { return valueProp(_positiveZero, false, false, true) })
+	t.putStr("name", func(r *Runtime) Value { return valueProp(stringEmpty, false, false, true) })
+
+	t.putStr("apply", func(r *Runtime) Value { return r.methodProp(r.functionproto_apply, "apply", 2) })
+	t.putStr("bind", func(r *Runtime) Value { return r.methodProp(r.functionproto_bind, "bind", 1) })
+	t.putStr("call", func(r *Runtime) Value { return r.methodProp(r.functionproto_call, "call", 1) })
+	t.putStr("toString", func(r *Runtime) Value { return r.methodProp(r.functionproto_toString, "toString", 0) })
+
+	t.putStr("caller", func(r *Runtime) Value { return r.newThrowerProperty(true) })
+	t.putStr("arguments", func(r *Runtime) Value { return r.newThrowerProperty(true) })
+
+	t.putSym(SymHasInstance, func(r *Runtime) Value {
+		return valueProp(r.newNativeFunc(r.functionproto_hasInstance, "[Symbol.hasInstance]", 1), false, false, false)
+	})
+
+	return t
+}
+
+var functionProtoTemplate *objectTemplate
+var functionProtoTemplateOnce sync.Once
+
+func getFunctionProtoTemplate() *objectTemplate {
+	functionProtoTemplateOnce.Do(func() {
+		functionProtoTemplate = createFunctionProtoTemplate()
+	})
+	return functionProtoTemplate
+}
+
+func (r *Runtime) getFunctionPrototype() *Object {
+	ret := r.global.FunctionPrototype
+	if ret == nil {
+		ret = &Object{runtime: r}
+		r.global.FunctionPrototype = ret
+		r.newTemplatedFuncObject(getFunctionProtoTemplate(), ret, func(FunctionCall) Value {
+			return _undefined
+		}, nil)
+	}
+	return ret
+}
+
+func (r *Runtime) createFunction(v *Object) objectImpl {
+	return r.newNativeFuncConstructObj(v, r.builtin_Function, "Function", r.getFunctionPrototype(), 1)
+}
+
+func (r *Runtime) getFunction() *Object {
+	ret := r.global.Function
+	if ret == nil {
+		ret = &Object{runtime: r}
+		r.global.Function = ret
+		ret.self = r.createFunction(ret)
+	}
+
+	return ret
 }

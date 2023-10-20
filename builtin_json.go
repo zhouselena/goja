@@ -21,11 +21,11 @@ func (r *Runtime) builtinJSON_parse(call FunctionCall) Value {
 
 	value, err := r.builtinJSON_decodeValue(d)
 	if err != nil {
-		panic(r.newError(r.global.SyntaxError, err.Error()))
+		panic(r.newError(r.getSyntaxError(), err.Error()))
 	}
 
 	if tok, err := d.Token(); err != io.EOF {
-		panic(r.newError(r.global.SyntaxError, "Unexpected token at the end: %v", tok))
+		panic(r.newError(r.getSyntaxError(), "Unexpected token at the end: %v", tok))
 	}
 
 	var reviver func(FunctionCall) Value
@@ -326,9 +326,9 @@ func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool {
 			} else {
 				switch o1.className() {
 				case classNumber:
-					value = o1.toPrimitiveNumber()
+					value = o1.val.ordinaryToPrimitiveNumber()
 				case classString:
-					value = o1.toPrimitiveString()
+					value = o1.val.ordinaryToPrimitiveString()
 				case classBoolean:
 					if o.ToInteger() != 0 {
 						value = valueTrue
@@ -534,11 +534,15 @@ func (ctx *_builtinJSON_stringifyContext) quote(str valueString) {
 	ctx.buf.WriteByte('"')
 }
 
-func (r *Runtime) initJSON() {
-	JSON := r.newBaseObject(r.global.ObjectPrototype, "JSON")
-	JSON._putProp("parse", r.newNativeFunc(r.builtinJSON_parse, nil, "parse", nil, 2), true, false, true)
-	JSON._putProp("stringify", r.newNativeFunc(r.builtinJSON_stringify, nil, "stringify", nil, 3), true, false, true)
-	JSON._putSym(SymToStringTag, valueProp(asciiString(classJSON), false, false, true))
-
-	r.addToGlobal("JSON", JSON.val)
+func (r *Runtime) getJSON() *Object {
+	ret := r.global.JSON
+	if ret == nil {
+		JSON := r.newBaseObject(r.global.ObjectPrototype, classObject)
+		ret = JSON.val
+		r.global.JSON = ret
+		JSON._putProp("parse", r.newNativeFunc(r.builtinJSON_parse, "parse", 2), true, false, true)
+		JSON._putProp("stringify", r.newNativeFunc(r.builtinJSON_stringify, "stringify", 3), true, false, true)
+		JSON._putSym(SymToStringTag, valueProp(asciiString(classJSON), false, false, true))
+	}
+	return ret
 }

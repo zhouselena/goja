@@ -17,7 +17,7 @@ func TestArrayBufferNew(t *testing.T) {
 
 func TestArrayBufferSetUint32(t *testing.T) {
 	vm := New()
-	b := vm._newArrayBuffer(vm.global.ArrayBufferPrototype, nil)
+	b := vm._newArrayBuffer(vm.getArrayBufferPrototype(), nil)
 	b.data = make([]byte, 4)
 	b.setUint32(0, 0xCAFEBABE, bigEndian)
 
@@ -39,7 +39,7 @@ func TestArrayBufferSetUint32(t *testing.T) {
 
 func TestArrayBufferSetInt32(t *testing.T) {
 	vm := New()
-	b := vm._newArrayBuffer(vm.global.ArrayBufferPrototype, nil)
+	b := vm._newArrayBuffer(vm.getArrayBufferPrototype(), nil)
 	b.data = make([]byte, 4)
 	b.setInt32(0, -42, littleEndian)
 	if v := b.getInt32(0, littleEndian); v != -42 {

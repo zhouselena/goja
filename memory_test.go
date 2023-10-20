@@ -451,7 +451,12 @@ func TestMemCheck(t *testing.T) {
 		// TODO(REALMC-10739) add a test that calls Error.captureStackTrace when it is implemented)
 		{
 			desc: "stash",
-			script: `checkMem();
+			script: `
+			// With the new template-object feature, objects are now not initialized on vm start but instead initialized
+			// when actually being used. To account for this difference we create a New Error error so that this memory
+			// usage is already included in the initial checkMem call.
+			const err = new Error();
+			checkMem();
 			try {
 				throw new Error("abc");
 			} catch(e) {
@@ -569,7 +574,8 @@ func TestMemMaxDepth(t *testing.T) {
 			}
 
 			_, _, err = vm.MemUsage(
-				NewMemUsageContext(vm, tc.expectedDepth+1, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+				// need to add 2 to the expectedDepth since Object is lazy loaded it adds onto the expected depth
+				NewMemUsageContext(vm, tc.expectedDepth+2, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
 			)
 			if err != nil {
 				t.Fatalf("expected to NOT hit mem check hit depth limit error, but got %v", err)
