@@ -284,6 +284,55 @@ func BenchmarkAssertInt(b *testing.B) {
 	}
 }
 
+func TestIntToValue(t *testing.T) {
+	for _, tc := range []struct {
+		i        int64
+		expected Value
+	}{
+		{
+			intCacheMinValue - 1,
+			valueInt(intCacheMinValue - 1),
+		},
+		{
+			intCacheMinValue,
+			valueInt(intCacheMinValue),
+		},
+		{
+			intCacheMinValue + 1,
+			valueInt(intCacheMinValue + 1),
+		},
+		{
+			-1,
+			valueInt(-1),
+		},
+		{
+			0,
+			valueInt(0),
+		},
+		{
+			1,
+			valueInt(1),
+		},
+		{
+			intCacheMaxValue - 1,
+			valueInt(intCacheMaxValue - 1),
+		},
+		{
+			intCacheMaxValue,
+			valueInt(intCacheMaxValue),
+		},
+		{
+			intCacheMaxValue + 1,
+			valueInt(intCacheMaxValue + 1),
+		},
+	} {
+		actual := intToValue(tc.i)
+		if tc.expected != actual {
+			t.Fatalf("%v is not equal to %v", actual, tc.expected)
+		}
+	}
+}
+
 func TestInt64ToValue(t *testing.T) {
 	for _, tc := range []struct {
 		i        int64
