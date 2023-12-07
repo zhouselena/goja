@@ -2971,6 +2971,93 @@ func TestExceptionWithinAppliedObjectFunc(t *testing.T) {
 	}
 }
 
+func TestExceptionStringifyError(t *testing.T) {
+	runtime := New()
+
+	for _, tc := range []struct {
+		description    string
+		exceptionVal   func() Value
+		expectedString string
+	}{
+		{
+			description: "Bool",
+			exceptionVal: func() Value {
+				return valueBool(true)
+			},
+			expectedString: "true",
+		},
+		{
+			description: "Int",
+			exceptionVal: func() Value {
+				return valueInt(1234)
+			},
+			expectedString: "1234",
+		},
+		{
+			description: "String",
+			exceptionVal: func() Value {
+				return newStringValue("hello")
+			},
+			expectedString: "\"hello\"",
+		},
+		{
+			description: "Null",
+			exceptionVal: func() Value {
+				return valueNull{}
+			},
+			expectedString: "null",
+		},
+		{
+			description: "Undefined",
+			exceptionVal: func() Value {
+				return valueUndefined{}
+			},
+			expectedString: "undefined",
+		},
+	} {
+		ex := Exception{
+			val: tc.exceptionVal(),
+		}
+
+		s := ex.StringifyError(runtime)
+
+		t.Run(fmt.Sprintf("Exception Value is %s", tc.description), func(t *testing.T) {
+			if s != tc.expectedString {
+				t.Fatalf("Stringified exception did not match. Actual: %s Expected: %s", s, tc.expectedString)
+			}
+		})
+	}
+
+}
+
+func TestExceptionStringifyErrorObject(t *testing.T) {
+	runtime := New()
+
+	expectedData := map[string]string{
+		"foo":  "bar",
+		"fizz": "buzz",
+	}
+
+	testObject := runtime.NewObject()
+
+	for k := range expectedData {
+		testObject.Set(k, expectedData[k])
+	}
+
+	ex := Exception{
+		val: testObject,
+	}
+
+	s := ex.StringifyError(runtime)
+
+	for expectedKey := range expectedData {
+		expectedSubstring := fmt.Sprintf("\"%s\":\"%s\"", expectedKey, expectedData[expectedKey])
+		if !strings.Contains(s, expectedSubstring) {
+			t.Fatalf("Stringified exception object did not contain expected substring: %s", expectedSubstring)
+		}
+	}
+}
+
 // TODO(REALMC-10739) return the actual stack trace
 func TestErrorCaptureStackTrace(t *testing.T) {
 	const SCRIPT = `
