@@ -387,6 +387,7 @@ func TestValueStackMemUsage(t *testing.T) {
 	tests := []struct {
 		name           string
 		val            valueStack
+		memLimit       uint64
 		expectedMem    uint64
 		expectedNewMem uint64
 		errExpected    error
@@ -394,6 +395,7 @@ func TestValueStackMemUsage(t *testing.T) {
 		{
 			name:           "should account for no memory usage given an empty value stack",
 			val:            []Value{},
+			memLimit:       100,
 			expectedMem:    0,
 			expectedNewMem: 0,
 			errExpected:    nil,
@@ -401,13 +403,25 @@ func TestValueStackMemUsage(t *testing.T) {
 		{
 			name:           "should account for no memory usage given a value stack with nil",
 			val:            []Value{nil},
+			memLimit:       100,
 			expectedMem:    0,
 			expectedNewMem: 0,
 			errExpected:    nil,
 		},
 		{
-			name: "should account for each value given a non-empty value stack",
-			val:  []Value{valueInt(99)},
+			name:     "should account for each value given a non-empty value stack",
+			val:      []Value{valueInt(99)},
+			memLimit: 100,
+			// value
+			expectedMem: SizeInt,
+			// value
+			expectedNewMem: SizeInt,
+			errExpected:    nil,
+		},
+		{
+			name:     "should exit early given value stack over the memory limit",
+			val:      []Value{valueInt(99), valueInt(99), valueInt(99), valueInt(99)},
+			memLimit: 0,
 			// value
 			expectedMem: SizeInt,
 			// value
@@ -418,7 +432,7 @@ func TestValueStackMemUsage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, tc.memLimit, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

@@ -1975,6 +1975,9 @@ func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsag
 			if err != nil {
 				return memUsage, newMemUsage, err
 			}
+			if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+				return memUsage, newMemUsage, nil
+			}
 		}
 	}
 

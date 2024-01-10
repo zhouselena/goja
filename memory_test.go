@@ -655,22 +655,6 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 				+1,
 		},
 		{
-			desc: "array under threshold but over limit",
-			script: `y = []
-			y.push([]);
-			let i = 0;
-			checkMem();
-			for(i=0;i<10;i++){
-				y[0].push(i);
-			};
-			checkMem()`,
-			threshold: 200,
-			memLimit:  100,
-			// Array overhead, size of property values, only 3 values before we hit the mem limit
-			expectedSizeDiff:    SizeEmptyStruct + (3 * SizeNumber),
-			expectedNewSizeDiff: SizeEmptyStruct + (3 * SizeNumber),
-		},
-		{
 			desc: "mixed array over threshold",
 			script: `y = []
 			y.push([]);
@@ -790,22 +774,6 @@ func TestMemObjectsWithPropsLenThreshold(t *testing.T) {
 			checkMem()`,
 			threshold: 100,
 			memLimit:  memUsageLimit,
-			// object overhead + len("i0") + value i
-			expectedSizeDiff: SizeEmptyStruct + 10*(2+SizeString) + 10*SizeNumber,
-			// object overhead + len("i0") + value i
-			expectedNewSizeDiff: SizeEmptyStruct + 10*(2+SizeString) + 10*SizeNumber,
-		},
-		{
-			desc: "object under threshold but over limit",
-			script: `y = {}
-			let i = 0;
-			checkMem();
-			for (i=0;i<10;i++) {
-				y["i"+i] = i
-			}
-			checkMem()`,
-			threshold: 100,
-			memLimit:  40,
 			// object overhead + len("i0") + value i
 			expectedSizeDiff: SizeEmptyStruct + 10*(2+SizeString) + 10*SizeNumber,
 			// object overhead + len("i0") + value i

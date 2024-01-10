@@ -365,6 +365,9 @@ func (o *objectGoSlice) MemUsage(ctx *MemUsageContext) (uint64, uint64, error) {
 		if err != nil {
 			return mem, newMem, err
 		}
+		if exceeded := ctx.MemUsageLimitExceeded(mem); exceeded {
+			return mem, newMem, nil
+		}
 	}
 	return mem, newMem, nil
 }

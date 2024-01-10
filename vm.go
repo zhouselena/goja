@@ -5579,6 +5579,9 @@ func (s valueStack) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage
 		if err != nil {
 			return memUsage, newMemUsage, err
 		}
+		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+			return memUsage, newMemUsage, nil
+		}
 	}
 
 	return memUsage, newMemUsage, nil
