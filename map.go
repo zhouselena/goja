@@ -2,6 +2,7 @@ package goja
 
 import (
 	"hash/maphash"
+	"math"
 )
 
 type mapEntry struct {
@@ -23,11 +24,30 @@ type orderedMapIter struct {
 	cur *mapEntry
 }
 
+func convertFloatToInt(f valueFloat) (valueInt, bool) {
+	if f == valueFloat(math.Trunc(float64(f))) {
+		return valueInt(f), true
+	}
+	return 0, false
+}
+
 func (m *orderedMap) lookup(key Value) (h uint64, entry, hPrev *mapEntry) {
 	if key == _negativeZero {
 		key = intToValue(0)
 	}
+
+	switch t := key.(type) {
+	case valueFloat:
+		// If a float can be converted to an integer without data loss
+		// we should be able to convert to integer. This will allow Sets
+		// to find floats accordingly. Doing mySet.has(1.0) for a set that
+		// has 1 in it, should return true.
+		if intValue, ok := convertFloatToInt(t); ok {
+			key = intValue
+		}
+	}
 	h = key.hash(m.hash)
+
 	for entry = m.hashTable[h]; entry != nil && !entry.key.SameAs(key); hPrev, entry = entry, entry.hNext {
 	}
 	return
