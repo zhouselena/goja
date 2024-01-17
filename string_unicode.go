@@ -560,7 +560,8 @@ func (s unicodeString) string() unistring.String {
 }
 
 func (s unicodeString) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return uint64(len(s.String())) + SizeString, uint64(len(s.String())) + SizeString, err
+	stringLength := uint64(len(s.String()))
+	return stringLength + SizeString, stringLength + SizeString, err
 }
 func (s unicodeString) ToInt() int {
 	return 0
