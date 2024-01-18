@@ -348,12 +348,13 @@ func TestGoMapMemUsage(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		val            *objectGoMapSimple
-		memLimit       uint64
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name              string
+		val               *objectGoMapSimple
+		memLimit          uint64
+		estimateThreshold int
+		expectedMem       uint64
+		expectedNewMem    uint64
+		errExpected       error
 	}{
 		{
 			name: "should account for each key value pair given a non-empty object",
@@ -366,7 +367,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test1": valueInt(99),
 				},
 			},
-			memLimit: 100,
+			memLimit:          100,
+			estimateThreshold: 100,
 			// baseObject overhead + len("testN") with string overhead + value
 			expectedMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			// baseObject overhead + len("testN") with string overhead + value
@@ -384,7 +386,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test1": 99,
 				},
 			},
-			memLimit: 100,
+			memLimit:          100,
+			estimateThreshold: 100,
 			// baseObject overhead + len("testN") with string overhead + value
 			expectedMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			// baseObject overhead + len("testN") with string overhead + value
@@ -401,7 +404,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": nil,
 				},
 			},
-			memLimit: 100,
+			memLimit:          100,
+			estimateThreshold: 100,
 			// overhead + len("test") with string overhead + null
 			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
 			// overhead + len("test") with string overhead + null
@@ -418,7 +422,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": nestedMap,
 				},
 			},
-			memLimit: 100,
+			memLimit:          100,
+			estimateThreshold: 100,
 			// overhead + len("testN") with string overhead + (Object prototype with overhead + values with string overhead)
 			expectedMem: SizeEmptyStruct + (4 + SizeString) + nestedMapMemUsage,
 			// overhead + len("testN") with string overhead + (Object prototype with overhead + values with string overhead)
@@ -435,7 +440,8 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": &nestedMap,
 				},
 			},
-			memLimit: 100,
+			memLimit:          100,
+			estimateThreshold: 100,
 			// overhead + len("testN") with string overhead + nested overhead
 			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
 			// overhead + len("testN") with string overhead + nested overhead
@@ -457,18 +463,64 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test5": valueInt(99),
 				},
 			},
-			memLimit: 0,
+			memLimit:          0,
+			estimateThreshold: 100,
 			// baseObject overhead + len("testN") with string overhead + value
 			expectedMem: SizeEmptyStruct + ((5 + SizeString) + SizeInt),
 			// baseObject overhead + len("testN") with string overhead + value
 			expectedNewMem: SizeEmptyStruct + ((5 + SizeString) + SizeInt),
 			errExpected:    nil,
 		},
+		{
+			name: "should estimate mem usage when exceeding object props len threshold",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test0": valueInt(99),
+					"test1": valueInt(99),
+					"test2": valueInt(99),
+					"test3": valueInt(99),
+					"test4": valueInt(99),
+					"test5": valueInt(99),
+					"test6": valueInt(99),
+					"test7": valueInt(99),
+					"test8": valueInt(99),
+					"test9": valueInt(99),
+					"testa": valueInt(99),
+					"testb": valueInt(99),
+				},
+			},
+			memLimit:          0,
+			estimateThreshold: 10,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*12,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*12,
+			errExpected:    nil,
+		},
+		{
+			name: "should estimate mem usage given empty object nad negative threshold",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{},
+			},
+			memLimit:          0,
+			estimateThreshold: -1,
+			// baseObject overhead
+			expectedMem: SizeEmptyStruct,
+			// baseObject overhead
+			expectedNewMem: SizeEmptyStruct,
+			errExpected:    nil,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, 100, 100, nil))
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, 100, tc.estimateThreshold, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

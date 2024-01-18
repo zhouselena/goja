@@ -157,23 +157,71 @@ func (o *objectGoMapSimple) equal(other objectImpl) bool {
 	return false
 }
 
+// estimateMemUsage helps calculating mem usage for large objects.
+// It will sample the object and use those samples to estimate the
+// mem usage.
+func (o *objectGoMapSimple) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
+	var samplesVisited, memUsage, newMemUsage uint64
+	counter := 0
+	totalProps := len(o.data)
+	if totalProps == 0 {
+		return memUsage, newMemUsage, nil
+	}
+	sampleSize := totalProps / 10
+
+	// grabbing one sample every "sampleSize" to provide consistent
+	// memory usage across function executions
+	for key := range o.data {
+		counter++
+		if counter%sampleSize == 0 {
+			memUsage += uint64(len(key)) + SizeString
+			newMemUsage += uint64(len(key)) + SizeString
+			v := o._getStr(key)
+			if v == nil {
+				continue
+			}
+
+			inc, newInc, err := v.MemUsage(ctx)
+			samplesVisited += 1
+			memUsage += inc
+			newMemUsage += newInc
+			if err != nil {
+				return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), computeMemUsageEstimate(newMemUsage, samplesVisited, totalProps), err
+			}
+		}
+	}
+
+	return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), computeMemUsageEstimate(newMemUsage, samplesVisited, totalProps), nil
+}
+
 func (o *objectGoMapSimple) MemUsage(ctx *MemUsageContext) (uint64, uint64, error) {
-	mem, newMem, err := o.baseObject.MemUsage(ctx)
+	memUsage, newMemUsage, err := o.baseObject.MemUsage(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
-	for key := range o.data {
-		mem += uint64(len(key)) + SizeString
-		newMem += uint64(len(key)) + SizeString
-		memValue, newMemValue, err := o._getStr(key).MemUsage(ctx)
-		mem += memValue
-		newMem += newMemValue
+
+	if ctx.ObjectPropsLenExceedsThreshold(len(o.data)) {
+		inc, newInc, err := o.estimateMemUsage(ctx)
+		memUsage += inc
+		newMemUsage += newInc
 		if err != nil {
-			return mem, newMem, err
+			return memUsage, newMemUsage, err
 		}
-		if exceeded := ctx.MemUsageLimitExceeded(mem); exceeded {
-			return mem, newMem, nil
+		return memUsage, newMemUsage, nil
+	}
+
+	for key := range o.data {
+		memUsage += uint64(len(key)) + SizeString
+		newMemUsage += uint64(len(key)) + SizeString
+		incr, newIncr, err := o._getStr(key).MemUsage(ctx)
+		memUsage += incr
+		newMemUsage += newIncr
+		if err != nil {
+			return memUsage, newMemUsage, err
+		}
+		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+			return memUsage, newMemUsage, nil
 		}
 	}
-	return mem, newMem, nil
+	return memUsage, newMemUsage, nil
 }

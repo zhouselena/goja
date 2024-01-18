@@ -1916,6 +1916,9 @@ func computeMemUsageEstimate(memUsage, samplesVisited uint64, totalProps int) ui
 func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
 	var samplesVisited, memUsage, newMemUsage uint64
 	totalProps := len(o.propNames)
+	if totalProps == 0 {
+		return memUsage, newMemUsage, nil
+	}
 	sampleSize := totalProps / 10
 
 	// grabbing one sample every "sampleSize" to provide consistent

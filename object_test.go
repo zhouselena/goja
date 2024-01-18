@@ -755,6 +755,20 @@ func TestBaseObjectMemUsage(t *testing.T) {
 			expectedNewMem: SizeEmptyStruct + ((5 + SizeString) + SizeInt),
 			errExpected:    nil,
 		},
+		{
+			name:      "should estimate memory given an empty object and negative threshold",
+			threshold: -1,
+			memLimit:  0,
+			val: &baseObject{
+				propNames: []unistring.String{},
+				values:    map[unistring.String]Value{},
+			},
+			// overhead
+			expectedMem: SizeEmptyStruct,
+			// overhead
+			expectedNewMem: SizeEmptyStruct,
+			errExpected:    nil,
+		},
 	}
 
 	for _, tc := range tests {
@@ -808,7 +822,7 @@ func TestPrimitiveValueObjectMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name: "should account for overehead and each key value pair given a primitive value object with non-empty object",
+			name: "should account for overhead and each key value pair given a primitive value object with non-empty object",
 			val:  &primitiveValueObject{baseObject: baseObject{propNames: []unistring.String{"test"}, values: map[unistring.String]Value{"test": valueInt(99)}}},
 			// baseObject overhead + len("test") with string overhead + value
 			expectedMem: SizeEmptyStruct + (4 + SizeString) + SizeInt,

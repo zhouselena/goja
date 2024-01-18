@@ -576,11 +576,15 @@ var (
 // usage of the whole array
 func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
 	var samplesVisited, memUsage, newMemUsage uint64
-	sampleSize := len(a.values) / 10
+	arrayLen := len(a.values)
+	if arrayLen == 0 {
+		return memUsage, newMemUsage, nil
+	}
+	sampleSize := arrayLen / 10
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions
-	for i := 0; i < len(a.values); i += sampleSize {
+	for i := 0; i < arrayLen; i += sampleSize {
 		if a.values[i] == nil {
 			continue
 		}
@@ -590,8 +594,8 @@ func (a *arrayObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, n
 		memUsage += inc
 		newMemUsage += newInc
 		// average * number of a.values
-		estimate = uint64((float32(memUsage) / float32(samplesVisited)) * float32(len(a.values)))
-		newEstimate = uint64((float32(newMemUsage) / float32(samplesVisited)) * float32(len(a.values)))
+		estimate = uint64((float32(memUsage) / float32(samplesVisited)) * float32(arrayLen))
+		newEstimate = uint64((float32(newMemUsage) / float32(samplesVisited)) * float32(arrayLen))
 		if err != nil {
 			return estimate, newEstimate, err
 		}

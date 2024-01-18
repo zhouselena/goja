@@ -187,6 +187,18 @@ func TestArrayObjectMemUsage(t *testing.T) {
 			errExpected: nil,
 		},
 		{
+			name: "empty array with negative threshold",
+			mu:   NewMemUsageContext(vm, 88, 100, -1, 50, TestNativeMemUsageChecker{}),
+			ao: &arrayObject{
+				values: []Value{},
+			},
+			// array overhead + array baseObject + values slice overhead
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice,
+			// array overhead + array baseObject + values slice overhead
+			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice,
+			errExpected:    nil,
+		},
+		{
 			name: "array limit function undefined throws error",
 			mu: &MemUsageContext{
 				visitTracker: visitTracker{
