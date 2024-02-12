@@ -306,10 +306,28 @@ type vm struct {
 	interrupted   uint32
 	interruptVal  interface{}
 	interruptLock sync.Mutex
+
+	lastFunctionTicks uint64
 }
 
 type instruction interface {
 	exec(*vm)
+}
+
+// profileTicks tracks the ticks for the current Program
+func (vm *vm) profileTicks() {
+	if !vm.r.tickMetricTrackingEnabled {
+		return
+	}
+	currentTicks := vm.r.Ticks()
+	if vm.prg != nil {
+		function := string(vm.prg.funcName)
+		if vm.prg.src != nil {
+			function = vm.prg.src.Name() + "::" + function
+		}
+		vm.r.tickMetrics[function] += currentTicks - vm.lastFunctionTicks
+	}
+	vm.lastFunctionTicks = currentTicks
 }
 
 func (vm *vm) getFuncName() unistring.String {
@@ -857,6 +875,7 @@ func (vm *vm) saveCtx(ctx *vmContext) {
 }
 
 func (vm *vm) pushCtx() {
+	vm.profileTicks()
 	if len(vm.callStack) > vm.maxCallStackSize {
 		panic(rangeError("Maximum call stack size exceeded"))
 	}
@@ -866,6 +885,7 @@ func (vm *vm) pushCtx() {
 }
 
 func (vm *vm) restoreCtx(ctx *vmContext) {
+	vm.profileTicks()
 	vm.prg, vm.stash, vm.privEnv, vm.newTarget, vm.result, vm.pc, vm.sb, vm.args =
 		ctx.prg, ctx.stash, ctx.privEnv, ctx.newTarget, ctx.result, ctx.pc, ctx.sb, ctx.args
 

@@ -594,3 +594,146 @@ func TestStashMemUsage(t *testing.T) {
 		})
 	}
 }
+
+func TestTickTracking(t *testing.T) {
+	tests := []struct {
+		name                      string
+		script                    string
+		tickMetricTrackingEnabled bool
+		expectedTickMetricsKeys   []string
+	}{
+		{
+			name: "should track looping function ticks when tick tracking is enabled",
+			script: `
+				function f() {
+					for (var i = 0; i < 100; i++) {
+					}
+				}
+				f()
+			`,
+			tickMetricTrackingEnabled: true,
+			expectedTickMetricsKeys:   []string{"test.js::", "test.js::f"},
+		},
+		{
+			name: "should track larger looping function ticks when tick tracking is enabled",
+			script: `
+				function f() {
+					for (var i = 0; i < 1000; i++) {
+					}
+				}
+				f()
+			`,
+			tickMetricTrackingEnabled: true,
+			expectedTickMetricsKeys:   []string{"test.js::", "test.js::f"},
+		},
+		{
+			name: "should track fib function ticks when tick tracking is enabled",
+			script: `
+				function fib(n) {
+					if (n < 2) return n;
+					return fib(n - 2) + fib(n - 1);
+				}
+				fib(35);
+			`,
+			tickMetricTrackingEnabled: true,
+			expectedTickMetricsKeys:   []string{"test.js::", "test.js::fib"},
+		},
+		{
+			name: "should not track function ticks when tick tracking is disabled",
+			script: `
+				function f() {
+					for (var i = 0; i < 100; i++) {
+					}
+				}
+				f()
+			`,
+			tickMetricTrackingEnabled: false,
+			expectedTickMetricsKeys:   []string{},
+		},
+		{
+			name: "should track ticks from a class method",
+			script: `
+				class Car {
+					constructor(brand) {
+						this.brand = brand;
+					}
+
+					drive() {}
+					honk() {}
+				}
+				const car = new Car("Tesla")
+				car.drive()
+				car.honk()
+			`,
+			tickMetricTrackingEnabled: true,
+			expectedTickMetricsKeys:   []string{"test.js::", "test.js::drive", "test.js::honk"},
+		},
+		{
+			name: "should track ticks from nested functions",
+			script: `
+				function outerFunction() {
+					function firstNestedFunction() {
+						function secondNestedFunction() {
+							function thirdNestedFunction() {}
+							thirdNestedFunction();
+						}
+						secondNestedFunction();
+					}
+					firstNestedFunction();
+				}
+				outerFunction();
+			`,
+			tickMetricTrackingEnabled: true,
+			expectedTickMetricsKeys: []string{
+				"test.js::",
+				"test.js::outerFunction",
+				"test.js::firstNestedFunction",
+				"test.js::secondNestedFunction",
+				"test.js::thirdNestedFunction",
+			},
+		},
+		{
+			name: "should track ticks even when a function throws an error",
+			script: `
+				function explode() {
+					throw new Error("boom");
+				}
+				try {
+					explode()
+				} catch (err) {}
+			`,
+			tickMetricTrackingEnabled: true,
+			expectedTickMetricsKeys: []string{
+				"test.js::",
+				"test.js::explode",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			vm := New()
+			if tc.tickMetricTrackingEnabled {
+				vm.EnableTickMetricTracking()
+			}
+
+			prg := MustCompile("test.js", tc.script, false)
+			_, err := vm.RunProgram(prg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			actualTickMetrics := vm.TickMetrics()
+
+			if len(actualTickMetrics) != len(tc.expectedTickMetricsKeys) {
+				t.Fatalf("Unexpected tickMetrics length: Actual: %v Expected length: %v", actualTickMetrics, len(tc.expectedTickMetricsKeys))
+			}
+
+			for _, key := range tc.expectedTickMetricsKeys {
+				if actualTickMetrics[key] <= 0 {
+					t.Fatalf("Unexpected tickMetrics for key: %v. Expected a positive tick value but received: %v", key, actualTickMetrics[key])
+				}
+			}
+		})
+	}
+}

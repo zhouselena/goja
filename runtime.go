@@ -204,6 +204,9 @@ type Runtime struct {
 	limiter          *rate.Limiter
 	limiterTicksLeft int
 	ticks            uint64
+
+	tickMetricTrackingEnabled bool
+	tickMetrics               map[string]uint64
 }
 
 func (self *Runtime) Ticks() uint64 {
@@ -488,6 +491,12 @@ func (r *Runtime) init() {
 		ctx: r.ctx,
 	}
 	r.vm.init()
+
+	// Initializing tickMetrics by default to avoid complexities when trying to enable tick tracking with
+	// vm.EnableFunctionTickTracking(). The problem here is we need to have the vm object in order to enable tick tracking,
+	// but we check whether tick tracking is enabled when we create the vm object.
+	// It is simpler, and not costly, to just have this map always initialized.
+	r.tickMetrics = make(map[string]uint64)
 
 	r.SetRateLimiter(rate.NewLimiter(rate.Inf, maxInt))
 }
@@ -1528,6 +1537,7 @@ func (r *Runtime) RunProgram(p *Program) (result Value, err error) {
 		vm.clearStack()
 	} else {
 		vm.stack = nil
+		vm.profileTicks()
 		vm.prg = nil
 		vm.setFuncName("")
 		r.leave()
@@ -3228,4 +3238,22 @@ func (r *Runtime) getPrototypeFromCtor(newTarget, defCtor, defProto *Object) *Ob
 		return obj
 	}
 	return defProto
+}
+
+// EnableTickMetricTracking sets tickMetricTrackingEnabled to true. tickMetricTrackingEnabled is checked during every
+// profileTick call so this would effectively enable tick tracking immediately.
+func (self *Runtime) EnableTickMetricTracking() {
+	self.tickMetricTrackingEnabled = true
+}
+
+// DisableTickMetricTracking sets tickMetricTrackingEnabled to false. tickMetricTrackingEnabled is checked during every
+// profileTick call so this would effectively disable tick tracking immediately.
+func (self *Runtime) DisableTickMetricTracking() {
+	self.tickMetricTrackingEnabled = false
+}
+
+// TickMetrics returns a map of ticks used per function.
+// This function is not thread-safe and should only be called at the end of the function execution.
+func (self *Runtime) TickMetrics() map[string]uint64 {
+	return self.tickMetrics
 }
