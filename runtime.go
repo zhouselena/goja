@@ -205,12 +205,25 @@ type Runtime struct {
 	limiterTicksLeft int
 	ticks            uint64
 
+	limiterWaitCount     int64
+	limiterWaitTotalTime time.Duration
+
 	tickMetricTrackingEnabled bool
 	tickMetrics               map[string]uint64
 }
 
 func (self *Runtime) Ticks() uint64 {
 	return self.ticks
+}
+
+// LimiterWaitCount tracks the amount of times the rate limiter throttles the execution.
+func (self *Runtime) LimiterWaitCount() int64 {
+	return self.limiterWaitCount
+}
+
+// LimiterWaitTotalTime tracks the total amount of time that the execution was throttled.
+func (self *Runtime) LimiterWaitTotalTime() time.Duration {
+	return self.limiterWaitTotalTime
 }
 
 // SetStackTraceLimit sets an upper limit to the number of stack frames that

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/dop251/goja/unistring"
 )
@@ -617,17 +618,26 @@ func (vm *vm) run() {
 				ctx = context.Background()
 			}
 
-			if waitErr := vm.r.limiter.WaitN(ctx, vm.r.limiterTicksLeft); waitErr != nil {
-				if vm.r.vm.ctx == nil {
-					panic(waitErr)
+			select {
+			case <-ctx.Done():
+				panic(ctx.Err())
+			default:
+			}
+
+			now := time.Now()
+			r := vm.r.limiter.ReserveN(now, vm.r.limiterTicksLeft)
+			if !r.OK() {
+				panic(context.DeadlineExceeded)
+			}
+
+			if delay := r.DelayFrom(now); delay > 0 {
+				vm.r.limiterWaitCount++
+				vm.r.limiterWaitTotalTime += delay
+
+				if err := sleep(ctx, delay); err != nil {
+					r.Cancel()
+					panic(err)
 				}
-				if ctxErr := vm.r.vm.ctx.Err(); ctxErr != nil {
-					panic(ctxErr)
-				}
-				if strings.Contains(waitErr.Error(), "would exceed") {
-					panic(context.DeadlineExceeded)
-				}
-				panic(waitErr)
 			}
 		}
 
@@ -5605,4 +5615,16 @@ func (s valueStack) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage
 	}
 
 	return memUsage, newMemUsage, nil
+}
+
+// sleep is equivalent to time.Sleep, but is interruptible via context cancelation.
+func sleep(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
