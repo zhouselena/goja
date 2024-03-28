@@ -385,28 +385,25 @@ func TestFloatToValue(t *testing.T) {
 
 func TestValueStackMemUsage(t *testing.T) {
 	tests := []struct {
-		name           string
-		val            valueStack
-		memLimit       uint64
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name        string
+		val         valueStack
+		memLimit    uint64
+		expectedMem uint64
+		errExpected error
 	}{
 		{
-			name:           "should account for no memory usage given an empty value stack",
-			val:            []Value{},
-			memLimit:       100,
-			expectedMem:    0,
-			expectedNewMem: 0,
-			errExpected:    nil,
+			name:        "should account for no memory usage given an empty value stack",
+			val:         []Value{},
+			memLimit:    100,
+			expectedMem: 0,
+			errExpected: nil,
 		},
 		{
-			name:           "should account for no memory usage given a value stack with nil",
-			val:            []Value{nil},
-			memLimit:       100,
-			expectedMem:    0,
-			expectedNewMem: 0,
-			errExpected:    nil,
+			name:        "should account for no memory usage given a value stack with nil",
+			val:         []Value{nil},
+			memLimit:    100,
+			expectedMem: 0,
+			errExpected: nil,
 		},
 		{
 			name:     "should account for each value given a non-empty value stack",
@@ -414,9 +411,7 @@ func TestValueStackMemUsage(t *testing.T) {
 			memLimit: 100,
 			// value
 			expectedMem: SizeInt,
-			// value
-			expectedNewMem: SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name:     "should exit early given value stack over the memory limit",
@@ -424,15 +419,13 @@ func TestValueStackMemUsage(t *testing.T) {
 			memLimit: 0,
 			// value
 			expectedMem: SizeInt,
-			// value
-			expectedNewMem: SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, tc.memLimit, 100, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, tc.memLimit, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -442,52 +435,42 @@ func TestValueStackMemUsage(t *testing.T) {
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
 			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
-			}
 		})
 	}
 }
 
 func TestVMContextMemUsage(t *testing.T) {
 	tests := []struct {
-		name           string
-		val            *vmContext
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name        string
+		val         *vmContext
+		expectedMem uint64
+		errExpected error
 	}{
 		{
-			name:           "should have a value of SizeEmptyStruct given a nil vmContext",
-			val:            nil,
-			expectedMem:    SizeEmptyStruct,
-			expectedNewMem: SizeEmptyStruct,
-			errExpected:    nil,
+			name:        "should have a value of SizeEmptyStruct given a nil vmContext",
+			val:         nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
 		},
 		{
-			name:           "should have a value of SizeEmptyStruct given an empty vmContext",
-			val:            &vmContext{},
-			expectedMem:    SizeEmptyStruct,
-			expectedNewMem: SizeEmptyStruct,
-			errExpected:    nil,
+			name:        "should have a value of SizeEmptyStruct given an empty vmContext",
+			val:         &vmContext{},
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
 		},
 		{
 			name: "should account for newTarget given a vmContext with non-empty newTarget",
 			val:  &vmContext{newTarget: valueInt(99)},
 			// vmContext overhead + newTarget value
 			expectedMem: SizeEmptyStruct + SizeInt,
-			// vmContext overhead + newTarget value
-			expectedNewMem: SizeEmptyStruct + SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for stash given a vmContext with non-empty stash",
 			val:  &vmContext{stash: &stash{values: []Value{valueInt(99)}}},
 			// vmContext overhead + stash value
 			expectedMem: SizeEmptyStruct + SizeInt,
-			// vmContext overhead + stash value
-			expectedNewMem: SizeEmptyStruct + SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for stash given a vmContext with non-empty stash",
@@ -496,15 +479,13 @@ func TestVMContextMemUsage(t *testing.T) {
 			}},
 			// vmContext overhead + prg value
 			expectedMem: SizeEmptyStruct + SizeInt,
-			// vmContext overhead + prg value
-			expectedNewMem: SizeEmptyStruct + SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -514,34 +495,28 @@ func TestVMContextMemUsage(t *testing.T) {
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
 			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
-			}
 		})
 	}
 }
 
 func TestStashMemUsage(t *testing.T) {
 	tests := []struct {
-		name           string
-		val            *stash
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name        string
+		val         *stash
+		expectedMem uint64
+		errExpected error
 	}{
 		{
-			name:           "should have a value of 0 given a nil stash",
-			val:            nil,
-			expectedMem:    0,
-			expectedNewMem: 0,
-			errExpected:    nil,
+			name:        "should have a value of 0 given a nil stash",
+			val:         nil,
+			expectedMem: 0,
+			errExpected: nil,
 		},
 		{
-			name:           "should have a value of 0 given an empty stash",
-			val:            &stash{},
-			expectedMem:    0,
-			expectedNewMem: 0,
-			errExpected:    nil,
+			name:        "should have a value of 0 given an empty stash",
+			val:         &stash{},
+			expectedMem: 0,
+			errExpected: nil,
 		},
 		{
 			name: "should account for obj given a stash with non-empty obj",
@@ -552,33 +527,27 @@ func TestStashMemUsage(t *testing.T) {
 			},
 			// baseObject overhead + obj value with string overhead
 			expectedMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
-			// baseObject overhead + obj value with string overhead
-			expectedNewMem: SizeEmptyStruct + (4 + SizeString + SizeInt),
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for values given a stash with non-empty values",
 			val:  &stash{values: []Value{valueInt(99)}},
 			// value
 			expectedMem: SizeInt,
-			// value
-			expectedNewMem: SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for outer given a stash with non-empty outer",
 			val:  &stash{outer: &stash{values: []Value{valueInt(99)}}},
 			// outer stash value
 			expectedMem: SizeInt,
-			// outer stash value
-			expectedNewMem: SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -587,9 +556,6 @@ func TestStashMemUsage(t *testing.T) {
 			}
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
-			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

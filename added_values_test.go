@@ -51,46 +51,38 @@ func TestAddedValuesMemUsage(t *testing.T) {
 	vm := New()
 
 	for _, tc := range []struct {
-		name           string
-		val            MemUsageReporter
-		expectedMem    uint64
-		expectedNewMem uint64
+		name        string
+		val         MemUsageReporter
+		expectedMem uint64
 	}{
 		{
-			name:           "should have memory usage of SizeNumber given a non-empty valueNumber",
-			val:            valueNumber{val: 0},
-			expectedMem:    SizeNumber,
-			expectedNewMem: SizeNumber,
+			name:        "should have memory usage of SizeNumber given a non-empty valueNumber",
+			val:         valueNumber{val: 0},
+			expectedMem: SizeNumber,
 		},
 		{
-			name:           "should have memory usage of SizeInt32 given a non-empty valueUInt32",
-			val:            valueUInt32(1),
-			expectedMem:    SizeInt32,
-			expectedNewMem: SizeInt32,
+			name:        "should have memory usage of SizeInt32 given a non-empty valueUInt32",
+			val:         valueUInt32(1),
+			expectedMem: SizeInt32,
 		},
 		{
-			name:           "should have memory usage of SizeInt32 given a non-empty valueInt32",
-			val:            valueInt32(1),
-			expectedMem:    SizeInt32,
-			expectedNewMem: SizeInt32,
+			name:        "should have memory usage of SizeInt32 given a non-empty valueInt32",
+			val:         valueInt32(1),
+			expectedMem: SizeInt32,
 		},
 		{
-			name:           "should have memory usage of SizeNumber given a non-empty valueInt64",
-			val:            valueInt64(1),
-			expectedMem:    SizeNumber,
-			expectedNewMem: SizeNumber,
+			name:        "should have memory usage of SizeNumber given a non-empty valueInt64",
+			val:         valueInt64(1),
+			expectedMem: SizeNumber,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			mem, newMem, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
+			mem, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
 			if err != nil {
 				t.Fatalf("Unexpected error. Actual: %v Expected: nil", err)
 			}
 			if mem != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", mem, tc.expectedMem)
-			}
-			if newMem != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newMem, tc.expectedNewMem)
 			}
 		})
 	}

@@ -3095,20 +3095,18 @@ func TestErrorCaptureStackTrace(t *testing.T) {
 
 func TestRuntimeMemUsage(t *testing.T) {
 	tests := []struct {
-		name           string
-		val            *Runtime
-		memLimit       uint64
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name        string
+		val         *Runtime
+		memLimit    uint64
+		expectedMem uint64
+		errExpected error
 	}{
 		{
-			name:           "should have a value of SizeEmptyStruct given a nil runtime",
-			val:            nil,
-			memLimit:       100,
-			expectedMem:    SizeEmptyStruct,
-			expectedNewMem: SizeEmptyStruct,
-			errExpected:    nil,
+			name:        "should have a value of SizeEmptyStruct given a nil runtime",
+			val:         nil,
+			memLimit:    100,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
 		},
 		{
 			name: "should account for globalObject given a runtime with non-empty globalObject",
@@ -3123,9 +3121,7 @@ func TestRuntimeMemUsage(t *testing.T) {
 			memLimit: 100,
 			// baseObject overhead + key/value pair with string overhead
 			expectedMem: SizeEmptyStruct + (5+SizeString+SizeInt)*3,
-			// baseObject overhead + key/value pair with string overhead
-			expectedNewMem: SizeEmptyStruct + (5+SizeString+SizeInt)*3,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should exit early given a runtime with non-empty globalObject exceeding the memory limit",
@@ -3140,9 +3136,7 @@ func TestRuntimeMemUsage(t *testing.T) {
 			memLimit: 0,
 			// baseObject overhead + key/value pair with string overhead
 			expectedMem: SizeEmptyStruct + (5 + SizeString + SizeInt),
-			// baseObject overhead + key/value pair with string overhead
-			expectedNewMem: SizeEmptyStruct + (5 + SizeString + SizeInt),
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for vm callStack given a runtime with a vm and a non-empty callStack",
@@ -3152,9 +3146,7 @@ func TestRuntimeMemUsage(t *testing.T) {
 			memLimit: 100,
 			// vmContext overhead + value
 			expectedMem: SizeEmptyStruct + SizeInt,
-			// vmContext overhead + value
-			expectedNewMem: SizeEmptyStruct + SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should exit early given a callStack exceeding the memory limit",
@@ -3164,9 +3156,7 @@ func TestRuntimeMemUsage(t *testing.T) {
 			memLimit: 0,
 			// vmContext overhead + value
 			expectedMem: SizeEmptyStruct + SizeInt,
-			// vmContext overhead + value
-			expectedNewMem: SizeEmptyStruct + SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for vm stash given a runtime with a vm and a non-empty stash",
@@ -3176,9 +3166,7 @@ func TestRuntimeMemUsage(t *testing.T) {
 			memLimit: 100,
 			// stash value
 			expectedMem: SizeInt,
-			// stash value
-			expectedNewMem: SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for vm stack given a runtime with a vm and a non-empty stack",
@@ -3188,15 +3176,13 @@ func TestRuntimeMemUsage(t *testing.T) {
 			memLimit: 100,
 			// stack value
 			expectedMem: SizeInt,
-			// stack value
-			expectedNewMem: SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, tc.memLimit, 100, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, tc.memLimit, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -3205,9 +3191,6 @@ func TestRuntimeMemUsage(t *testing.T) {
 			}
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
-			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

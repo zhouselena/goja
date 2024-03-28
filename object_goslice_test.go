@@ -280,7 +280,6 @@ func TestGoSliceMemUsage(t *testing.T) {
 		memLimit          uint64
 		estimateThreshold int
 		expectedMem       uint64
-		expectedNewMem    uint64
 		errExpected       error
 	}{
 		{
@@ -298,9 +297,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: 10,
 			// overhead + values
 			expectedMem: SizeEmptyStruct + SizeInt*2,
-			// overhead + values
-			expectedNewMem: SizeEmptyStruct + SizeInt*2,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for baseObject only given a nil data field",
@@ -313,9 +310,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: 10,
 			// overhead
 			expectedMem: SizeEmptyStruct,
-			// overhead
-			expectedNewMem: SizeEmptyStruct,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for each value given a slice with go ints",
@@ -332,9 +327,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: 10,
 			// overhead + values
 			expectedMem: SizeEmptyStruct + SizeInt*2,
-			// overhead + values
-			expectedNewMem: SizeEmptyStruct + SizeInt*2,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for each value given slice with a nil value",
@@ -348,9 +341,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: 10,
 			// overhead + null
 			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
-			// overhead + null
-			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should account for nested slices",
@@ -367,11 +358,9 @@ func TestGoSliceMemUsage(t *testing.T) {
 			},
 			memLimit:          memUsageLimit,
 			estimateThreshold: 10,
-			// default + default since we don't account for objectGoSlice in (*Object).MemUsage
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
-			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + SizeEmptyStruct + SizeNumber*2),
-			errExpected:    nil,
+			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + SizeEmptyStruct + SizeNumber*2),
+			errExpected: nil,
 		},
 		{
 			name: "should account for nested pointer slice",
@@ -388,11 +377,9 @@ func TestGoSliceMemUsage(t *testing.T) {
 			},
 			memLimit:          memUsageLimit,
 			estimateThreshold: 10,
-			// default + default since we don't account for objectGoSlice in (*Object).MemUsage
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
-			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + SizeEmptyStruct + SizeNumber*2),
-			errExpected:    nil,
+			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + SizeEmptyStruct + SizeNumber*2),
+			errExpected: nil,
 		},
 		{
 			name: "should exit early when exceeding the memory limit",
@@ -409,9 +396,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: 10,
 			// overhead + values
 			expectedMem: SizeEmptyStruct + SizeInt,
-			// overhead + values
-			expectedNewMem: SizeEmptyStruct + SizeInt,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should estimate mem usage when over array len threshold",
@@ -437,9 +422,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: 10,
 			// overhead + values
 			expectedMem: SizeEmptyStruct + SizeInt*11,
-			// overhead + values
-			expectedNewMem: SizeEmptyStruct + SizeInt*11,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
 			name: "should estimate mem usage given an empty slice and negative threshold",
@@ -453,15 +436,13 @@ func TestGoSliceMemUsage(t *testing.T) {
 			estimateThreshold: -1,
 			// overhead
 			expectedMem: SizeEmptyStruct,
-			// overhead
-			expectedNewMem: SizeEmptyStruct,
-			errExpected:    nil,
+			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, tc.estimateThreshold, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, tc.estimateThreshold, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -470,9 +451,6 @@ func TestGoSliceMemUsage(t *testing.T) {
 			}
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
-			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

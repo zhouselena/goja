@@ -350,7 +350,7 @@ func (i *importedString) toTrimmedUTF8() string {
 	return strings.Trim(i.s, parser.WhitespaceChars)
 }
 
-func (i *importedString) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (i *importedString) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	importedStringLength := uint64(len(i.String()))
-	return importedStringLength + SizeString, importedStringLength + SizeString, err
+	return importedStringLength + SizeString, err
 }

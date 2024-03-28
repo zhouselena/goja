@@ -45,41 +45,37 @@ type vmContext struct {
 	args      int
 }
 
-func (vc *vmContext) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (vc *vmContext) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if vc == nil {
-		return SizeEmptyStruct, SizeEmptyStruct, err
+		return SizeEmptyStruct, err
 	}
 	memUsage = SizeEmptyStruct
-	newMemUsage = SizeEmptyStruct
 
 	if vc.newTarget != nil {
-		inc, newInc, err := vc.newTarget.MemUsage(ctx)
+		inc, err := vc.newTarget.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
 	if vc.stash != nil {
-		inc, newInc, err := vc.stash.MemUsage(ctx)
+		inc, err := vc.stash.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
 	if vc.prg != nil {
-		inc, newInc, err := vc.prg.MemUsage(ctx)
+		inc, err := vc.prg.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
-	return memUsage, newMemUsage, nil
+	return memUsage, nil
 }
 
 type iterStackItem struct {
@@ -553,39 +549,36 @@ func (s *stash) deleteBinding(name unistring.String) {
 	delete(s.names, name)
 }
 
-func (s *stash) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (s *stash) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if s == nil || ctx.IsStashVisited(s) {
-		return memUsage, newMemUsage, err
+		return memUsage, err
 	}
 	ctx.VisitStash(s)
 
 	if s.obj != nil {
-		inc, newInc, err := s.obj.MemUsage(ctx)
+		inc, err := s.obj.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
 	if s.outer != nil {
-		inc, newInc, err := s.outer.MemUsage(ctx)
+		inc, err := s.outer.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 	if len(s.values) > 0 {
-		inc, newInc, err := s.values.MemUsage(ctx)
+		inc, err := s.values.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
-	return memUsage, newMemUsage, nil
+	return memUsage, nil
 }
 
 func (vm *vm) newStash() {
@@ -5597,24 +5590,23 @@ func (r *getPrivateRefId) exec(vm *vm) {
 	vm.pc++
 }
 
-func (s valueStack) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (s valueStack) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	for _, val := range s {
 		if val == nil {
 			continue
 		}
 
-		inc, newInc, err := val.MemUsage(ctx)
+		inc, err := val.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
-			return memUsage, newMemUsage, nil
+			return memUsage, nil
 		}
 	}
 
-	return memUsage, newMemUsage, nil
+	return memUsage, nil
 }
 
 // sleep is equivalent to time.Sleep, but is interruptible via context cancelation.

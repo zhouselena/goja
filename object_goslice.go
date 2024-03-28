@@ -350,12 +350,12 @@ func (o *objectGoSlice) swap(i int, j int) {
 	(*o.data)[i], (*o.data)[j] = (*o.data)[j], (*o.data)[i]
 }
 
-func (o *objectGoSlice) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
-	var samplesVisited, memUsage, newMemUsage uint64
+func (o *objectGoSlice) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, err error) {
+	var samplesVisited, memUsage uint64
 	counter := 0
 	sliceLen := len(*o.data)
 	if sliceLen == 0 {
-		return memUsage, newMemUsage, nil
+		return memUsage, nil
 	}
 	sampleSize := sliceLen / 10
 
@@ -368,54 +368,50 @@ func (o *objectGoSlice) estimateMemUsage(ctx *MemUsageContext) (estimate uint64,
 				continue
 			}
 
-			inc, newInc, err := o.val.runtime.ToValue(datum).MemUsage(ctx)
+			inc, err := o.val.runtime.ToValue(datum).MemUsage(ctx)
 			samplesVisited += 1
 			memUsage += inc
-			newMemUsage += newInc
 			// average * number of a.values
 			estimate = uint64((float32(memUsage) / float32(samplesVisited)) * float32(sliceLen))
-			newEstimate = uint64((float32(newMemUsage) / float32(samplesVisited)) * float32(sliceLen))
 			if err != nil {
-				return estimate, newEstimate, err
+				return estimate, err
 			}
 			if exceeded := ctx.MemUsageLimitExceeded(estimate); exceeded {
-				return estimate, newEstimate, nil
+				return estimate, nil
 			}
 		}
 	}
 
-	return estimate, newEstimate, nil
+	return estimate, nil
 }
 
-func (o *objectGoSlice) MemUsage(ctx *MemUsageContext) (uint64, uint64, error) {
-	memUsage, newMemUsage, err := o.baseObject.MemUsage(ctx)
+func (o *objectGoSlice) MemUsage(ctx *MemUsageContext) (uint64, error) {
+	memUsage, err := o.baseObject.MemUsage(ctx)
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	if o.data == nil {
-		return memUsage, newMemUsage, nil
+		return memUsage, nil
 	}
 
 	if ctx.ArrayLenExceedsThreshold(len(*o.data)) {
-		inc, newInc, err := o.estimateMemUsage(ctx)
+		inc, err := o.estimateMemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
-		return memUsage, newMemUsage, nil
+		return memUsage, nil
 	}
 
 	for _, datum := range *o.data {
-		inc, newInc, err := o.val.runtime.ToValue(datum).MemUsage(ctx)
+		inc, err := o.val.runtime.ToValue(datum).MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
-			return memUsage, newMemUsage, nil
+			return memUsage, nil
 		}
 	}
-	return memUsage, newMemUsage, nil
+	return memUsage, nil
 }

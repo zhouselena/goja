@@ -395,6 +395,6 @@ func (r *Runtime) getProxy() *Object {
 	return ret
 }
 
-func (h *nativeProxyHandler) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return memUsage, newMemUsage, err
+func (h *nativeProxyHandler) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	return memUsage, err
 }

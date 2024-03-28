@@ -6,31 +6,28 @@ import (
 
 func TestStringAsciiMemUsage(t *testing.T) {
 	tests := []struct {
-		name           string
-		val            asciiString
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name        string
+		val         asciiString
+		expectedMem uint64
+		errExpected error
 	}{
 		{
-			name:           "should have a value of 0/SizeString given an empty string",
-			val:            asciiString(""),
-			expectedMem:    SizeString, // string overhead
-			expectedNewMem: SizeString, // string overhead
-			errExpected:    nil,
+			name:        "should have a value of 0/SizeString given an empty string",
+			val:         asciiString(""),
+			expectedMem: SizeString, // string overhead
+			errExpected: nil,
 		},
 		{
-			name:           "should have a value given the length of the string",
-			val:            asciiString("yo"),
-			expectedMem:    2 + SizeString, // length with string overhead
-			expectedNewMem: 2 + SizeString, // length with string overhead
-			errExpected:    nil,
+			name:        "should have a value given the length of the string",
+			val:         asciiString("yo"),
+			expectedMem: 2 + SizeString, // length with string overhead
+			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -39,9 +36,6 @@ func TestStringAsciiMemUsage(t *testing.T) {
 			}
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
-			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

@@ -551,9 +551,9 @@ func (o *baseDynamicObject) getPrivateEnv(*privateEnvType, bool) *privateElement
 	panic(newTypeError("Dynamic objects cannot have private elements"))
 }
 
-func (o *baseDynamicObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (o *baseDynamicObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if o == nil {
-		return SizeEmptyStruct, SizeEmptyStruct, err
+		return SizeEmptyStruct, err
 	}
 
 	return o.val.MemUsage(ctx)
@@ -793,9 +793,9 @@ func (a *dynamicArray) keys(all bool, accum []Value) []Value {
 	return a.stringKeys(all, accum)
 }
 
-func (a *dynamicArray) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (a *dynamicArray) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if a == nil {
-		return SizeEmptyStruct, SizeEmptyStruct, err
+		return SizeEmptyStruct, err
 	}
 	return a.val.MemUsage(ctx)
 }

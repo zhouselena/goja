@@ -170,16 +170,15 @@ func (d *dateObject) timeUTC() time.Time {
 	return timeFromMsec(d.msec).In(time.UTC)
 }
 
-func (d *dateObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (d *dateObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if d == nil || ctx.IsObjVisited(d) {
-		return SizeEmptyStruct, SizeEmptyStruct, nil
+		return SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(d)
 
 	// start with the size of msec
 	memUsage = SizeNumber
-	newMemUsage = SizeNumber
-	inc, newInc, err := d.baseObject.MemUsage(ctx)
+	inc, err := d.baseObject.MemUsage(ctx)
 
-	return memUsage + inc, newMemUsage + newInc, err
+	return memUsage + inc, err
 }

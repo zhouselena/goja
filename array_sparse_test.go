@@ -270,7 +270,6 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 		mu          *MemUsageContext
 		sao         *sparseArrayObject
 		expected    uint64
-		newExpected uint64
 		errExpected error
 	}{
 		{
@@ -285,9 +284,7 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 				},
 			},
 			// array overhead + index size + (string len + overhead) + sparseArray baseObject
-			expected: SizeEmptyStruct + SizeInt32 + (3 + SizeString) + SizeEmptyStruct,
-			// array overhead + index size + (string len + overhead) + sparseArray baseObject
-			newExpected: SizeEmptyStruct + SizeInt32 + (3 + SizeString) + SizeEmptyStruct,
+			expected:    SizeEmptyStruct + SizeInt32 + (3 + SizeString) + SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
@@ -295,7 +292,6 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
 			sao:         nil,
 			expected:    SizeEmptyStruct,
-			newExpected: SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
@@ -330,16 +326,14 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 				},
 			},
 			// array overhead + index size + (string len + overhead) (we reach the limit at 4)
-			expected: SizeEmptyStruct + (SizeInt32+(4+SizeString))*4,
-			// array overhead + index size + (string len + overhead) (we reach the limit at 4)
-			newExpected: SizeEmptyStruct + (SizeInt32+(4+SizeString))*4,
+			expected:    SizeEmptyStruct + (SizeInt32+(4+SizeString))*4,
 			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.sao.MemUsage(tc.mu)
+			total, err := tc.sao.MemUsage(tc.mu)
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -348,9 +342,6 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 			}
 			if total != tc.expected {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expected)
-			}
-			if newTotal != tc.newExpected {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.newExpected)
 			}
 		})
 	}

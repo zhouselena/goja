@@ -328,15 +328,14 @@ func unknownStringTypeErr(v Value) interface{} {
 	return newTypeError("Internal bug: unknown string type: %T", v)
 }
 
-func (s *stringObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (s *stringObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if s == nil || ctx.IsObjVisited(s) {
-		return SizeEmptyStruct, SizeEmptyStruct, nil
+		return SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(s)
 
 	memUsage = uint64(s.length) + SizeString
-	newMemUsage = uint64(s.length) + SizeString
-	inc, newInc, err := s.baseObject.MemUsage(ctx)
+	inc, err := s.baseObject.MemUsage(ctx)
 
-	return memUsage + inc, newMemUsage + newInc, err
+	return memUsage + inc, err
 }

@@ -559,9 +559,9 @@ func (s unicodeString) string() unistring.String {
 	return unistring.FromUtf16(s)
 }
 
-func (s unicodeString) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (s unicodeString) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	stringLength := uint64(len(s.String()))
-	return stringLength + SizeString, stringLength + SizeString, err
+	return stringLength + SizeString, err
 }
 func (s unicodeString) ToInt() int {
 	return 0

@@ -264,7 +264,7 @@ type objectImpl interface {
 	_putSym(s *Symbol, prop Value)
 	getPrivateEnv(typ *privateEnvType, create bool) *privateElements
 
-	MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error)
+	MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 }
 
 type baseObject struct {
@@ -1913,11 +1913,11 @@ func computeMemUsageEstimate(memUsage, samplesVisited uint64, totalProps int) ui
 // estimateMemUsage helps calculating mem usage for large objects.
 // It will sample the object and use those samples to estimate the
 // mem usage.
-func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, newEstimate uint64, err error) {
-	var samplesVisited, memUsage, newMemUsage uint64
+func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, err error) {
+	var samplesVisited, memUsage uint64
 	totalProps := len(o.propNames)
 	if totalProps == 0 {
-		return memUsage, newMemUsage, nil
+		return memUsage, nil
 	}
 	sampleSize := totalProps / 10
 
@@ -1926,94 +1926,86 @@ func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, ne
 	for i := 0; i < totalProps; i += sampleSize {
 		k := o.propNames[i]
 		memUsage += uint64(len(k)) + SizeString
-		newMemUsage += uint64(len(k)) + SizeString
 		v := o.values[k]
 		if v == nil {
 			continue
 		}
 
-		inc, newInc, err := v.MemUsage(ctx)
+		inc, err := v.MemUsage(ctx)
 		samplesVisited += 1
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), computeMemUsageEstimate(newMemUsage, samplesVisited, totalProps), err
+			return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), err
 		}
 	}
 
-	return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), computeMemUsageEstimate(newMemUsage, samplesVisited, totalProps), nil
+	return computeMemUsageEstimate(memUsage, samplesVisited, totalProps), nil
 }
 
-func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if o == nil || ctx.IsObjVisited(o) {
-		return SizeEmptyStruct, SizeEmptyStruct, nil
+		return SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(o)
 
 	if err := ctx.Descend(); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
 	memUsage = SizeEmptyStruct
-	newMemUsage = SizeEmptyStruct
 	if ctx.ObjectPropsLenExceedsThreshold(len(o.propNames)) {
-		inc, newInc, err := o.estimateMemUsage(ctx)
+		inc, err := o.estimateMemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	} else {
 		for _, k := range o.propNames {
 			v := o.values[k]
 			memUsage += uint64(len(k)) + SizeString
-			newMemUsage += uint64(len(k)) + SizeString
 
 			if v == nil {
 				continue
 			}
-			inc, newInc, err := v.MemUsage(ctx)
+			inc, err := v.MemUsage(ctx)
 			memUsage += inc
-			newMemUsage += newInc
 			if err != nil {
-				return memUsage, newMemUsage, err
+				return memUsage, err
 			}
 			if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
-				return memUsage, newMemUsage, nil
+				return memUsage, nil
 			}
 		}
 	}
 
 	if o.prototype != nil {
-		inc, newInc, err := o.prototype.MemUsage(ctx)
+		inc, err := o.prototype.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
 	ctx.Ascend()
 
-	return memUsage, newMemUsage, nil
+	return memUsage, nil
 }
 
-func (o *primitiveValueObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (o *primitiveValueObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if o == nil || ctx.IsObjVisited(o) {
-		return SizeEmptyStruct, SizeEmptyStruct, nil
+		return SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(o)
 
 	if o.pValue != nil {
-		inc, newInc, err := o.pValue.MemUsage(ctx)
+		inc, err := o.pValue.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
-	inc, newInc, err := o.baseObject.MemUsage(ctx)
+	inc, err := o.baseObject.MemUsage(ctx)
 
-	return memUsage + inc, newMemUsage + newInc, err
+	return memUsage + inc, err
 }

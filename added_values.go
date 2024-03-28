@@ -8,8 +8,8 @@ import (
 	"github.com/dop251/goja/unistring"
 )
 
-func (i valueNumber) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return SizeNumber, SizeNumber, nil
+func (i valueNumber) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	return SizeNumber, nil
 }
 
 func (i valueNumber) ToInteger() int64 {
@@ -205,8 +205,8 @@ func (i valueNumber) ExportType() reflect.Type {
 	return i._type
 }
 
-func (i valueUInt32) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return SizeInt32, SizeInt32, nil
+func (i valueUInt32) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	return SizeInt32, nil
 }
 
 func (i valueUInt32) ToInt() int {
@@ -335,8 +335,8 @@ func (i valueUInt32) ExportType() reflect.Type {
 	return reflectTypeUInt32
 }
 
-func (i valueInt32) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return SizeInt32, SizeInt32, nil
+func (i valueInt32) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	return SizeInt32, nil
 }
 
 func (i valueInt32) hash(*maphash.Hash) uint64 {
@@ -464,8 +464,8 @@ func (i valueInt32) ExportType() reflect.Type {
 	return reflectTypeInt32
 }
 
-func (i valueInt64) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
-	return SizeNumber, SizeNumber, nil
+func (i valueInt64) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	return SizeNumber, nil
 }
 
 func (i valueInt64) ToInt() int {

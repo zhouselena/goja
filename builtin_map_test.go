@@ -246,12 +246,11 @@ func BenchmarkMapDeleteJS(b *testing.B) {
 func TestMapObjectMemUsage(t *testing.T) {
 	vm := New()
 	tests := []struct {
-		name           string
-		mu             *MemUsageContext
-		mo             *mapObject
-		expectedMem    uint64
-		expectedNewMem uint64
-		errExpected    error
+		name        string
+		mu          *MemUsageContext
+		mo          *mapObject
+		expectedMem uint64
+		errExpected error
 	}{
 		{
 			name: "mem below threshold",
@@ -268,17 +267,14 @@ func TestMapObjectMemUsage(t *testing.T) {
 			},
 			// baseObject + (len(key) + overhead)  + (len(value) + overhead)
 			expectedMem: SizeEmptyStruct + (3 + SizeString) + (5 + SizeString),
-			// baseObject + (len(key) + overhead) + (len(value) + overhead)
-			expectedNewMem: SizeEmptyStruct + (3 + SizeString) + (5 + SizeString),
-			errExpected:    nil,
+			errExpected: nil,
 		},
 		{
-			name:           "mem is SizeEmptyStruct given a nil map object",
-			mu:             NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
-			mo:             nil,
-			expectedMem:    SizeEmptyStruct,
-			expectedNewMem: SizeEmptyStruct,
-			errExpected:    nil,
+			name:        "mem is SizeEmptyStruct given a nil map object",
+			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mo:          nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
@@ -311,19 +307,13 @@ func TestMapObjectMemUsage(t *testing.T) {
 				(3+SizeString)*3 +
 				// len(value) + overhead (we reach the limit after 3)
 				(5+SizeString)*3,
-			// baseObject
-			expectedNewMem: SizeEmptyStruct +
-				// len(key) + overhead (we reach the limit after 3)
-				(3+SizeString)*3 +
-				// len(value) + overhead (we reach the limit after 3)
-				(5+SizeString)*3,
 			errExpected: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.mo.MemUsage(tc.mu)
+			total, err := tc.mo.MemUsage(tc.mu)
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
@@ -332,9 +322,6 @@ func TestMapObjectMemUsage(t *testing.T) {
 			}
 			if total != tc.expectedMem {
 				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
-			}
-			if newTotal != tc.expectedNewMem {
-				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
 			}
 		})
 	}

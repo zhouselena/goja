@@ -499,40 +499,37 @@ func (a *sparseArrayObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.
 	return a.baseObject.exportToArrayOrSlice(dst, typ, ctx)
 }
 
-func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if a == nil || ctx.IsObjVisited(a) {
-		return SizeEmptyStruct, SizeEmptyStruct, nil
+		return SizeEmptyStruct, nil
 	}
 	ctx.VisitObj(a)
 
 	if err := ctx.Descend(); err != nil {
-		return SizeEmptyStruct, SizeEmptyStruct, err
+		return SizeEmptyStruct, err
 	}
 
 	// sparseArrayObject overhead
 	memUsage = SizeEmptyStruct
-	newMemUsage = SizeEmptyStruct
 
 	for _, item := range a.items {
 		// Add the size of the index
 		memUsage += SizeInt32
-		newMemUsage += SizeInt32
 		if item.value != nil {
-			inc, newInc, err := item.value.MemUsage(ctx)
+			inc, err := item.value.MemUsage(ctx)
 			memUsage += inc
-			newMemUsage += newInc
 			if err != nil {
-				return memUsage, newMemUsage, err
+				return memUsage, err
 			}
 			if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
-				return memUsage, newMemUsage, nil
+				return memUsage, nil
 			}
 		}
 	}
 
 	ctx.Ascend()
 
-	inc, newInc, err := a.baseObject.MemUsage(ctx)
+	inc, err := a.baseObject.MemUsage(ctx)
 
-	return memUsage + inc, newMemUsage + newInc, err
+	return memUsage + inc, err
 }

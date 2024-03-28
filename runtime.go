@@ -520,60 +520,56 @@ func (r *Runtime) typeErrorResult(throw bool, args ...interface{}) {
 	}
 }
 
-func (r *Runtime) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage uint64, err error) {
+func (r *Runtime) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if r == nil {
-		return SizeEmptyStruct, SizeEmptyStruct, err
+		return SizeEmptyStruct, err
 	}
 
 	if r.globalObject != nil {
-		inc, newInc, err := r.globalObject.MemUsage(ctx)
+		inc, err := r.globalObject.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 		if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
-			return memUsage, newMemUsage, nil
+			return memUsage, nil
 		}
 	}
 
 	if r.vm == nil {
-		return memUsage, newMemUsage, nil
+		return memUsage, nil
 	}
 
 	if r.vm.callStack != nil {
 		for idx := range r.vm.callStack {
-			inc, newInc, err := r.vm.callStack[idx].MemUsage(ctx)
+			inc, err := r.vm.callStack[idx].MemUsage(ctx)
 			memUsage += inc
-			newMemUsage += newInc
 			if err != nil {
-				return memUsage, newMemUsage, err
+				return memUsage, err
 			}
 			if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
-				return memUsage, newMemUsage, nil
+				return memUsage, nil
 			}
 		}
 	}
 
 	if r.vm.stash != nil {
-		inc, newInc, err := r.vm.stash.MemUsage(ctx)
+		inc, err := r.vm.stash.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
 	if r.vm.stack != nil {
-		inc, newInc, err := r.vm.stack.MemUsage(ctx)
+		inc, err := r.vm.stack.MemUsage(ctx)
 		memUsage += inc
-		newMemUsage += newInc
 		if err != nil {
-			return memUsage, newMemUsage, err
+			return memUsage, err
 		}
 	}
 
-	return memUsage, newMemUsage, nil
+	return memUsage, nil
 }
 
 func (r *Runtime) newError(typ *Object, format string, args ...interface{}) Value {
