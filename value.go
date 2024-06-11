@@ -131,6 +131,7 @@ const (
 	SizeNumber      = uint64(unsafe.Sizeof(float64(0)))
 	SizeInt32       = uint64(unsafe.Sizeof(int32(0)))
 	SizeInt         = uint64(unsafe.Sizeof(int(0)))
+	SizeUint32      = uint64(unsafe.Sizeof(uint32(0)))
 	SizeEmptyStruct = uint64(unsafe.Sizeof((*baseObject)(nil)))
 	SizeEmptySlice  = uint64(unsafe.Sizeof([]Value{}))
 	// SizeString allows us to take into account the 16 additional bytes

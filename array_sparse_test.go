@@ -284,7 +284,7 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 				},
 			},
 			// array overhead + index size + (string len + overhead) + sparseArray baseObject
-			expected:    SizeEmptyStruct + SizeInt32 + (3 + SizeString) + SizeEmptyStruct,
+			expected:    SizeEmptyStruct + SizeUint32 + (3 + SizeString) + SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
@@ -325,8 +325,59 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// array overhead + index size + (string len + overhead) (we reach the limit at 4)
-			expected:    SizeEmptyStruct + (SizeInt32+(4+SizeString))*4,
+			// baseObject overhead + array overhead + index size + (string len + overhead) (we reach the limit at 4)
+			expected:    SizeEmptyStruct + SizeEmptyStruct + (SizeUint32+(4+SizeString))*4,
+			errExpected: nil,
+		},
+		{
+			name: "mem above estimate threshold and within memory limit returns correct usage",
+			mu:   NewMemUsageContext(vm, 88, 100, 5, 50, TestNativeMemUsageChecker{}),
+			sao: &sparseArrayObject{
+				items: []sparseArrayItem{
+					{
+						idx:   1,
+						value: vm.ToValue("key0"),
+					},
+					{
+						idx:   2,
+						value: vm.ToValue("key1"),
+					},
+					{
+						idx:   3,
+						value: vm.ToValue("key2"),
+					},
+					{
+						idx:   4,
+						value: vm.ToValue("key3"),
+					},
+					{
+						idx:   5,
+						value: vm.ToValue("key4"),
+					},
+					{
+						idx:   6,
+						value: vm.ToValue("key5"),
+					},
+					{
+						idx:   7,
+						value: vm.ToValue("key6"),
+					},
+					{
+						idx:   8,
+						value: vm.ToValue("key7"),
+					},
+					{
+						idx:   9,
+						value: vm.ToValue("key8"),
+					},
+					{
+						idx:   10,
+						value: vm.ToValue("key9"),
+					},
+				},
+			},
+			// baseObject overhead + array overhead + index size + (string len + overhead) (we reach the limit at 1)
+			expected:    SizeEmptyStruct + SizeEmptyStruct + (SizeUint32+(4+SizeString))*10,
 			errExpected: nil,
 		},
 	}

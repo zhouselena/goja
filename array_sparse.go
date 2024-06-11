@@ -499,6 +499,33 @@ func (a *sparseArrayObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.
 	return a.baseObject.exportToArrayOrSlice(dst, typ, ctx)
 }
 
+// estimateMemUsage helps calculating mem usage for large sparse arrays.
+// It will sample the array and use those samples to estimate the total
+// mem usage.
+func (a *sparseArrayObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, err error) {
+	var samplesVisited, memUsage uint64
+	totalItems := len(a.items)
+	if totalItems == 0 {
+		return memUsage, nil
+	}
+	sampleSize := totalItems / 10
+
+	// grabbing one sample every "sampleSize" to provide consistent
+	// memory usage across function executions
+	for i := 0; i < totalItems; i += sampleSize {
+		v := a.items[i].value
+		inc, err := v.MemUsage(ctx)
+		samplesVisited += 1
+		// We add both the mem usage of the value and its index
+		memUsage += inc + SizeUint32
+		if err != nil {
+			return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), err
+		}
+	}
+
+	return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), nil
+}
+
 func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
 	if a == nil || ctx.IsObjVisited(a) {
 		return SizeEmptyStruct, nil
@@ -512,9 +539,26 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 	// sparseArrayObject overhead
 	memUsage = SizeEmptyStruct
 
+	inc, err := a.baseObject.MemUsage(ctx)
+	memUsage += inc
+	if err != nil {
+		return memUsage, err
+	}
+
+	if ctx.ArrayLenExceedsThreshold(len(a.items)) {
+		inc, err := a.estimateMemUsage(ctx)
+		memUsage += inc
+		if err != nil {
+			return memUsage, err
+		}
+
+		ctx.Ascend()
+		return memUsage, nil
+	}
+
 	for _, item := range a.items {
 		// Add the size of the index
-		memUsage += SizeInt32
+		memUsage += SizeUint32
 		if item.value != nil {
 			inc, err := item.value.MemUsage(ctx)
 			memUsage += inc
@@ -529,7 +573,5 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 
 	ctx.Ascend()
 
-	inc, err := a.baseObject.MemUsage(ctx)
-
-	return memUsage + inc, err
+	return memUsage, err
 }
