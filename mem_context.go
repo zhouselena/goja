@@ -2,6 +2,7 @@ package goja
 
 import (
 	"errors"
+	"math"
 )
 
 type visitTracker struct {
@@ -61,6 +62,7 @@ type MemUsageContext struct {
 	NativeMemUsageChecker
 	ArrayLenExceedsThreshold       func(arrayLen int) bool
 	ObjectPropsLenExceedsThreshold func(objPropsLen int) bool
+	ComputeSampleStep              func(totalItems int) int
 	memoryLimit                    uint64
 }
 
@@ -69,6 +71,7 @@ func NewMemUsageContext(
 	maxDepth int,
 	memLimit uint64,
 	arrayLenThreshold, objPropsLenThreshold int,
+	sampleRate float64,
 	nativeChecker NativeMemUsageChecker,
 ) *MemUsageContext {
 	return &MemUsageContext{
@@ -84,6 +87,9 @@ func NewMemUsageContext(
 			// number of obj props beyond which we should estimate mem usage
 			return objPropsLen > objPropsLenThreshold
 		},
+		ComputeSampleStep: func(totalItems int) int {
+			return computeSampleStep(totalItems, sampleRate)
+		},
 	}
 }
 
@@ -91,6 +97,29 @@ func NewMemUsageContext(
 // it will return true
 func (m *MemUsageContext) MemUsageLimitExceeded(memUsage uint64) bool {
 	return memUsage > m.memoryLimit
+}
+
+func computeMemUsageEstimate(memUsage, samplesVisited uint64, totalProps int) uint64 {
+	// averageMemUsage * total object props
+	return uint64(float32(memUsage) / float32(samplesVisited) * float32(totalProps))
+}
+
+// computeSampleStep will take the total items we want to sample from and a sample rate.
+// It will use this value to determine the sample step, which indicates how often we need
+// to grab a sample. For example, with 100 total items and a 0.2 sample rate, it means
+// we want to sample 20% of 100 items, in order to do so we need to pick an item ever 5
+// (5 * 20 == 100)
+func computeSampleStep(totalItems int, sampleRate float64) int {
+	if sampleRate == 0 || totalItems == 0 {
+		return 1
+	}
+	if sampleRate >= 0.5 {
+		// We allow a max sample size half of the total items
+		sampleRate = 0.5
+	}
+
+	totalSamples := float64(totalItems) * sampleRate
+	return int(math.Floor(float64(totalItems) / totalSamples))
 }
 
 var (

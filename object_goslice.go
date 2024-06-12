@@ -357,7 +357,7 @@ func (o *objectGoSlice) estimateMemUsage(ctx *MemUsageContext) (estimate uint64,
 	if sliceLen == 0 {
 		return memUsage, nil
 	}
-	sampleSize := sliceLen / 10
+	sampleSize := ctx.ComputeSampleStep(sliceLen)
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions

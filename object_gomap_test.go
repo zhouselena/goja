@@ -331,7 +331,7 @@ func TestGoMapUnicode(t *testing.T) {
 
 func TestGoMapMemUsage(t *testing.T) {
 	vm := New()
-	vmCtx := NewMemUsageContext(vm, 100, 100, 100, 100, nil)
+	vmCtx := NewMemUsageContext(vm, 100, 100, 100, 100, 0.1, nil)
 
 	nestedMap := map[string]interface{}{
 		"subTest1": valueInt(99),
@@ -503,7 +503,7 @@ func TestGoMapMemUsage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, 100, tc.estimateThreshold, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, 100, tc.estimateThreshold, 0.1, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

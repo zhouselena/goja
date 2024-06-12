@@ -274,7 +274,7 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 	}{
 		{
 			name: "mem below threshold",
-			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			sao: &sparseArrayObject{
 				items: []sparseArrayItem{
 					{
@@ -289,14 +289,14 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 		},
 		{
 			name:        "mem is SizeEmptyStruct for nil sparse array",
-			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			sao:         nil,
 			expected:    SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			sao: &sparseArrayObject{
 				items: []sparseArrayItem{
 					{
@@ -331,7 +331,7 @@ func TestSparseArrayObjectMemUsage(t *testing.T) {
 		},
 		{
 			name: "mem above estimate threshold and within memory limit returns correct usage",
-			mu:   NewMemUsageContext(vm, 88, 100, 5, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 5, 50, 0.1, TestNativeMemUsageChecker{}),
 			sao: &sparseArrayObject{
 				items: []sparseArrayItem{
 					{

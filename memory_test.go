@@ -402,7 +402,7 @@ func TestMemCheck(t *testing.T) {
 
 			vm.Set("checkMem", func(call FunctionCall) Value {
 				mem, err := vm.MemUsage(
-					NewMemUsageContext(vm, 100, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+					NewMemUsageContext(vm, 100, memUsageLimit, arrLenThreshold, objPropsLenThreshold, 0.1, TestNativeMemUsageChecker{}),
 				)
 				if err != nil {
 					t.Fatal(err)
@@ -473,7 +473,7 @@ func TestMemMaxDepth(t *testing.T) {
 			// All global variables are contained in the Runtime's globalObject field, which causes
 			// them to be one level deeper
 			_, err = vm.MemUsage(
-				NewMemUsageContext(vm, tc.expectedDepth, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+				NewMemUsageContext(vm, tc.expectedDepth, memUsageLimit, arrLenThreshold, objPropsLenThreshold, 0.1, TestNativeMemUsageChecker{}),
 			)
 			if err != ErrMaxDepth {
 				t.Fatalf("expected mem check to hit depth limit error, but got nil %v", err)
@@ -481,7 +481,7 @@ func TestMemMaxDepth(t *testing.T) {
 
 			_, err = vm.MemUsage(
 				// need to add 2 to the expectedDepth since Object is lazy loaded it adds onto the expected depth
-				NewMemUsageContext(vm, tc.expectedDepth+2, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+				NewMemUsageContext(vm, tc.expectedDepth+2, memUsageLimit, arrLenThreshold, objPropsLenThreshold, 0.1, TestNativeMemUsageChecker{}),
 			)
 			if err != nil {
 				t.Fatalf("expected to NOT hit mem check hit depth limit error, but got %v", err)
@@ -554,14 +554,14 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 			y.push([]);
 			let i = 0;
 			checkMem();
-			for(i=0;i<100;i++){
-				y[0].push(i<50?0:true);
+			for(i=0;i<20;i++){
+				y[0].push(i<10?0:true);
 			};
 			checkMem()`,
-			threshold: 50,
+			threshold: 10,
 			memLimit:  memUsageLimit,
 			expectedSizeDiff: SizeEmptyStruct + // Array overhead
-				(50 * SizeNumber) + (50 * SizeBool) + // (450) size of property values
+				(10 * SizeNumber) + (10 * SizeBool) + // (450) size of property values
 				// stack difference in going from
 				//	[..other, []]
 				//  to
@@ -595,7 +595,7 @@ func TestMemArraysWithLenThreshold(t *testing.T) {
 
 			vm.Set("checkMem", func(call FunctionCall) Value {
 				mem, err := vm.MemUsage(
-					NewMemUsageContext(vm, 100, tc.memLimit, tc.threshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
+					NewMemUsageContext(vm, 100, tc.memLimit, tc.threshold, objPropsLenThreshold, 0.1, TestNativeMemUsageChecker{}),
 				)
 				if err != nil {
 					t.Fatal(err)
@@ -686,7 +686,7 @@ func TestMemObjectsWithPropsLenThreshold(t *testing.T) {
 
 			vm.Set("checkMem", func(call FunctionCall) Value {
 				mem, err := vm.MemUsage(
-					NewMemUsageContext(vm, 100, tc.memLimit, arrLenThreshold, tc.threshold, TestNativeMemUsageChecker{}),
+					NewMemUsageContext(vm, 100, tc.memLimit, arrLenThreshold, tc.threshold, 0.1, TestNativeMemUsageChecker{}),
 				)
 				if err != nil {
 					t.Fatal(err)

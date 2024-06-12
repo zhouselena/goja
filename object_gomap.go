@@ -167,7 +167,7 @@ func (o *objectGoMapSimple) estimateMemUsage(ctx *MemUsageContext) (estimate uin
 	if totalProps == 0 {
 		return memUsage, nil
 	}
-	sampleSize := totalProps / 10
+	sampleSize := ctx.ComputeSampleStep(totalProps)
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions

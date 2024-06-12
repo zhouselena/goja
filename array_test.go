@@ -144,7 +144,7 @@ func TestArrayObjectMemUsage(t *testing.T) {
 	}{
 		{
 			name: "mem below threshold given a nil slice of values",
-			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			ao:   &arrayObject{},
 			// array overhead + array baseObject
 			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
@@ -152,7 +152,7 @@ func TestArrayObjectMemUsage(t *testing.T) {
 		},
 		{
 			name: "mem below threshold given empty slice of values",
-			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			ao:   &arrayObject{values: []Value{}},
 			// array overhead + array baseObject + values slice overhead
 			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeEmptySlice,
@@ -160,7 +160,7 @@ func TestArrayObjectMemUsage(t *testing.T) {
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			ao: &arrayObject{
 				values: []Value{
 					vm.ToValue("key0"),
@@ -179,7 +179,7 @@ func TestArrayObjectMemUsage(t *testing.T) {
 		},
 		{
 			name: "empty array with negative threshold",
-			mu:   NewMemUsageContext(vm, 88, 100, -1, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, -1, 50, 0.1, TestNativeMemUsageChecker{}),
 			ao: &arrayObject{
 				values: []Value{},
 			},

@@ -1290,7 +1290,7 @@ func TestBuiltinProxyMemUsage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, 0.1, nil))
 			if err != nil {
 				t.Fatalf("Unexpected error. Actual: %v Expected: nil", err)
 			}

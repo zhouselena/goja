@@ -508,7 +508,7 @@ func (a *sparseArrayObject) estimateMemUsage(ctx *MemUsageContext) (estimate uin
 	if totalItems == 0 {
 		return memUsage, nil
 	}
-	sampleSize := totalItems / 10
+	sampleSize := ctx.ComputeSampleStep(totalItems)
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions

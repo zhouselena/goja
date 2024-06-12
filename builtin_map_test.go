@@ -243,8 +243,40 @@ func BenchmarkMapDeleteJS(b *testing.B) {
 	}
 }
 
+func createOrderedMap(vm *Runtime, size int) *orderedMap {
+	ht := make(map[uint64]*mapEntry, 0)
+	for i := 0; i < size; i += 1 {
+		value := vm.ToValue("value")
+		// This is leveraging the fact that we sample only 10% of the data.
+		// We intentionally set the non-sampled items to something different
+		// so that we can show in our test that we are correctly using
+		// the samples to estimate mem usage and nothing else.
+		if i%(computeSampleStep(size, 0.1)) == 1 {
+			value = vm.ToValue("verylongstring")
+		}
+
+		ht[uint64(i)] = &mapEntry{
+			key:   vm.ToValue("key"),
+			value: value,
+		}
+		// These iter items are necessary for testing the mem usage
+		// estimation since that's who we iterate through the map.
+		if i > 0 {
+			ht[uint64(i)].iterPrev = ht[uint64(i-1)]
+			ht[uint64(i-1)].iterNext = ht[uint64(i)]
+		}
+	}
+	return &orderedMap{
+		size:      size,
+		iterFirst: ht[uint64(0)],
+		iterLast:  ht[uint64(size-1)],
+		hashTable: ht,
+	}
+}
+
 func TestMapObjectMemUsage(t *testing.T) {
 	vm := New()
+
 	tests := []struct {
 		name        string
 		mu          *MemUsageContext
@@ -254,7 +286,7 @@ func TestMapObjectMemUsage(t *testing.T) {
 	}{
 		{
 			name: "mem below threshold",
-			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			mo: &mapObject{
 				m: &orderedMap{
 					hashTable: map[uint64]*mapEntry{
@@ -271,14 +303,14 @@ func TestMapObjectMemUsage(t *testing.T) {
 		},
 		{
 			name:        "mem is SizeEmptyStruct given a nil map object",
-			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, TestNativeMemUsageChecker{}),
+			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			mo:          nil,
 			expectedMem: SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			mo: &mapObject{
 				m: &orderedMap{
 					hashTable: map[uint64]*mapEntry{
@@ -307,6 +339,20 @@ func TestMapObjectMemUsage(t *testing.T) {
 				(3+SizeString)*3 +
 				// len(value) + overhead (we reach the limit after 3)
 				(5+SizeString)*3,
+			errExpected: nil,
+		},
+		{
+			name: "mem above estimate threshold and within memory limit returns correct mem usage",
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 5, 0.1, TestNativeMemUsageChecker{}),
+			mo: &mapObject{
+				m: createOrderedMap(vm, 20),
+			},
+			// baseObject
+			expectedMem: SizeEmptyStruct +
+				// len(key) + overhead (we reach the limit after 3)
+				(3+SizeString)*20 +
+				// len(value) + overhead (we reach the limit after 3)
+				(5+SizeString)*20,
 			errExpected: nil,
 		},
 	}

@@ -442,7 +442,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, tc.estimateThreshold, 100, nil))
+			total, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, tc.memLimit, tc.estimateThreshold, 100, 0.1, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

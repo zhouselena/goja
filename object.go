@@ -1905,11 +1905,6 @@ func (i *privateId) string() unistring.String {
 	return privateIdString(i.name)
 }
 
-func computeMemUsageEstimate(memUsage, samplesVisited uint64, totalProps int) uint64 {
-	// averageMemUsage * total object props
-	return uint64(float32(memUsage) / float32(samplesVisited) * float32(totalProps))
-}
-
 // estimateMemUsage helps calculating mem usage for large objects.
 // It will sample the object and use those samples to estimate the
 // mem usage.
@@ -1919,7 +1914,7 @@ func (o *baseObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, er
 	if totalProps == 0 {
 		return memUsage, nil
 	}
-	sampleSize := totalProps / 10
+	sampleSize := ctx.ComputeSampleStep(totalProps)
 
 	// grabbing one sample every "sampleSize" to provide consistent
 	// memory usage across function executions

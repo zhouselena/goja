@@ -5657,7 +5657,7 @@ func TestProgramMemUsage(t *testing.T) {
 	}{
 		{
 			name: "mem below threshold",
-			mu:   NewMemUsageContext(New(), 88, 50, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(New(), 88, 50, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			p: &Program{
 				values: []Value{
 					New().newDateObject(time.Now(), true, nil),
@@ -5669,7 +5669,7 @@ func TestProgramMemUsage(t *testing.T) {
 		},
 		{
 			name: "mem way above threshold returns first crossing of threshold",
-			mu:   NewMemUsageContext(New(), 88, 50, 50, 50, TestNativeMemUsageChecker{}),
+			mu:   NewMemUsageContext(New(), 88, 50, 50, 50, 0.1, TestNativeMemUsageChecker{}),
 			p: &Program{
 				values: []Value{
 					New().newDateObject(time.Now(), true, nil),
