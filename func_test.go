@@ -212,13 +212,13 @@ func TestFuncObjectMemUsage(t *testing.T) {
 			errExpected: nil,
 		},
 		{
-			name:        "should have a value given by baseObject with no stash",
+			name:        "should have the correct value given an empty funcObject",
 			val:         &funcObject{},
-			expectedMem: SizeEmptyStruct, // baseFuncObject
+			expectedMem: SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{
-			name: "should have a value given by baseObject and values in stash",
+			name: "should have the correct value given a baseJSfuncObject with values in stash",
 			val: &funcObject{
 				baseJsFuncObject: baseJsFuncObject{
 					stash: &stash{
@@ -226,8 +226,264 @@ func TestFuncObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// baseFuncObject + value in stash
+			// baseJsFuncObject + value in baseJsFuncObject stash
 			expectedMem: SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, 0.1, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+		})
+	}
+}
+
+func TestBaseJsFuncObjectMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		val         *baseJsFuncObject
+		expectedMem uint64
+		errExpected error
+	}{
+		{
+			name:        "should have a value of SizeEmptyStruct given a nil baseJsFuncObject",
+			val:         nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name:        "should have a value of SizeEmptyStruct given an empty baseJsFuncObject",
+			val:         &baseJsFuncObject{},
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a baseJsFuncObject with values in stash",
+			val: &baseJsFuncObject{
+				stash: &stash{
+					values: []Value{valueInt(0)},
+				},
+			},
+			// baseJsFuncObject + value in baseJsFuncObject stash
+			expectedMem: SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, 0.1, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+		})
+	}
+}
+
+func TestClassFuncObjectMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		val         *classFuncObject
+		expectedMem uint64
+		errExpected error
+	}{
+		{
+			name:        "should have a value of SizeEmptyStruct given a nil classFuncObject",
+			val:         nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name:        "should have a value of SizeEmptyStruct given an empty classFuncObject",
+			val:         &classFuncObject{},
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a classFuncObject with valid baseJSFuncObject",
+			val: &classFuncObject{
+				baseJsFuncObject: baseJsFuncObject{
+					stash: &stash{
+						values: []Value{valueInt(0)},
+					},
+				},
+			},
+			// baseJsFuncObject + value baseJsFuncObject in stash
+			expectedMem: SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a classFuncObject with valid initFields",
+			val: &classFuncObject{
+				initFields: &Program{
+					values: []Value{valueInt(0)},
+				},
+			},
+			// baseJsFuncObject + value in Program
+			expectedMem: SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a classFuncObject with valid computedKeys",
+			val: &classFuncObject{
+				computedKeys: []Value{valueInt(0)},
+			},
+			// baseJsFuncObject + value in computedKeys
+			expectedMem: SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a classFuncObject with valid privateMethods",
+			val: &classFuncObject{
+				privateMethods: []Value{valueInt(0)},
+			},
+			// baseJsFuncObject + value in privateMethods
+			expectedMem: SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, 0.1, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+		})
+	}
+}
+
+func TestMethodFuncObjectMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		val         *methodFuncObject
+		expectedMem uint64
+		errExpected error
+	}{
+		{
+			name:        "should have a value of SizeEmptyStruct given a nil methodFuncObject",
+			val:         nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have a value of SizeEmptyStruct given an empty methodFuncObject",
+			val:  &methodFuncObject{},
+			// methodFuncObject + nil Object
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a methodFuncObject with values in stash",
+			val: &methodFuncObject{
+				baseJsFuncObject: baseJsFuncObject{
+					stash: &stash{
+						values: []Value{valueInt(0)},
+					},
+				},
+			},
+			// methodFuncObject + nil Object + value in baseJsFuncObject stash
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a methodFuncObject with nil homeObject",
+			val: &methodFuncObject{
+				homeObject: nil,
+			},
+			// methodFuncObject + nil Object
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, 0.1, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+		})
+	}
+}
+
+func TestArrowFuncObjectMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		val         *arrowFuncObject
+		expectedMem uint64
+		errExpected error
+	}{
+		{
+			name:        "should have a value of SizeEmptyStruct given a nil arrowFuncObject",
+			val:         nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have a value of SizeEmptyStruct given an empty arrowFuncObject",
+			val:  &arrowFuncObject{},
+			// arrowFuncObject + nil Object
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a arrowFuncObject with values in stash",
+			val: &arrowFuncObject{
+				baseJsFuncObject: baseJsFuncObject{
+					stash: &stash{
+						values: []Value{valueInt(0)},
+					},
+				},
+			},
+			// arrowFuncObject + nil Object + value in baseJsFuncObject stash
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a arrowFuncObject with nil funcObj",
+			val: &arrowFuncObject{
+				funcObj: nil,
+			},
+			// arrowFuncObject + nil Object
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "should have the correct value given a valid newTarget",
+			val: &arrowFuncObject{
+				newTarget: valueInt(0),
+			},
+			// arrowFuncObject + nil Object + valueInt 0
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt,
 			errExpected: nil,
 		},
 	}

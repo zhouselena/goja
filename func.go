@@ -505,13 +505,22 @@ func (f *funcObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 	}
 	ctx.VisitObj(f)
 
-	memUsage, err = f.baseObject.MemUsage(ctx)
+	return f.baseJsFuncObject.MemUsage(ctx)
+}
+
+func (b *baseJsFuncObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	if b == nil || ctx.IsObjVisited(b) {
+		return SizeEmptyStruct, nil
+	}
+	ctx.VisitObj(b)
+
+	memUsage, err = b.baseFuncObject.MemUsage(ctx)
 	if err != nil {
 		return memUsage, err
 	}
 
-	if f.stash != nil {
-		inc, err := f.stash.MemUsage(ctx)
+	if b.stash != nil {
+		inc, err := b.stash.MemUsage(ctx)
 		memUsage += inc
 		if err != nil {
 			return memUsage, err
@@ -519,4 +528,91 @@ func (f *funcObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 	}
 
 	return memUsage, nil
+}
+
+func (c *classFuncObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	if c == nil || ctx.IsObjVisited(c) {
+		return SizeEmptyStruct, nil
+	}
+	ctx.VisitObj(c)
+
+	memUsage, err = c.baseJsFuncObject.MemUsage(ctx)
+	if err != nil {
+		return memUsage, err
+	}
+
+	if c.initFields != nil {
+		inc, err := c.initFields.MemUsage(ctx)
+		memUsage += inc
+		if err != nil {
+			return memUsage, err
+		}
+	}
+
+	for _, v := range c.computedKeys {
+		inc, err := v.MemUsage(ctx)
+		memUsage += inc
+		if err != nil {
+			return memUsage, err
+		}
+	}
+
+	for _, v := range c.privateMethods {
+		inc, err := v.MemUsage(ctx)
+		memUsage += inc
+		if err != nil {
+			return memUsage, err
+		}
+	}
+
+	return memUsage, err
+}
+
+func (m *methodFuncObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	if m == nil || ctx.IsObjVisited(m) {
+		return SizeEmptyStruct, nil
+	}
+	ctx.VisitObj(m)
+
+	memUsage, err = m.baseJsFuncObject.MemUsage(ctx)
+	if err != nil {
+		return memUsage, err
+	}
+
+	inc, err := m.homeObject.MemUsage(ctx)
+	memUsage += inc
+	if err != nil {
+		return memUsage, err
+	}
+
+	return memUsage, err
+}
+
+func (a *arrowFuncObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	if a == nil || ctx.IsObjVisited(a) {
+		return SizeEmptyStruct, nil
+	}
+	ctx.VisitObj(a)
+
+	memUsage, err = a.baseJsFuncObject.MemUsage(ctx)
+	if err != nil {
+		return memUsage, err
+	}
+
+	inc, err := a.funcObj.MemUsage(ctx)
+	memUsage += inc
+	if err != nil {
+		return memUsage, err
+	}
+
+	if a.newTarget != nil {
+		inc, err = a.newTarget.MemUsage(ctx)
+		memUsage += inc
+		if err != nil {
+			return memUsage, err
+		}
+
+	}
+
+	return memUsage, err
 }

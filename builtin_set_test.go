@@ -192,3 +192,109 @@ func TestSetHasFloatVsInt(t *testing.T) {
 
 	testScript(SCRIPT, valueTrue, t)
 }
+
+func TestSetObjectMemUsage(t *testing.T) {
+	vm := New()
+
+	tests := []struct {
+		name        string
+		mu          *MemUsageContext
+		so          *setObject
+		expectedMem uint64
+		errExpected error
+	}{
+		{
+			name: "mem below threshold",
+			mu:   NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
+			so: &setObject{
+				m: &orderedMap{
+					hashTable: map[uint64]*mapEntry{
+						1: {
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
+						},
+					},
+				},
+			},
+			// baseObject + (len(key) + overhead)  + (len(value) + overhead)
+			expectedMem: SizeEmptyStruct + (3 + SizeString) + (5 + SizeString),
+			errExpected: nil,
+		},
+		{
+			name:        "mem is SizeEmptyStruct given a nil map object",
+			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
+			so:          nil,
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+		{
+			name: "mem way above threshold returns first crossing of threshold",
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 50, 0.1, TestNativeMemUsageChecker{}),
+			so: &setObject{
+				m: &orderedMap{
+					hashTable: map[uint64]*mapEntry{
+						1: {
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
+						},
+						2: {
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
+						},
+						3: {
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
+						},
+						4: {
+							key:   vm.ToValue("key"),
+							value: vm.ToValue("value"),
+						},
+					},
+				},
+			},
+			// baseObject
+			expectedMem: SizeEmptyStruct +
+				// len(key) + overhead (we reach the limit after 3)
+				(3+SizeString)*3 +
+				// len(value) + overhead (we reach the limit after 3)
+				(5+SizeString)*3,
+			errExpected: nil,
+		},
+		{
+			name: "mem above estimate threshold and within memory limit returns correct mem usage",
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 5, 0.1, TestNativeMemUsageChecker{}),
+			so: &setObject{
+				m: createOrderedMap(vm, 20),
+			},
+			// baseObject
+			expectedMem: SizeEmptyStruct +
+				// len(key) + overhead (we reach the limit after 3)
+				(3+SizeString)*20 +
+				// len(value) + overhead (we reach the limit after 3)
+				(5+SizeString)*20,
+			errExpected: nil,
+		},
+		{
+			name:        "mem is SizeEmptyStruct given a nil orderedMap object",
+			mu:          NewMemUsageContext(vm, 88, 5000, 50, 50, 0.1, TestNativeMemUsageChecker{}),
+			so:          &setObject{},
+			expectedMem: SizeEmptyStruct,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := tc.so.MemUsage(tc.mu)
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+		})
+	}
+}

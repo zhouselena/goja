@@ -344,3 +344,95 @@ func (r *Runtime) getSet() *Object {
 	}
 	return ret
 }
+
+// estimateMemUsage helps calculating mem usage for large objects.
+// It will sample the object and use those samples to estimate the
+// mem usage.
+func (so *setObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, err error) {
+	var samplesVisited, memUsage uint64
+	totalItems := so.m.size
+	if totalItems == 0 {
+		return memUsage, nil
+	}
+	sampleSize := ctx.ComputeSampleStep(totalItems)
+
+	// We can use samplesVisited instead of an index since we iterate using
+	// iterNext
+	for item := so.m.iterFirst; item != nil; item = item.iterNext {
+		if samplesVisited%uint64(sampleSize) != 0 {
+			continue
+		}
+		samplesVisited += 1
+
+		// We still want to account for both key and value if we return a non-zero value on error.
+		// This could otherwise skew the estimate when in reality key/value pairs contribute to
+		// mem usage together.
+		inc, incErr := item.key.MemUsage(ctx)
+		memUsage += inc
+		inc, valErr := item.value.MemUsage(ctx)
+		memUsage += inc
+		if valErr != nil {
+			return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), valErr
+		}
+		if incErr != nil {
+			return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), incErr
+		}
+	}
+
+	return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), nil
+}
+
+func (so *setObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error) {
+	if so == nil || ctx.IsObjVisited(so) {
+		return SizeEmptyStruct, nil
+	}
+	ctx.VisitObj(so)
+
+	if err := ctx.Descend(); err != nil {
+		return memUsage, err
+	}
+
+	memUsage, err = so.baseObject.MemUsage(ctx)
+	if err != nil {
+		return memUsage, err
+	}
+
+	if so.m != nil {
+		if ctx.ObjectPropsLenExceedsThreshold(so.m.size) {
+			inc, err := so.estimateMemUsage(ctx)
+			memUsage += inc
+			if err != nil {
+				return memUsage, err
+			}
+		} else {
+			for _, entry := range so.m.hashTable {
+				if entry == nil {
+					continue
+				}
+
+				if entry.key != nil {
+					inc, err := entry.key.MemUsage(ctx)
+					memUsage += inc
+					if err != nil {
+						return memUsage, err
+					}
+				}
+
+				if entry.value != nil {
+					inc, err := entry.value.MemUsage(ctx)
+					memUsage += inc
+					if err != nil {
+						return memUsage, err
+					}
+				}
+				if exceeded := ctx.MemUsageLimitExceeded(memUsage); exceeded {
+					return memUsage, nil
+				}
+			}
+		}
+	}
+
+	ctx.Ascend()
+
+	return memUsage, nil
+}
