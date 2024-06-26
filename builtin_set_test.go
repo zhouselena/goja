@@ -193,6 +193,28 @@ func TestSetHasFloatVsInt(t *testing.T) {
 	testScript(SCRIPT, valueTrue, t)
 }
 
+func createOrderedMapWithNilValues(size int) *orderedMap {
+	ht := make(map[uint64]*mapEntry, 0)
+	for i := 0; i < size; i += 1 {
+		ht[uint64(i)] = &mapEntry{
+			key:   nil,
+			value: nil,
+		}
+		// These iter items are necessary for testing the mem usage
+		// estimation since that's how we iterate through the map.
+		if i > 0 {
+			ht[uint64(i)].iterPrev = ht[uint64(i-1)]
+			ht[uint64(i-1)].iterNext = ht[uint64(i)]
+		}
+	}
+	return &orderedMap{
+		size:      size,
+		iterFirst: ht[uint64(0)],
+		iterLast:  ht[uint64(size-1)],
+		hashTable: ht,
+	}
+}
+
 func TestSetObjectMemUsage(t *testing.T) {
 	vm := New()
 
@@ -272,6 +294,16 @@ func TestSetObjectMemUsage(t *testing.T) {
 				(3+SizeString)*20 +
 				// len(value) + overhead (we reach the limit after 3)
 				(5+SizeString)*20,
+			errExpected: nil,
+		},
+		{
+			name: "mem above estimate threshold and within memory limit and nil values returns correct mem usage",
+			mu:   NewMemUsageContext(vm, 88, 100, 50, 1, 0.1, TestNativeMemUsageChecker{}),
+			so: &setObject{
+				m: createOrderedMapWithNilValues(3),
+			},
+			// baseObject
+			expectedMem: SizeEmptyStruct,
 			errExpected: nil,
 		},
 		{

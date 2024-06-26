@@ -364,18 +364,20 @@ func (so *setObject) estimateMemUsage(ctx *MemUsageContext) (estimate uint64, er
 		}
 		samplesVisited += 1
 
-		// We still want to account for both key and value if we return a non-zero value on error.
-		// This could otherwise skew the estimate when in reality key/value pairs contribute to
-		// mem usage together.
-		inc, incErr := item.key.MemUsage(ctx)
-		memUsage += inc
-		inc, valErr := item.value.MemUsage(ctx)
-		memUsage += inc
-		if valErr != nil {
-			return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), valErr
+		if item.key != nil {
+			inc, err := item.key.MemUsage(ctx)
+			memUsage += inc
+			if err != nil {
+				return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), err
+			}
 		}
-		if incErr != nil {
-			return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), incErr
+
+		if item.value != nil {
+			inc, err := item.value.MemUsage(ctx)
+			memUsage += inc
+			if err != nil {
+				return computeMemUsageEstimate(memUsage, samplesVisited, totalItems), err
+			}
 		}
 	}
 

@@ -260,7 +260,7 @@ func createOrderedMap(vm *Runtime, size int) *orderedMap {
 			value: value,
 		}
 		// These iter items are necessary for testing the mem usage
-		// estimation since that's who we iterate through the map.
+		// estimation since that's how we iterate through the map.
 		if i > 0 {
 			ht[uint64(i)].iterPrev = ht[uint64(i-1)]
 			ht[uint64(i-1)].iterNext = ht[uint64(i)]
