@@ -395,30 +395,30 @@ func TestValueStackMemUsage(t *testing.T) {
 			name:        "should account for no memory usage given an empty value stack",
 			val:         []Value{},
 			memLimit:    100,
-			expectedMem: 0,
+			expectedMem: SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
 			name:        "should account for no memory usage given a value stack with nil",
 			val:         []Value{nil},
 			memLimit:    100,
-			expectedMem: 0,
+			expectedMem: SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
 			name:     "should account for each value given a non-empty value stack",
 			val:      []Value{valueInt(99)},
 			memLimit: 100,
-			// value
-			expectedMem: SizeInt,
+			// value + []Value
+			expectedMem: SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
 			name:     "should exit early given value stack over the memory limit",
 			val:      []Value{valueInt(99), valueInt(99), valueInt(99), valueInt(99)},
 			memLimit: 0,
-			// value
-			expectedMem: SizeInt,
+			// value + []Value
+			expectedMem: SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 	}
@@ -468,8 +468,8 @@ func TestVMContextMemUsage(t *testing.T) {
 		{
 			name: "should account for stash given a vmContext with non-empty stash",
 			val:  &vmContext{stash: &stash{values: []Value{valueInt(99)}}},
-			// vmContext overhead + stash value
-			expectedMem: SizeEmptyStruct + SizeInt,
+			// vmContext overhead + stash value + []Value
+			expectedMem: SizeEmptyStruct + SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
@@ -532,15 +532,15 @@ func TestStashMemUsage(t *testing.T) {
 		{
 			name: "should account for values given a stash with non-empty values",
 			val:  &stash{values: []Value{valueInt(99)}},
-			// value
-			expectedMem: SizeInt,
+			// value + []Value
+			expectedMem: SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
 			name: "should account for outer given a stash with non-empty outer",
 			val:  &stash{outer: &stash{values: []Value{valueInt(99)}}},
-			// outer stash value
-			expectedMem: SizeInt,
+			// outer stash value + []Value
+			expectedMem: SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 	}
@@ -548,6 +548,60 @@ func TestStashMemUsage(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			total, err := tc.val.MemUsage(NewMemUsageContext(New(), 100, 100, 100, 100, 0.1, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+		})
+	}
+}
+
+func TestTmpValuesMemUsage(t *testing.T) {
+	tests := []struct {
+		name        string
+		val         []Value
+		memLimit    uint64
+		expectedMem uint64
+		errExpected error
+	}{
+		{
+			name:        "should account for no memory usage given an empty tmpValues",
+			val:         []Value{},
+			memLimit:    100,
+			expectedMem: SizeEmptySlice,
+			errExpected: nil,
+		},
+		{
+			name:        "should account for no memory usage given a tmpValues with nil",
+			val:         []Value{nil},
+			memLimit:    100,
+			expectedMem: SizeEmptySlice,
+			errExpected: nil,
+		},
+		{
+			name:        "should account for each value given a non-empty tmpValues",
+			val:         []Value{valueInt(99), valueInt(99), valueInt(99), valueInt(99)},
+			memLimit:    100,
+			expectedMem: 4*SizeInt + SizeEmptySlice,
+			errExpected: nil,
+		},
+		{
+			name:        "should exit early given tmpValues over the memory limit",
+			val:         []Value{valueInt(99), valueInt(99), valueInt(99), valueInt(99)},
+			memLimit:    0,
+			expectedMem: SizeInt + SizeEmptySlice,
+			errExpected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, err := valuesMemUsage(tc.val, NewMemUsageContext(New(), 100, tc.memLimit, 100, 100, 0.1, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

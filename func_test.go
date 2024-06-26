@@ -226,8 +226,8 @@ func TestFuncObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// baseJsFuncObject + value in baseJsFuncObject stash
-			expectedMem: SizeEmptyStruct + SizeInt,
+			// baseJsFuncObject + value in baseJsFuncObject stash + []Value
+			expectedMem: SizeEmptyStruct + SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 	}
@@ -274,8 +274,8 @@ func TestBaseJsFuncObjectMemUsage(t *testing.T) {
 					values: []Value{valueInt(0)},
 				},
 			},
-			// baseJsFuncObject + value in baseJsFuncObject stash
-			expectedMem: SizeEmptyStruct + SizeInt,
+			// baseJsFuncObject + value in baseJsFuncObject stash + []Value
+			expectedMem: SizeEmptyStruct + SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 	}
@@ -324,8 +324,8 @@ func TestClassFuncObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// baseJsFuncObject + value baseJsFuncObject in stash
-			expectedMem: SizeEmptyStruct + SizeInt,
+			// baseJsFuncObject + value baseJsFuncObject in stash + []Value
+			expectedMem: SizeEmptyStruct + SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
@@ -404,8 +404,8 @@ func TestMethodFuncObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// methodFuncObject + nil Object + value in baseJsFuncObject stash
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt,
+			// methodFuncObject + nil Object + value in baseJsFuncObject stash + []Value
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
@@ -464,8 +464,8 @@ func TestArrowFuncObjectMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// arrowFuncObject + nil Object + value in baseJsFuncObject stash
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt,
+			// arrowFuncObject + nil Object + value in baseJsFuncObject stash + []Value
+			expectedMem: SizeEmptyStruct + SizeEmptyStruct + SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{

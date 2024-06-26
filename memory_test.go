@@ -395,6 +395,18 @@ func TestMemCheck(t *testing.T) {
 			expectedSizeDiff: testNativeValueMemUsage +
 				(2 + SizeString), // "nv",
 		},
+		{
+			desc: "array.map function",
+			script: `x = [1,2,3,4,5]
+			x.map(_ => {
+				checkMem();
+				return "a"
+			})`,
+			// We are calculating memory of 4 "a" strings that are created while this map operation executes. Note that
+			// we don't calculate 5 because the last "a" string isn't created when the last checkMem() is called. This
+			// is expected because we only care that memory is being tracked within the map operation.
+			expectedSizeDiff: 4 * (1 + SizeString),
+		},
 	} {
 		t.Run(fmt.Sprintf(tc.desc), func(t *testing.T) {
 			memChecks := []uint64{}

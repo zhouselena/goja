@@ -3164,8 +3164,8 @@ func TestRuntimeMemUsage(t *testing.T) {
 				vm: &vm{stash: &stash{values: []Value{valueInt(99)}}},
 			},
 			memLimit: 100,
-			// stash value
-			expectedMem: SizeInt,
+			// stash value + []Value
+			expectedMem: SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 		{
@@ -3174,8 +3174,8 @@ func TestRuntimeMemUsage(t *testing.T) {
 				vm: &vm{stack: []Value{valueInt(99)}},
 			},
 			memLimit: 100,
-			// stack value
-			expectedMem: SizeInt,
+			// stack value + []Value
+			expectedMem: SizeInt + SizeEmptySlice,
 			errExpected: nil,
 		},
 	}
