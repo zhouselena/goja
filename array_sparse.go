@@ -552,7 +552,7 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 			return memUsage, err
 		}
 
-		ctx.Ascend()
+		defer ctx.Ascend()
 		return memUsage, nil
 	}
 
@@ -571,7 +571,7 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 		}
 	}
 
-	ctx.Ascend()
+	defer ctx.Ascend()
 
 	return memUsage, err
 }
