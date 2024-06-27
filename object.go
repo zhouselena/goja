@@ -1981,7 +1981,7 @@ func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 		}
 	}
 
-	ctx.Ascend()
+	defer ctx.Ascend()
 
 	return memUsage, nil
 }

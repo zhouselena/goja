@@ -640,7 +640,7 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 			return memUsage, err
 		}
 
-		ctx.Ascend()
+		defer ctx.Ascend()
 		return memUsage, nil
 	}
 
@@ -661,6 +661,6 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 		}
 	}
 
-	ctx.Ascend()
+	defer ctx.Ascend()
 	return memUsage, nil
 }
