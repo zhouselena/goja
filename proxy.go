@@ -1063,6 +1063,7 @@ func (p *proxyObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 	if err := ctx.Descend(); err != nil {
 		return 0, err
 	}
+	defer ctx.Ascend()
 
 	memUsage = SizeEmptyStruct
 	inc, err := p.baseObject.MemUsage(ctx)
@@ -1086,8 +1087,6 @@ func (p *proxyObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 			return memUsage, err
 		}
 	}
-
-	defer ctx.Ascend()
 
 	return memUsage, nil
 }

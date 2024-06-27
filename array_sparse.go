@@ -535,6 +535,7 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 	if err := ctx.Descend(); err != nil {
 		return SizeEmptyStruct, err
 	}
+	defer ctx.Ascend()
 
 	// sparseArrayObject overhead
 	memUsage = SizeEmptyStruct
@@ -552,7 +553,6 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 			return memUsage, err
 		}
 
-		defer ctx.Ascend()
 		return memUsage, nil
 	}
 
@@ -570,8 +570,6 @@ func (a *sparseArrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err
 			}
 		}
 	}
-
-	defer ctx.Ascend()
 
 	return memUsage, err
 }

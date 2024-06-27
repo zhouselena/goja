@@ -623,6 +623,7 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 	if err := ctx.Descend(); err != nil {
 		return memUsage, err
 	}
+	defer ctx.Ascend()
 
 	if ctx.ArrayLenExceedsThreshold == nil {
 		return memUsage, errArrayLenExceedsThresholdNil
@@ -640,7 +641,6 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 			return memUsage, err
 		}
 
-		defer ctx.Ascend()
 		return memUsage, nil
 	}
 
@@ -661,6 +661,5 @@ func (a *arrayObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error
 		}
 	}
 
-	defer ctx.Ascend()
 	return memUsage, nil
 }

@@ -1946,6 +1946,7 @@ func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 	if err := ctx.Descend(); err != nil {
 		return 0, err
 	}
+	defer ctx.Ascend()
 
 	memUsage = SizeEmptyStruct
 	if ctx.ObjectPropsLenExceedsThreshold(len(o.propNames)) {
@@ -1980,8 +1981,6 @@ func (o *baseObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 			return memUsage, err
 		}
 	}
-
-	defer ctx.Ascend()
 
 	return memUsage, nil
 }
