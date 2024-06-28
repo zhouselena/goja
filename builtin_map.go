@@ -137,6 +137,7 @@ func (mo *mapObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 	if err := ctx.Descend(); err != nil {
 		return memUsage, err
 	}
+	defer ctx.Ascend()
 
 	memUsage, err = mo.baseObject.MemUsage(ctx)
 	if err != nil {
@@ -175,8 +176,6 @@ func (mo *mapObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 			}
 		}
 	}
-
-	ctx.Ascend()
 
 	return memUsage, nil
 }

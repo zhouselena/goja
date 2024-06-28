@@ -393,6 +393,7 @@ func (so *setObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 	if err := ctx.Descend(); err != nil {
 		return memUsage, err
 	}
+	defer ctx.Ascend()
 
 	memUsage, err = so.baseObject.MemUsage(ctx)
 	if err != nil {
@@ -433,8 +434,6 @@ func (so *setObject) MemUsage(ctx *MemUsageContext) (memUsage uint64, err error)
 			}
 		}
 	}
-
-	ctx.Ascend()
 
 	return memUsage, nil
 }
